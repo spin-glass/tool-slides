@@ -1,0 +1,230 @@
+---
+title: "閾値を動かすと、どの画像が外れ値に移るか"
+subtitle: "犬の写真で見る、線の引き方"
+resources:
+  - credits.html
+# 写真を並べた図は PNG だと1枚1〜2MBになるため JPEG で出す
+fig-format: jpeg
+fig-dpi: 200
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター。外れ値スコアと閾値は知っているが、閾値を変えた影響は枚数の表でしか見たことがない） -->
+<!-- action: 次に閾値を見直すとき、候補の線の間で判定が変わる画像を全部並べて見てから決める -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「上記の条件以外は自由に決めて良いです」2026-09-30。聴衆・行動・時間・骨子を決め、最終報告で示す） -->
+
+## 閾値の表は「何枚」は教えるが、「どの画像」は教えない
+
+<!-- evidence: 線3本（犬を1%・5%・10%失う位置）での枚数の表。評価用は犬200枚＋犬以外100枚 -->
+
+```{python}
+#| include: false
+import json
+import sys
+from collections import Counter
+from pathlib import Path
+
+sys.path.insert(0, str(Path("../../.claude/skills/slides/scripts").resolve()))
+import imgfig
+from IPython.display import Markdown
+
+meta = json.loads(Path("data/meta.json").read_text())
+items = imgfig.load_items("data/scores.csv", "data/thumbs", normal_group="dog")
+cal = [i.score for i in items if i.role == "cal"]          # 線を決める犬
+ev = [i for i in items if i.role == "eval"]                # 評価用（犬＋犬以外）
+dogs, others = [i for i in ev if i.normal], [i for i in ev if not i.normal]
+T = {p: imgfig.threshold_for_loss(cal, p / 100) for p in (1, 5, 10, 20)}   # 犬を p% 失う線
+
+
+def outliers_at(p):
+    """その線で外れ値になる（犬, 犬以外）の枚数。"""
+    f = imgfig.flagged(ev, T[p])
+    return sum(i.normal for i in f), sum(not i.normal for i in f)
+
+
+def moved_counts(a, b):
+    """線を a% から b% へ動かしたときに外れ値へ移る（犬, 犬以外）の枚数。"""
+    m = imgfig.moved(ev, T[a], T[b])
+    return sum(i.normal for i in m), sum(not i.normal for i in m)
+
+
+remain = [i for i in others if i.score <= T[10]]            # 10%の線でも犬として残る犬以外
+lost = [i for i in dogs if i.score > T[10]]                 # 10%の線で失う犬
+cap = lambda it: it.label
+
+# タイトルと本文に書いた数字の検算（データが変わったら、ここで描画が止まる）
+assert (len(dogs), len(others), len(cal), meta["n_ref"]) == (200, 100, 300, 800)
+assert moved_counts(1, 5) == (6, 40) and moved_counts(5, 10) == (8, 12)
+assert Counter(i.label for i in remain) == {"猫": 8, "オオカミ": 3}
+assert len(lost) == 16
+top2 = Counter(i.label for i in imgfig.moved(ev, T[5], T[10]) if not i.normal).most_common(2)
+assert [k for k, _ in top2] == ["猫", "オオカミ"]
+```
+
+```{python}
+rows = ["| 線を引く位置 | 外れ値になる犬 | 外れ値になる犬以外 | 犬として通る犬以外 |", "|---|---|---|---|"]
+for p in (1, 5, 10):
+    d, o = outliers_at(p)
+    rows.append(f"| 犬を{p}%失う線 | {d}枚 | {o}枚 | {len(others) - o}枚 |")
+Markdown("\n".join(rows))
+```
+
+[評価用の写真は犬200枚と犬以外100枚。線の名前は、別の犬300枚のうち外れ値にする割合で付けた]{.source}
+
+::: {.notes}
+閾値の見直しでは、ふつうこの表を見る。5%の線にすると、1%の線より犬以外を40枚多く除けて、犬を6枚多く失う。表から分かるのはここまでで、その40枚と6枚がどんな写真かは分からない。
+:::
+
+## 外れ値検知は画像を犬らしさの順に並べ、閾値はそこに線を引く
+
+<!-- evidence: 画像ヒストグラム（評価用300枚をスコアの区間ごとに並べ、3本の線を重ねる） -->
+
+```{python}
+#| fig-alt: "評価用300枚をスコアの区間ごとに並べた図。左ほど犬らしく、右ほど犬らしくない。犬を10%・5%・1%失う線を縦に引いてある。"
+edges = [0.10, 0.14, 0.18, T[10], T[5], 0.27, T[1], 0.34, 0.40, 0.46, 0.54]
+assert edges == sorted(edges) and edges[0] <= ev[0].score and ev[-1].score <= edges[-1]
+imgfig.histogram_figure(ev, edges, thresholds=[(T[10], "10%の線"), (T[5], "5%の線"), (T[1], "1%の線")],
+                        per_bin=(1, 2), normal_name="犬", outlier_name="犬以外", caption=cap,
+                        left_hint="← 犬らしい", right_hint="線より右が外れ値 →",
+                        spans=[(T[10], T[5], f"{sum(moved_counts(5, 10))}枚"), (T[5], T[1], f"{sum(moved_counts(1, 5))}枚")],
+                        spans_label="線を動かすと移る", max_height_in=5.5);
+```
+
+[スコアは参照用の犬800枚からの遠さ。各区間の写真はスコア順に等間隔で選んだ。写真: Open Images V7（各作者 CC BY 2.0、出典は付録）]{.source}
+
+::: {.notes}
+スコアは、画像の特徴（CLIP の埋め込み）が参照用の犬800枚のうち10番目に近い写真からどれだけ離れているか。上段が犬、下段が犬以外で、数字はその区間にいる枚数。線を左へ動かすほど厳しくなり、線と線の間にいる写真が外れ値に移る。下端の数字がその枚数で、次の2枚でその写真を全部見せる。
+:::
+
+## 線を1%から5%へ動かすと、犬6枚を失って犬以外40枚を除ける
+
+<!-- evidence: 1%の線と5%の線の間にいた46枚の全数（犬以外40＋犬6） -->
+
+```{python}
+#| fig-alt: "1%の線と5%の線の間にいた46枚。犬以外40枚はキツネ、ライオン、ハイエナ、ウサギ、アライグマなど。犬6枚は白黒写真、ヘッドホンを着けた犬、子犬の群れ、檻の中の犬など。"
+imgfig.moved_figure(ev, T[1], T[5], cols_each=[10, 2], caption=cap,
+                    outlier_title="外れ値に移る 犬以外", normal_title="失う犬", max_height_in=5.3);
+```
+
+[線の間にいた46枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+除ける40枚は、キツネ・ライオン・ハイエナ・ウサギ・アライグマなど、見れば犬でないと分かる動物が中心。失う6枚は、白黒写真、ヘッドホンを着けた犬、子犬の群れ、檻の奥の犬で、犬ではあるが写り方が典型的でない。
+:::
+
+## 5%から10%へ動かすと、犬8枚を失って除けるのは12枚に減る
+
+<!-- evidence: 5%の線と10%の線の間にいた20枚の全数（犬以外12＋犬8）と、犬1枚あたりの交換比 -->
+
+```{python}
+#| fig-alt: "5%の線と10%の線の間にいた20枚。犬以外12枚は猫5枚、オオカミ4枚、キツネ、ジャッカル、ハイエナ。犬8枚は子犬の群れ、服を着た犬、洗われている犬など。"
+imgfig.moved_figure(ev, T[5], T[10], cols_each=[6, 4], caption=cap,
+                    outlier_title="外れ値に移る 犬以外", normal_title="失う犬", max_height_in=3.4);
+```
+
+```{python}
+#| include: false
+(d1, o1), (d2, o2) = moved_counts(1, 5), moved_counts(5, 10)
+```
+
+- 犬1枚と引き換えに除ける犬以外は、`{python} f"{o1 / d1:.1f}"`枚から`{python} f"{o2 / d2:.1f}"`枚に減る
+- 新しく除けるのは猫とオオカミが中心で、失う犬には子犬の群れや服を着た犬が入る
+
+[線の間にいた20枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+同じ「厳しくする」でも中身が変わる。1%から5%では、犬を1枚失うごとに犬以外を6.7枚除けた。5%から10%では1.5枚に落ちる。新しく除ける12枚のうち9枚は猫とオオカミで、失う犬は子犬の群れ、服を着た犬、人の手で洗われている犬など。この8枚を失ってよいかは、枚数ではなく写真を見て決めることになる。
+:::
+
+## 10%の線でも残る11枚は、猫8枚とオオカミ3枚だ
+
+<!-- evidence: 10%の線より左に残る犬以外11枚の全数と、20%まで動かしたときの枚数 -->
+
+```{python}
+#| fig-alt: "10%の線でも犬として残る犬以外11枚。猫8枚とオオカミ3枚。"
+cats, wolves = [i for i in remain if i.label == "猫"], [i for i in remain if i.label == "オオカミ"]
+imgfig.panels_figure([(f"猫 {len(cats)}枚", cats, imgfig.OUTLIER_COLOR), (f"オオカミ {len(wolves)}枚", wolves, imgfig.OUTLIER_COLOR)],
+                     cols_each=[4, 3], max_height_in=3.45);
+```
+
+```{python}
+#| include: false
+d3, o3 = moved_counts(10, 20)
+```
+
+- 残る猫8枚は、室内や庭で近くから撮られた写真だ
+- 20%まで厳しくしても、犬`{python} d3`枚を失って除けるのは`{python} o3`枚にとどまる
+- 残りは閾値ではなく、猫の判定を足すなど別の手段で防ぐ
+
+[残った11枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+ここから先は、線を動かしても割に合わない。残る写真を見ると、閾値の調整ではなく別の対策が要ると分かる。これも枚数の表からは読み取れない。猫が残る理由は、犬の写真と撮られ方が似ているためと考えられるが、これは推測で、確かめてはいない。
+:::
+
+## 閾値を決める前に、線の間で動く画像を全部並べて見てほしい
+
+<!-- evidence: 依頼の手順（候補2本→動く画像の全数→見る点2つ）と、作成コマンド -->
+
+- 候補の線を2本選び、その間で判定が変わる画像を全部並べる
+- 見る点は2つ：失う正常画像は許せるか、残る外れ値は別の手段で防げるか
+- 並べた1枚は、スコアの一覧と画像フォルダから1コマンドで作れる
+
+```{python}
+#| fig-alt: "並べた1枚の見本。5%の線と10%の線の間で判定が変わる20枚を、犬以外と犬に分けて並べたもの。"
+imgfig.moved_figure(ev, T[5], T[10], cols_each=[6, 4], caption=cap,
+                    outlier_title="見本：5%→10%で外れ値に移る 犬以外", normal_title="失う犬", max_height_in=2.9);
+```
+
+::: {.notes}
+コマンドは `python .claude/skills/slides/scripts/imgfig.py moved --scores scores.csv --thumbs thumbs/ --normal-group dog --from-loss 0.01 --to-loss 0.05 --out moved.png`。今日の3枚目と4枚目の図は、この関数で描いている。
+:::
+
+<!-- appendix -->
+
+## 評価には犬200枚と犬以外100枚を使い、線は別の犬300枚で決めた {.smaller}
+
+```{python}
+#| include: false
+auroc = sum((o.score > d.score) + 0.5 * (o.score == d.score) for o in others for d in dogs) / (len(others) * len(dogs))
+groups = Counter(r for r in (("犬に似た動物" if i.label in ("オオカミ", "ジャッカル", "ハイエナ", "キツネ") else
+                              "動物以外" if i.label in ("ぬいぐるみ", "飛行機", "建物", "花", "料理") else "ほかの動物")
+                             for i in others))
+```
+
+| 項目 | 内容 |
+|---|---|
+| 写真 | Open Images V7（validation・test）から、人手確認済みラベルで選んだ |
+| 参照用の犬 | `{python} meta["n_ref"]`枚。外れ値スコアの基準にする |
+| 線を決める犬 | `{python} len(cal)`枚。このうち外れ値にする割合が線の名前になる |
+| 評価用 | 犬`{python} len(dogs)`枚＋犬以外`{python} len(others)`枚（犬に似た動物`{python} groups["犬に似た動物"]`、ほかの動物`{python} groups["ほかの動物"]`、動物以外`{python} groups["動物以外"]`） |
+| 外れ値スコア | CLIP ViT-B/32 の埋め込みで、参照用の犬のうち`{python} meta["k"]`番目に近い写真とのコサイン距離 |
+| 除いた写真 | 人物の写真と自動判定した`{python} meta["n_person_filtered"]`枚と、目視で外した`{python} meta["n_excluded_by_eye"]`枚（顔・ナンバープレート・ラベル違いなど）。どちらもスコアを見る前に外した |
+| 分離の良さ | 評価用300枚での AUROC は`{python} f"{auroc:.3f}"` |
+
+: {tbl-colwidths="[22,78]"}
+
+## 10%の線で失う犬16枚は、子犬の群れ・遠景・服や小物の写真が目立つ
+
+```{python}
+#| fig-alt: "10%の線で外れ値になる犬16枚。子犬の群れ、服や小物を着けた犬、遠くに小さく写る犬、白黒写真、文字入りの加工写真など。"
+imgfig.grid_figure(lost, cols=8, max_height_in=3.6);
+```
+
+[失う16枚をすべて表示（スコアの小さい順）。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+## 画像で見せる効果を直接確かめた研究は、見つかっていない
+
+- 近い結果：事例を1件ずつ並べた表示は、混同行列より速く正確に性能を読めた（ML実務者24人）
+- 反対の結果：例を見せる説明は作業の成績を上げず、誤った助言でも信じさせた
+- このため、見せる画像は全数か決めた規則で選び、選び方を図の下に書いた
+
+[出典: Ren et al., IEEE TVCG 2017; van der Waa et al., Artificial Intelligence 2021]{.source}
+
+## 写真はOpen Images V7の作品で、作者と出典は一覧にある
+
+- 図の写真は、Open Images V7 に収録された写真を縮小して並べた
+- 写真は各作者が CC BY 2.0 で公開し、ラベルは Google が CC BY 4.0 で公開している
+- 評価用300枚の作者・題名・出典の一覧: [credits.html]({{< meta site-url >}}/decks/2026-09-30-outlier-threshold-images/credits.html)

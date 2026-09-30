@@ -1,0 +1,18 @@
+{
+  "dataset": "Open Images V7 (validation / test)",
+  "encoder": "openai/clip-vit-base-patch32",
+  "score": "cosine distance to the 10-th nearest reference dog image",
+  "k": 10,
+  "n_ref": 800,
+  "n_cal": 300,
+  "n_eval": 300,
+  "n_person_filtered": 37,
+  "n_excluded_by_eye": 17,
+  "person_prob_max": 0.5,
+  "groups": {
+    "dog": "犬",
+    "near": "犬に似た動物",
+    "animal": "ほかの動物",
+    "object": "動物以外"
+  }
+}

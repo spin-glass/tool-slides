@@ -58,13 +58,15 @@ RLHF（人の好みによる追加学習）の報酬モデルが長さに引き�
 長さの指示は、守られる回もあれば守られない回もある。毎回守らせたいなら、上限を数値で決めて、超えたら機械的に止めるしかない。
 :::
 
-## 理解を最も上げる手段は、足すことでなく削ることだ
+## 理解を上げるには、足すより削る方が約2倍効く
 
 <!-- evidence: 効果量の図：coherence d=0.86、redundancy d=0.86、signaling d=0.41（Mayer & Fiorella 2014） -->
 
 ```{python}
+#| fig-alt: "理解テストの改善を比べた横棒グラフ。本題と関係ない素材を削る0.86、話す文をスライドから外す0.86、見出しや強調を足す0.41。"
 import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = ["Hiragino Sans", "sans-serif"]
+assert 1.8 < E["coherence_d"] / E["signaling_d"] < 2.4      # タイトルの「約2倍」
 effects = [
     ("本題と関係ない素材を削る", E["coherence_d"]),
     ("話す文をスライドから外す", E["redundancy_d"]),
@@ -109,6 +111,7 @@ DocPres は論文5本・評価者2人の小規模な評価で、比較相手は 
 <!-- evidence: 3段階の流れ図（本人がやることは「3点を答える」「タイトルを見る」の2つ） -->
 
 ```{python}
+#| fig-alt: "3段階の流れ図。1 書く前に3点（あなたが答える）、2 タイトルで合意（あなたが見る）、3 機械で検査（AIと仕組みが行う）。"
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 plt.rcParams["font.family"] = ["Hiragino Sans", "sans-serif"]
@@ -165,14 +168,14 @@ Markdown("\n".join(f"{i}. {t}" for i, t in enumerate(titles, 1))
 
 <!-- appendix -->
 
-## 根拠ごとに確からしさは異なり、最も強いのは削る効果だ {.smaller}
+## 根拠ごとに確からしさは異なり、実験が最も多いのは削る効果だ {.smaller}
 
 | 主張 | 根拠 | 確からしさ |
 |---|---|---|
 | AIは長さを好むよう学習する | Singhal et al. 2024 | LLM研究 |
 | 不確実なほど水増しする | Zhang et al. 2024 | LLM研究（QA形式） |
 | 長さの指示は守られない | Yuan et al. 2024 | LLM研究 |
-| 削ると理解が上がる | Mayer & Fiorella 2014 | 教育研究（最も強い） |
+| 削ると理解が上がる | Mayer & Fiorella 2014 | 教育研究（23件の実験すべてで支持） |
 | 先に骨子で合意する | McKinsey; Amazon; DocPres 2024 | 実務＋小規模評価 |
 | 完全文のタイトル | Garner & Alley 2016 | 教育研究（単一ラボ中心） |
 

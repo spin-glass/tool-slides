@@ -45,3 +45,12 @@ done
 wait
 echo "$N slides -> $OUT"
 ls "$OUT"/slide-*.png
+
+# 図のファイルサイズ（公開ページの重さ）。写真を並べた図は PNG だと1枚1MBを超える
+FIG_DIR="${HTML%.html}_files/figure-revealjs"
+if [[ -d "$FIG_DIR" ]]; then
+  echo "figures: $(du -sk "$FIG_DIR" | cut -f1) KB"
+  find "$FIG_DIR" -type f -size +1024k | while read -r f; do
+    echo "WARNING 図が1MBを超える: $(basename "$f")（写真の図はデッキの YAML に fig-format: jpeg と fig-dpi: 200 を書く）"
+  done
+fi

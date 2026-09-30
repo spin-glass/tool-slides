@@ -6,6 +6,9 @@ project:
 
 lang: ja
 
+# 公開先（scripts/publish.sh）。デッキから {{< meta site-url >}} で参照する
+site-url: https://tool-slides.toshihiro-engineer.workers.dev
+
 # lint 用の HTML コメント（budget 等）が空スライドを作らないよう除く
 filters:
   - filters/strip-comments.lua

@@ -19,7 +19,7 @@ minutes = 6
 budget = int(minutes / 1.5)
 effects = {"不要な素材の削除\n(coherence)": 0.86,
            "話す文をスライドから外す\n(redundancy)": 0.86,
-           "削除のメタ分析\n(181研究)": 1.00}
+           "見出しや強調を足す\n(signaling)": 0.41}
 ```
 
 - 長さだけを報酬にしても RLHF の改善の大半が再現される
@@ -40,20 +40,21 @@ effects = {"不要な素材の削除\n(coherence)": 0.86,
 - タイトルだけの骨子を承認してから本文を書く
 - budget を超えると Stop hook が止める
 
-## 本文を削ることが理解を最も大きく改善する
+## 本文を削ると、見出しを足すより約2倍理解が上がる
 
-<!-- evidence: coherence / redundancy の効果量の図 -->
+<!-- evidence: coherence / redundancy / signaling の効果量の図（Mayer & Fiorella 2014） -->
 
 ```{python}
+#| fig-alt: "効果量の横棒グラフ。不要な素材の削除0.86、話す文をスライドから外す0.86、見出しや強調を足す0.41。"
 import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = ["Hiragino Sans", "sans-serif"]
 fig, ax = plt.subplots()
 names, vals = list(effects), list(effects.values())
-ax.barh(names, vals, color=["#9aa4ae", "#9aa4ae", "#0b5cad"])
+ax.barh(names, vals, color=["#0b5cad", "#0b5cad", "#9aa4ae"])
 for y, v in enumerate(vals):
     ax.text(v + 0.02, y, f"{v:.2f}", va="center", fontsize=14)
-ax.set_xlim(0, 1.2)
-ax.set_xlabel("効果量（d / g）", fontsize=13)
+ax.set_xlim(0, 1.0)
+ax.set_xlabel("効果量（d の中央値）", fontsize=13)
 ax.tick_params(labelsize=13)
 ax.invert_yaxis()
 for s in ("top", "right"):
@@ -61,7 +62,7 @@ for s in ("top", "right"):
 plt.tight_layout()
 ```
 
-[出典: Mayer & Fiorella 2014; Cromley & Chen 2025]{.source}
+[出典: Mayer & Fiorella 2014]{.source}
 
 ## 次のデッキを tool-slides で作り閾値を2〜3本で較正する
 
@@ -73,7 +74,7 @@ plt.tight_layout()
 
 <!-- appendix -->
 
-## lint が block する条件は10種類ある {.smaller}
+## lint が block する条件は11種類ある {.smaller}
 
 | 条件 | 上限 |
 |---|---|
@@ -87,3 +88,4 @@ plt.tight_layout()
 | 生成前ゲートの記録 | 5項目 |
 | ゴースト段階の本文 | 0 |
 | 最初の見出しより前の本文 | 0 |
+| 存在しない画像ファイル | 0 |

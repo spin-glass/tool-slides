@@ -14,6 +14,8 @@ for q in decks/*/index.qmd; do
   decks+=("$q")
 done
 
+rm -rf _output   # 消したデッキや古い図を公開しないよう、毎回作り直す
+
 for q in "${decks[@]}"; do
   # revealjs を最後に出す（別形式の出力が index_files/ の補助ファイルを置き換えるため）
   for fmt in pptx beamer revealjs; do
@@ -50,3 +52,24 @@ printf 'User-agent: *\nDisallow: /\n' > _output/robots.txt
 [[ "${1:-}" == "--no-deploy" ]] && { echo "built: _output/"; exit 0; }
 
 npx --yes wrangler deploy
+
+# 反映の確認。公開直後の数秒は前の版が返るので、手元の HTML と一致するまで最大60秒待つ
+URL="$(sed -n 's/^site-url: *//p' _quarto.yml)"
+[[ -n "$URL" ]] || exit 0
+pages=()
+while IFS= read -r f; do pages+=("${f#_output/}"); done < <(find _output -name index.html -not -path '*/index_files/*' | sort)
+for _ in $(seq 1 20); do
+  stale=()
+  for page in "${pages[@]}"; do
+    want="$(shasum -a 256 < "_output/$page" | cut -d' ' -f1)"
+    got="$(curl -fsSL "$URL/$page" | shasum -a 256 | cut -d' ' -f1)"
+    [[ "$got" == "$want" ]] || stale+=("$page")
+  done
+  if [[ ${#stale[@]} -eq 0 ]]; then
+    echo "公開を確認（${#pages[@]}ページが手元と一致）: $URL"
+    exit 0
+  fi
+  sleep 3
+done
+echo "WARNING 60秒待っても手元と一致しないページがある: ${stale[*]}" >&2
+exit 1

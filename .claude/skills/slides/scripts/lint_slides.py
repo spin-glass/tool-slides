@@ -8,6 +8,9 @@
   python lint_slides.py --hook                   # Stop hook。git で変更のある deck だけを検査し、
                                                  # 違反があれば {"decision":"block","reason":...} を出す
 
+画像: `![代替テキスト](パス)` のファイルが無ければ block、代替テキストが空なら warning。
+      図を描くコードセル（plt. / imgfig. など）に `#| fig-alt:` が無ければ warning。
+
 終了コード（通常モード）: 0=block違反なし / 2=block違反あり
 閾値は下の LIMITS。最初の2〜3デッキで較正する（references/evidence.md）。
 """
@@ -58,7 +61,9 @@ DIV_CLOSE_RE = re.compile(r"^\s*(:{3,})\s*$")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 HR_RE = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$")
 BULLET_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+\S")
-META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status)\s*:\s*(.*?)\s*-->")
+META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status|decided-by)\s*:\s*(.*?)\s*-->")
+IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)")
+PLOT_RE = re.compile(r"\b(plt|imgfig|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
 APPENDIX_RE = re.compile(r"<!--\s*appendix\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 QUOTE_RE = re.compile(r"「[^」]*」")
@@ -132,6 +137,8 @@ class Slide:
     code: list[tuple[int, str]] = field(default_factory=list)      # 表示コード
     notes: list[tuple[int, str]] = field(default_factory=list)     # speaker notes
     comments: list[tuple[int, str]] = field(default_factory=list)  # HTMLコメント（evidence 等）
+    images: list[tuple[int, str, str]] = field(default_factory=list)   # markdown 画像 (行番号, 代替テキスト, パス)
+    figures: list[tuple[int, bool]] = field(default_factory=list)      # 図を描くコードセル (行番号, fig-alt の有無)
 
 
 @dataclass
@@ -198,6 +205,8 @@ def parse_deck(path: Path) -> Deck:
                             echo = m.group(1).lower() == "true"
                     if not executable or echo:
                         cur.code.extend(body)
+                    if executable and not hidden and any(PLOT_RE.search(l) for _, l in body):
+                        cur.figures.append((code_start, any(re.match(r"#\|\s*fig-alt\s*:\s*\S", o.strip()) for o in opts)))
                 in_code = None
                 code_buf = []
             else:
@@ -262,6 +271,7 @@ def parse_deck(path: Path) -> Deck:
 
         if cur and raw.strip():
             cur.body.append((ln, raw))
+            cur.images.extend((ln, mm.group(1).strip(), mm.group(2)) for mm in IMAGE_RE.finditer(raw))
         elif cur is None and raw.strip() and preamble_line is None:
             preamble_line = ln
 
@@ -389,6 +399,20 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
             issues.append(Issue("warning", hedges[0][0], s, "hedge",
                                 f"ヘッジ・言い訳語が{len(hedges)}個（{words}）。言い切れる所は言い切り、未確認は本人に確認"))
 
+        # 画像と図（appendix も対象）
+        for ln, alt, src in s.images:
+            local = not re.match(r"^(https?:|data:|\{\{)", src)
+            if local and not (deck.path.parent / src).exists():
+                issues.append(Issue("block", ln, s, "image-missing",
+                                    f"画像 `{src}` がない。パスを直すか、画像をデッキのフォルダに置く"))
+            if not alt:
+                issues.append(Issue("warning", ln, s, "image-alt",
+                                    f"画像 `{src}` に代替テキストがない。`![何が写っていて何を見てほしいか](…)` と書く"))
+        for ln, has_alt in s.figures:
+            if not has_alt:
+                issues.append(Issue("warning", ln, s, "fig-alt",
+                                    "図を描くセルに `#| fig-alt:` がない。図が何を示すかを1〜2文で書く"))
+
         if s.appendix:
             continue   # appendix は密度制限を免除
 
@@ -427,6 +451,8 @@ def title_list(deck: Deck) -> str:
     main = [s for s in deck.slides if not s.appendix]
     budget = deck.meta.get("budget", (0, "?"))[1]
     out.append(f"本編 {len(main)} / budget {budget}")
+    if "decided-by" in deck.meta:
+        out.append(f"決めた人: {deck.meta['decided-by'][1]}")
     in_appendix = False
     for s in deck.slides:
         if s.appendix and not in_appendix:

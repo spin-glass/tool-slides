@@ -1,0 +1,29 @@
+---
+title: "画像の検査サンプル"
+---
+
+<!-- audience: lint の検査 -->
+<!-- action: 画像の違反を検出する -->
+<!-- minutes: 3 -->
+<!-- budget: 2 -->
+<!-- status: approved -->
+<!-- decided-by: claude（検査用） -->
+
+## 存在しない画像を指すと lint が止める
+
+![](missing/photo.jpg)
+
+![説明のある画像](https://example.com/remote.png)
+
+## 図を描くセルに代替テキストが無いと警告が出る
+
+```{python}
+import matplotlib.pyplot as plt
+plt.plot([1, 2, 3])
+```
+
+```{python}
+#| fig-alt: "1から3へ増える折れ線"
+import matplotlib.pyplot as plt
+plt.plot([1, 2, 3])
+```

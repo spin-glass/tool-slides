@@ -95,3 +95,35 @@ hours_after = hours_before * (1 - 0.83)
 - 残る作業 手書き請求書の確認のみ
 ```
 </example>
+
+### 例4 枚数の表を、線の間で動く画像に替える
+
+<example>
+**before**
+
+```markdown
+## 閾値の比較
+
+| 閾値 | 誤検知 | 検出 |
+|---|---|---|
+| 0.30 | 2 | 37 |
+| 0.24 | 8 | 77 |
+
+- 閾値を 0.24 に下げると検出が増えるが、誤検知も増える可能性がある
+```
+
+**after**
+
+```markdown
+## 線を1%から5%へ動かすと、犬6枚を失って犬以外40枚を除ける
+
+```{python}
+#| fig-alt: "1%の線と5%の線の間にいた46枚。犬以外40枚はキツネやライオンなど、犬6枚は白黒写真や子犬の群れなど。"
+imgfig.moved_figure(ev, T[1], T[5], cols_each=[10, 2], caption=lambda it: it.label,
+                    outlier_title="外れ値に移る 犬以外", normal_title="失う犬");
+```
+
+[線の間にいた46枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+```
+</example>
+
