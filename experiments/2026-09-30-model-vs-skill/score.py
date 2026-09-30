@@ -228,9 +228,18 @@ def shots(ws: Path, deck: str, slides: list[dict], out: Path) -> None:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
         if len(procs) == 4:
             for p in procs:
-                p.wait()
+                _wait(p)
             procs = []
     for p in procs:
+        _wait(p)
+
+
+def _wait(p, timeout: int = 90) -> None:
+    """スクショの Chrome を待つ。止まったまま返らないことがあるので、時間を過ぎたら終わらせる（その枚は撮り直さない）。"""
+    try:
+        p.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        p.kill()
         p.wait()
 
 
