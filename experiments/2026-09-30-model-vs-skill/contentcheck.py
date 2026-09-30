@@ -12,7 +12,13 @@
   slide-NN-fig-K.jpg        スライドの図。誤りの写真が載っている位置に #番号
   slide-NN-fig-K-truth.jpg  同じ #番号の元の写真（人の枠つき）と、データのラベル・予測
   truth/<番号>.jpg           元の写真（長辺1024px、人の枠つき）。細部を確かめたいとき
-写真の位置は birdcheck.py と同じ照合（写真の中央60%、色つきの正規化相互相関 0.9 以上）で決める。
+載った写真は、デッキを描き直して取る imgfig の図の記録（図ごとに描いた写真の ID。環境変数 IMGFIG_REPORT）で決める。
+図の記録と図のファイルの対応、#番号の位置は、照合（写真の中央60%、色つきの正規化相互相関、縮尺 0.2〜4.0）で決める。
+記録の無い図（imgfig 以外で描いた図）は、birdcheck.py と同じ照合（縮尺 0.2〜1.6、0.9 以上）で決める。
+D までは照合だけで決めていたため、大きく載せた写真（2枚だけの図・拡大の図）と、小さく載せて値が 0.9 に届かない写真が漏れた。
+D の漏れは、前の回で渡した分を除いた追加の回（D2、`prepare D2 water … --skip D`）で確認者に渡した。
+
+    python contentcheck.py coverage D D2                  # 渡した資料が、デッキの図の記録にある誤りの写真をすべて含むか
 """
 from __future__ import annotations
 
@@ -86,9 +92,12 @@ def slide_images(run: str, deck: str) -> tuple[list[dict], list[dict]]:
 _TMPLS: dict = {}
 
 
-def match_job(job: tuple) -> list[tuple]:
-    """1つの図の中で、誤りの写真すべてを探す（並列の1単位）。見つかった (id, 照合の値, 枠) のリスト。"""
+def match_job(job: tuple) -> dict[str, tuple]:
+    """1つの図の中で、渡した写真それぞれが最もよく合う位置を探す（並列の1単位）。
+    {ID: (照合の値, 枠, 縮尺1.6までの照合の値, その枠)}。広い縮尺は図の記録にある写真の位置と対応づけに、
+    狭い縮尺（A〜D と同じ）は記録の無い図で「載った」を決めるのに使う（広い縮尺は棒グラフでも値が上がるため）。"""
     import cv2
+    import numpy as np
 
     import birdcheck as bc
 
@@ -100,22 +109,122 @@ def match_job(job: tuple) -> list[tuple]:
     img = cv2.imread(str(path), cv2.IMREAD_COLOR)
     s = min(1.0, bc.MAX_SIDE / max(img.shape[:2]))
     small_img = cv2.resize(img, None, fx=s, fy=s, interpolation=cv2.INTER_AREA) if s < 1 else img
-    hits = []
-    for i in ids:
+
+    def best(scales):
+        bc.SCALES = scales
         v, (x, y, w, h) = bc.match(small_img, _TMPLS[i])
-        if v >= bc.HIT:
-            hits.append((i, v, (int(x / s), int(y / s), int(w / s), int(h / s))))
-    return hits
+        return v, (int(x / s), int(y / s), int(w / s), int(h / s))
+
+    out = {}
+    for i in ids:
+        narrow = best(np.geomspace(0.2, 1.6, 36))
+        wide = best(np.geomspace(1.6, 4.0, 14))       # 大きく載せた写真（2枚だけの図・拡大の図）。D までは探していなかった
+        out[i] = (*max(narrow, wide, key=lambda t: t[0]), *narrow)
+    return out
 
 
-def prepare(rnd: str, task: str, runs: list[str]) -> None:
+def drawn(run: str, task: str) -> list[list[str]]:
+    """デッキを描き直し、imgfig が図ごとに記録した写真の ID を、描いた順に返す（環境変数 IMGFIG_REPORT）。"""
+    import score
+
+    report = EVAL.parent / f"drawn-{run}.jsonl"
+    html = WORK / "runs" / run / "ws/_output" / TASKS[task][2] / "index.html"
+    if report.exists() and html.exists() and report.stat().st_mtime < html.stat().st_mtime:
+        return [[c["id"] for c in json.loads(line).get("captions", []) if c.get("id")]
+                for line in open(report, encoding="utf-8")]      # 記録を取ったときの描画がそのまま残っている
+    report.unlink(missing_ok=True)
+    os.environ["IMGFIG_REPORT"] = str(report)
+    try:
+        ok, err = score.render(WORK / "runs" / run / "ws", TASKS[task][2])
+    finally:
+        os.environ.pop("IMGFIG_REPORT", None)
+    if not ok:
+        sys.exit(f"描き直せない: {run}\n{err}")
+    if not report.exists():
+        return []
+    return [[c["id"] for c in json.loads(line).get("captions", []) if c.get("id")]
+            for line in open(report, encoding="utf-8")]
+
+
+HIT = 0.9       # 図の記録が無い図で「載った」とする照合の値（birdcheck と同じ）
+
+
+def align(imgs: list[dict], lines: list[list[str]], scores: dict[int, dict]) -> dict[int, list[str]]:
+    """図の記録（描いた順）を、図のファイル（スライドの順）に対応づける。{ファイルの番号: 記録の ID}。
+    順を保ったまま、記録の写真の照合の値（下側の中央値）の合計が最大になる対応を選ぶ（動的計画法）。
+    写真の図の正しい対応は 0.9 前後（拡大の図は 0.75〜0.8）、違う図との値は 0.5〜0.8（D で実測）で、しきい値1つでは分けられない。"""
+    ks = [k for k, f in enumerate(imgs) if not f["id"] and k in scores]
+    js = [j for j, ln in enumerate(lines) if ln]
+
+    def val(k: int, j: int) -> float:
+        v = sorted(scores[k][i][0] for i in lines[j] if i in scores[k])
+        return v[(len(v) - 1) // 2] if v else 0.0
+
+    n, m = len(js), len(ks)
+    if n > m:
+        print(f"   図の記録 {n} が図のファイル {m} より多い。記録は使わない（目で確かめる）")
+        return {}
+    NEG = float("-inf")
+    f = [[NEG] * (m + 1) for _ in range(n + 1)]       # f[a][b]: 記録 a 個をファイル b 個までに当てたときの最大
+    f[0] = [0.0] * (m + 1)
+    for a in range(1, n + 1):
+        for b in range(a, m + 1):
+            f[a][b] = max(f[a][b - 1], f[a - 1][b - 1] + val(ks[b - 1], js[a - 1]))
+    out, a, b = {}, n, m
+    while a > 0:
+        if b > a and f[a][b] == f[a][b - 1]:
+            b -= 1
+            continue
+        out[ks[b - 1]] = lines[js[a - 1]]
+        a, b = a - 1, b - 1
+    return out
+
+
+def checked(rnd: str) -> dict[str, set[tuple[int, int, str]]]:
+    """その回で確認者に渡した (スライド, 図の番号, 写真の ID)。実行名ごと。manifest の「slide-NN-fig-K.jpg（スライドの図。#1, #2）」から読む。"""
+    key = json.loads(key_path(rnd).read_text())
+    out: dict[str, set[tuple[int, int, str]]] = {}
+    for code, v in key.items():
+        text = (out_dir(rnd) / code / "manifest.md").read_text(encoding="utf-8")
+        for sn, fig, nums in re.findall(r"`slide-(\d+)-fig-(\d+)\.jpg`（スライドの図。([^）]*)）", text):
+            out.setdefault(v["run"], set()).update((int(sn), int(fig), v["images"][n]) for n in re.findall(r"#(\d+)", nums))
+    return out
+
+
+def coverage(rnds: list[str]) -> None:
+    """渡した回の資料が、デッキに載った誤りの写真をすべて含むかを、デッキの図の記録（imgfig の IMGFIG_REPORT）と照らす。
+    デッキを描き直して記録を取り、記録の図ごとに、その図の誤りの写真すべてを含む図が資料にあるかを見る。"""
+    runs: dict[str, set[tuple[int, int, str]]] = {}
+    for rnd in rnds:
+        for run, s in checked(rnd).items():
+            runs.setdefault(run, set()).update(s)
+    for run in sorted(runs):
+        task = next(t for t in TASKS if run.startswith(t + "-"))
+        errs = errors(task)
+        lines = drawn(run, task)
+        figs: dict[int, set[str]] = {}
+        for _, fig, i in runs[run]:
+            figs.setdefault(fig, set()).add(i)
+        missing = []
+        for k, ln in enumerate(lines):
+            want = {i for i in ln if i in errs}
+            if want and not any(want <= got for got in figs.values()):
+                best = max(figs.values(), key=lambda got: len(want & got), default=set())
+                missing.append((k + 1, sorted(want - best)))
+        print(f"{run}: 図の記録 {len(lines)}、記録にある誤りの写真 {len({i for ln in lines for i in ln if i in errs})} 枚、"
+              f"資料に入れた（スライド・図・写真）{len(runs[run])}、渡っていない記録の図 {len(missing)}")
+        for k, ids in missing:
+            print(f"   記録の図 {k}: 資料に無い {ids}")
+
+
+def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None) -> None:
+    """skip に前の回を渡すと、その回で渡した (スライド, 写真) を除いて、照合で新しく見つかった分だけを資料にする。"""
     from concurrent.futures import ProcessPoolExecutor
 
     from PIL import Image, ImageDraw, ImageFont
 
-    import imagecheck
-
     base, cache, deck = TASKS[task]
+    done = checked(skip) if skip else {}
     errs = errors(task)
     lab = labels_ja(task)
     OUT = out_dir(rnd)
@@ -126,12 +235,16 @@ def prepare(rnd: str, task: str, runs: list[str]) -> None:
     rng.shuffle(codes)
     font = ImageFont.truetype(FONT, 26)
     small = ImageFont.truetype(FONT, 17)
+    lines = {run: drawn(run, task) for run in runs}      # 先に描き直して図の記録を取る（図のファイルも描き直される）
     decks = {run: slide_images(run, deck) for run in runs}
     jobs = [(run, k, f["path"]) for run, (imgs, _) in decks.items() for k, f in enumerate(imgs)
-            if not f["id"] and imagecheck.photo_like(f["path"])]
+            if not f["id"]]          # 図はすべて照らす（D までは写真らしい図だけで、拡大の図が漏れた）
+    want = {run: sorted(set(errs) | {i for ln in lines[run] for i in ln}) for run in runs}
     with ProcessPoolExecutor(max_workers=8) as pool:
-        found = list(pool.map(match_job, [(task, path, sorted(errs)) for _, _, path in jobs]))
-    matches = {(run, k): hits for (run, k, _), hits in zip(jobs, found)}
+        found = list(pool.map(match_job, [(task, path, want[run]) for run, _, path in jobs]))
+    scores: dict[str, dict[int, dict]] = {}
+    for (run, k, _), sc in zip(jobs, found):
+        scores.setdefault(run, {})[k] = sc
     key = {}
     for run, code in zip(sorted(runs), codes):
         d = OUT / code
@@ -141,12 +254,24 @@ def prepare(rnd: str, task: str, runs: list[str]) -> None:
         body = [f"# デッキ {code}", ""]
         by_slide: dict[int, list[str]] = {}
         placed = []
+        rec = align(imgs, lines[run], scores.get(run, {}))
+        if len(rec) < sum(1 for ln in lines[run] if ln):
+            print(f"   {run}: 図の記録 {sum(1 for ln in lines[run] if ln)} のうち {len(rec)} だけが図のファイルに対応した。目で確かめる")
         for k, f in enumerate(imgs):
             if f["id"]:                     # HTML の写真（ファイル名で分かる）
-                if f["id"] in errs:
+                if f["id"] in errs and (f["slide"], k + 1, f["id"]) not in done.get(run, set()):
                     placed.append({**f, "fig": k, "box": None, "id": f["id"], "score": 1.0})
                 continue
-            for i, v, box in matches.get((run, k), []):
+            sc = scores[run][k]
+            if k in rec:                    # 図の記録（imgfig）がある図: 記録にある誤りの写真すべて。位置は照合で
+                ids = [(i, *sc[i][:2]) for i in dict.fromkeys(rec[k]) if i in errs]
+            else:                           # 記録の無い図（imgfig 以外で描いた図）: A〜D と同じ照合で 0.9 以上
+                ids = [(i, *sc[i][2:]) for i in errs if sc[i][2] >= HIT]
+            for i, v, box in ids:
+                if (f["slide"], k + 1, i) in done.get(run, set()):
+                    continue
+                if v < 0.75:
+                    print(f"   {run} スライド {f['slide']} 図 {k + 1}: {i} は記録にあるが照合の値 {v:.2f}。#番号の位置を目で確かめる")
                 placed.append({**f, "fig": k, "id": i, "score": v, "box": box})
         placed.sort(key=lambda p: (p["slide"], p["fig"], (p["box"] or (0, 0))[1] // 40, (p["box"] or (0, 0))[0]))
         for p in placed:
@@ -270,7 +395,7 @@ def table(rnd: str) -> None:
     for r in rows:
         a = next((v for (c, k, s, n, pre), v in adj.items() if c == r["code"] and k == r["kind"]
                   and s == str(r["slide"]) and n == r["n"] and r["claim"].startswith(pre)), None) \
-            if r["verdict"] in ("wrong", "overclaim") else None           # 確かめ直すのは、指摘のあった判定だけ
+            if r["verdict"] in ("wrong", "overclaim", "unknown") else None  # 確かめ直すのは、指摘と「確かめられない」の判定だけ
         r["final"] = a["final"] if a else ("" if r["verdict"] in ("wrong", "overclaim") else r["verdict"])
         r["adjudication"] = a["reason"] if a else ""
     with open(RESULTS / f"content_{rnd}.csv", "w", newline="", encoding="utf-8") as fh:
@@ -292,7 +417,10 @@ def table(rnd: str) -> None:
 if __name__ == "__main__":
     a = sys.argv[1:] or ["help"]
     if a[0] == "prepare":
-        prepare(a[1], a[2], a[3:])
+        skip = a[a.index("--skip") + 1] if "--skip" in a else None
+        prepare(a[1], a[2], [r for r in a[3:] if r not in ("--skip", skip)], skip)
+    elif a[0] == "coverage":
+        coverage(a[1:])
     elif a[0] in ("prompts", "collect", "table"):
         {"prompts": prompts, "collect": collect, "table": table}[a[0]](a[1])
     else:

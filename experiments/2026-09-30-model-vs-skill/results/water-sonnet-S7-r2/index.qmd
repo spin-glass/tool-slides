@@ -1,0 +1,307 @@
+---
+title: "水辺6種の分類で、間違えた画像を実際に見る"
+subtitle: "誤り51枚の中身 | 2026-10-01"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列の数字は毎回見ているが、間違えた画像は見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-10-01） -->
+
+```{python}
+#| include: false
+import collections
+import sys
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import imgfig
+import matplotlib.pyplot as plt
+
+# 1行 = 1画像。確認の表 data/look.csv は、元の写真で1枚ずつ見て付けた（誤り51枚と、ハクチョウの正解26枚）
+items = imgfig.load_look(imgfig.load_table("data/predictions.csv", "data/thumbs"), "data/look.csv")
+BIRDS = ["カモ", "ガン", "ハクチョウ"]
+by_prob = lambda g: sorted(g, key=lambda it: it.num("prob"))
+shown_classes = lambda it: [c for c in it["classes"].split(";") if c]
+
+
+def kind(it):
+    """誤りの種類。元の写真に写るクラス（look.csv の classes）とラベル・予測を照らして決める。"""
+    if it["undecided"] == "1":
+        return "undecided"
+    cl = shown_classes(it)
+    t, p = it["true_ja"], it["pred_ja"]
+    if t in cl and p in cl:
+        return "both"
+    if t in cl:
+        return "model"
+    if not cl:
+        return "none"
+    return "label_pred_visible" if p in cl else "label_pred_absent"
+
+
+wrong = [it for it in items if it["true"] != it["pred"]]
+assert all(it.get("classes") is not None for it in wrong)
+K = {}
+for it in wrong:
+    K.setdefault(kind(it), []).append(it)
+n_all, n_wrong = len(items), len(wrong)
+acc = (n_all - n_wrong) / n_all
+n_model, n_vis, n_absent, n_none = (len(K[k]) for k in ("model", "label_pred_visible", "label_pred_absent", "none"))
+n_both, n_und = len(K["both"]), len(K["undecided"])
+n_label = n_vis + n_absent + n_none
+
+# ハクチョウのラベル40枚のうち、黒いハクチョウが写る写真
+swans = [it for it in items if it["true"] == "Swan"]
+assert len(swans) == 40 and all(it.get("black") is not None for it in swans)
+black = [it for it in swans if it["black"] == "1"]
+black_wrong = [it for it in black if it["pred"] != "Swan"]
+black_ok = [it for it in black if it["pred"] == "Swan"]
+not_black = [it for it in swans if it["black"] != "1" and "ハクチョウ" in shown_classes(it)]
+not_black_wrong = [it for it in not_black if it["pred"] != "Swan"]
+no_swan_ok = [it for it in swans if it["pred"] == "Swan" and "ハクチョウ" not in shown_classes(it)]
+model_black = [it for it in K["model"] if it["black"] == "1"]
+model_other = [it for it in K["model"] if it["black"] != "1"]
+pct_black = len(black_wrong) / len(black)
+p_lo, p_hi = min(it.num("prob") for it in black_wrong), max(it.num("prob") for it in black_wrong)
+label_of = lambda c: [it for it in K["label_pred_visible"] if it["true_ja"] == c]
+
+# タイトル・付録に書いた数字の検算（データが変わったら描画が止まる）
+assert (n_all, n_wrong) == (240, 51) and f"{acc:.0%}" == "79%"
+assert all(it["true_ja"] in BIRDS and it["pred_ja"] in BIRDS for it in wrong)
+assert [it for it in items if it["true_ja"] not in BIRDS and it["true"] != it["pred"]] == []
+assert sum(it["true_ja"] not in BIRDS for it in items) == 120
+assert (n_model, n_label, n_vis, n_absent + n_none, n_none, n_absent) == (13, 34, 22, 12, 9, 3)
+assert (n_both, n_und) == (1, 3) and n_model + n_label + n_both + n_und == n_wrong
+assert (len(black), len(black_wrong), len(model_black), len(model_other)) == (24, 10, 10, 3)
+assert f"{pct_black:.0%}" == "42%" and len(black_ok) == 14
+assert (len(not_black), len(not_black_wrong), len(no_swan_ok)) == (9, 1, 4)
+assert (len(label_of("ガン")), len(label_of("カモ")), len(label_of("ハクチョウ"))) == (13, 8, 1)
+assert (f"{min(it.num('prob') for it in black_ok):.2f}", f"{max(it.num('prob') for it in black_ok):.2f}") == ("0.43", "0.98")
+
+# 確信度が高い誤りほど、ラベルの誤り（モデルは正しい）が多い
+hi = [it for it in wrong if it.num("prob") >= 0.8]
+hi_label = [it for it in hi if kind(it) in ("label_pred_visible", "label_pred_absent", "none")]
+top6 = sorted(wrong, key=lambda it: -it.num("prob"))[:6]
+assert (len(hi), len(hi_label), sum(kind(it) == "model" for it in hi)) == (17, 15, 0)
+assert max(it.num("prob") for it in K["model"]) < 0.8
+
+# 図の説明文: 写っているクラス（確認の表）を1行目に、短い一言を2行目に。説明は隣と重ならない短さにする
+seen = lambda it: imgfig.seen(it, sep="+") or it["note"]
+def cap(it):
+    cl = shown_classes(it)
+    return f"{cl[0]}\n+{'+'.join(cl[1:])}" if len(cl) > 1 else f"{imgfig.seen(it) or '6種なし'}\n{it['note']}"
+by_pred = lambda g: sorted(g, key=lambda it: (it["pred_ja"], it.num("prob")))
+LABEL_ERR, MODEL_ERR, OTHER = imgfig.BLUE, imgfig.ORANGE, imgfig.MUTED     # 青 = ラベルの誤り、橙 = モデルの取り違え
+none_labels = collections.Counter(it["true_ja"] for it in K["none"])
+source = "写真: Open Images V7（各作者 CC BY 2.0）。作者一覧は credits.html"
+```
+
+## 正解率79%の誤り51枚は、すべてカモ・ガン・ハクチョウの間で起きている
+
+```{python}
+#| fig-alt: "誤り51枚を、ラベルと予測の組ごとに2枚ずつ並べた写真12枚。ガン→ハクチョウはカモメと黒いハクチョウ、カモ→ガンは赤いくちばしのカモとガン、ガン→カモはオオバンとマガモ、ハクチョウ→ガンは飛ぶハクガンと黒いハクチョウ、カモ→ハクチョウはカツオドリとハクチョウ、ハクチョウ→カモはオオバンとカモの群れ。"
+pairs = imgfig.split_by(wrong, lambda it: (it["true_ja"], it["pred_ja"]))
+imgfig.flow_figure([(f"{t}→{p} {len(g)}枚", by_prob(g), OTHER) for (t, p), g in pairs],
+                   k=2, caption=seen, counts=False);
+```
+
+- 見出しは「ラベル→予測」と枚数。写真の下は、写っているもの
+
+[各組を確信度順に等間隔で2枚表示（計12枚）。ボート・灯台・アザラシの120枚は誤り0枚。`{python} source`]{.source}
+
+::: {.notes}
+正解率と混同行列の数字は毎回見ているはずなので、今日は、その誤りの中身を写真で見る。
+誤りは51枚で、すべてカモ・ガン・ハクチョウの間で起きた。ボート・灯台・アザラシの120枚は、ラベルと予測が一致している。
+図は、ラベルと予測の組（6組）ごとに、確信度の順に等間隔で2枚ずつ選んだ12枚。写真の下は、元の写真に写っているものだ。
+この時点で、ガンのラベルにカモメやハクチョウ、カモのラベルにガンが並んでいることに気づいてほしい。次の枚で、その中身を数える。
+:::
+
+## 誤り51枚のうち、モデルの取り違えは13枚、ラベルの誤りは34枚ある
+
+```{python}
+#| fig-alt: "誤り51枚の内訳を示す横棒グラフ。ラベルの誤りで予測のクラスは写る22枚、モデルの取り違え13枚、ラベルの誤りで6種のどれも写らない9枚、ラベルの誤りで予測のクラスも写らない3枚、見分けられない3枚、両方写る1枚。"
+rows = [("ラベルの誤り: 予測のクラスは写る", n_vis, imgfig.BLUE),
+        ("モデルの取り違え", n_model, imgfig.ORANGE),
+        ("ラベルの誤り: 6種のどれも写らない", n_none, imgfig.BLUE),
+        ("ラベルの誤り: 予測のクラスも写らない", n_absent, imgfig.BLUE),
+        ("見分けられない", n_und, imgfig.MUTED),
+        ("ラベルのクラスも予測のクラスも写る", n_both, imgfig.MUTED)]
+plt.rcParams["font.family"] = imgfig.japanese_fonts()
+fig, ax = plt.subplots(figsize=(10, 3.3))
+ax.barh([r[0] for r in rows], [r[1] for r in rows], color=[r[2] for r in rows], height=0.62)
+for y, r in enumerate(rows):
+    ax.text(r[1] + 0.4, y, f"{r[1]}枚", va="center", fontsize=15, fontweight="bold", color=r[2])
+ax.invert_yaxis()
+ax.set_xlim(0, 26)
+ax.tick_params(axis="y", labelsize=14, length=0)
+ax.set_xticks([])
+for s in ("top", "right", "bottom", "left"):
+    ax.spines[s].set_visible(False)
+fig.tight_layout()
+fig;
+```
+
+- モデルの取り違え `{python} f"{n_model}"`枚: ラベルのクラスは写り、予測のクラスは写らない
+- ラベルの誤り `{python} f"{n_label}"`枚: ラベルのクラスが写真のどこにも写らない
+- 決められない `{python} f"{n_both + n_und}"`枚: 両方写る1枚、種を見分けられない3枚
+
+[元の写真（長辺1024px）を1枚ずつ見て分類した。全51枚の分類は data/look.csv]{.source}
+
+::: {.notes}
+ここが今日の中心。51枚の元の写真を1枚ずつ開いて、ラベルのクラスと予測のクラスが写っているかを確かめた。
+ラベルのクラスが写真のどこにも写っていないものを「ラベルの誤り」と呼ぶ。これが34枚。モデルが取り違えたと言えるのは、ラベルのクラスが写っていて、予測のクラスは写っていない13枚だけ。
+残りは、ラベルのクラスも予測のクラスも写る1枚と、小さくて種を見分けられない3枚。無理に決めず、どちらにも数えていない。
+分類は発表者が目視で付けた。小さく写る個体の見落としは残りうるので、気づいた点は指摘してほしい。
+:::
+
+## ラベルの誤り34枚のうち22枚は、モデルの答えのほうが写真に合っている
+
+```{python}
+#| fig-alt: "ラベルのクラスが写らない22枚のうち、最も多い3組から4枚ずつ選んだ12枚。ガンのラベルにはハクチョウやマガモ、カモのラベルにはカナダガンが写る。予測はいずれも写真に写るクラスと一致する。"
+top3 = imgfig.split_by(K["label_pred_visible"], lambda it: (it["true_ja"], it["pred_ja"]))[:3]
+imgfig.panels_figure([(f"{t}→{p} {len(g)}枚", imgfig.pick(by_prob(g), 4, "even"), LABEL_ERR) for (t, p), g in top3],
+                     caption=cap, cols_each=[2, 2, 2]);
+```
+
+- 22枚のラベルの内訳は、ガン13枚・カモ8枚・ハクチョウ1枚
+
+[見出しは「ラベル→予測」。最も多い3組（19枚）から、各組を確信度順に等間隔で4枚表示。22枚の全数は付録。`{python} source`]{.source}
+
+::: {.notes}
+たとえば、カモのラベルが付いた写真にカナダガンが写っている。モデルはガンと答えていて、写真に合っているのはモデルの答えのほうだ。
+ガンのラベルの写真にハクチョウや黒いハクチョウ、マガモが写っている例も多い。
+こうした写真は、モデルの改善では直らない。直すのはラベルのほう。混同行列の「カモ→ガン」の10という数字の中に、6枚がこれだと言える。
+:::
+
+## ラベルの誤りの残り12枚のうち9枚は、6種のどれも写らない鳥の写真だ
+
+```{python}
+#| fig-alt: "6種のどれも写らない9枚と、ラベルも予測も写らない3枚。前者はカツオドリ、ハト、カモメ、チドリの仲間、バン、アオサギ、ペリカン、オオバン2枚で、後者は黒いハクチョウ2枚とサギの陰のカモ1枚。"
+imgfig.panels_figure([("6種のどれも写らない", K["none"], LABEL_ERR),
+                      ("ラベルも予測も写らない", K["label_pred_absent"], LABEL_ERR)],
+                     caption=lambda it: it["note"] if not shown_classes(it) else f"{imgfig.seen(it, sep='+')}\nラベル{it['true_ja']}",
+                     counts=True);
+```
+
+- モデルの出力は6種のいずれかで、「どれでもない」は選べない
+- 9枚のラベルは、ガン`{python} f"{none_labels['ガン']}"`枚・カモ`{python} f"{none_labels['カモ']}"`枚・ハクチョウ`{python} f"{none_labels['ハクチョウ']}"`枚
+
+[12枚をすべて表示。`{python} source`]{.source}
+
+::: {.notes}
+左の9枚は、カツオドリ、オオバン、カモメ、ペリカン、アオサギ、ハトなど、6種のどれでもない鳥の写真。ラベルはカモ・ガン・ハクチョウのどれかが付いているが、写真にはどれも写っていない。
+モデルは6つの中から選ぶしかないので、何を答えても誤りになる。
+右の3枚は、黒いハクチョウ2枚（ラベルはカモ）と、サギの陰にいるカモ1枚（ラベルはガン）。ラベルも予測も写真に合わない。
+ここまでの34枚は、モデルを触る前に、データの側で直すか外すかを決める対象だ。
+:::
+
+## モデルの取り違えの大半は黒いハクチョウで、24枚中10枚を誤った
+
+```{python}
+#| fig-alt: "モデルの取り違え13枚。左は黒いハクチョウ10枚で、水上、草地、羽づくろい、頭のアップなど。予測はガンが9枚、カモが1枚で、確信度はいずれも0.65未満。右はほかの取り違え3枚で、赤いくちばしのカモ、雄のカモ、夕空を飛ぶガン。"
+cap5 = lambda it: f"{imgfig.seen(it)}\n→{it['pred_ja']}{it.num('prob'):.2f}"
+imgfig.panels_figure([("黒いハクチョウ", by_pred(model_black), MODEL_ERR), ("ほかの取り違え", by_pred(model_other), MODEL_ERR)],
+                     caption=cap5, counts=True);
+```
+
+- 黒いハクチョウが写る24枚のうち10枚を誤り、14枚は正解
+- 誤った10枚の確信度は `{python} f"{p_lo:.2f}〜{p_hi:.2f}"`
+
+[モデルの取り違え13枚をすべて表示（予測のクラス別に、確信度の小さい順）。`{python} source`]{.source}
+
+::: {.notes}
+モデルが本当に取り違えたと言えるのは、この13枚。そのうち10枚は黒いハクチョウ（コクチョウ）で、ガンが9枚、カモが1枚。
+ハクチョウのラベルの写真40枚のうち、黒いハクチョウが写るのは24枚。10枚を誤り、14枚は正解している。黒くないハクチョウが写る9枚のうち、誤りは1枚（カモの群れの中の1羽）だけ。
+誤った10枚の確信度は低め。ただし、正解した14枚の中にも確信度が低いものがあり、確信度だけでは分けられない（付録）。
+推測になるが、ハクチョウは白い鳥という前提で判定している可能性がある。黒いハクチョウの写真を、学習や評価に入れるかどうかの判断材料になる。
+右の3枚は、カモとガンの個別の取り違え。数が少なく、傾向は言えない。
+:::
+
+## 対策を決める前に、誤り51枚を自分の目で見てラベルとモデルに分けよう
+
+```{python}
+#| fig-alt: "確信度が最も高い誤り6枚。ガンのラベルにマガモの雄、オシドリの雄、ハクチョウ3羽、ハクチョウ2羽、マガモの雌が写り、カモのラベルにハクチョウ4羽が写る。"
+imgfig.grid_figure(top6, caption=lambda it: f"{seen(it)}\nラベル{it['true_ja']}", color=OTHER);
+```
+
+- 確信度の高い誤りから見る: 0.8以上の`{python} f"{len(hi)}"`枚に、モデルの取り違えは0枚
+- 写っているクラスを確かめ、ラベルの誤りとモデルの取り違えに分けて数える
+- 分けた数で対策を選ぶ: ラベルの直しか、黒いハクチョウなど写真の追加か
+
+[誤り51枚のうち確信度の高い上位6枚（`{python} f"{top6[-1].num('prob'):.2f}〜{top6[0].num('prob'):.2f}"`）を表示。`{python} source`]{.source}
+
+::: {.notes}
+混同行列の数字だけを見ていると、51枚が全部モデルの誤りに見える。実際にモデルの取り違えと言えるのは13枚で、34枚はデータの側の問題だった。
+次の改善で対策を決める前に、まず誤りの写真を見る。見る人は、エンジニアとアノテーターの両方がよい。アノテーターは写っているものを、エンジニアは予測の確信度を見る。
+どこから見るか。確信度0.8以上の誤り17枚のうち、15枚はラベルの誤りで、モデルの取り違えは0枚。残り2枚は見分けられなかった。モデルの取り違え13枚は、確信度がすべて0.62以下。確信度の高い順に見ると、ラベルの誤りから片づく。図は確信度の高い上位6枚。
+今日の分類は data/look.csv にある。同じ手順を、ほかのクラスや次の評価でも繰り返してほしい。
+正解と判定された側にも、ラベルの誤りはある。ハクチョウの正解26枚の中にも、ハクチョウが写らない写真が4枚あった（付録）。
+:::
+
+<!-- appendix -->
+
+## ラベルの誤り22枚のうち、ガンのラベルの13枚を全数で示す
+
+```{python}
+#| fig-alt: "ガンのラベルが付いた写真13枚。ハクチョウと予測された7枚は白い・黒いハクチョウや飛ぶ2羽、カモと予測された6枚はマガモやオシドリなどのカモ。"
+lg = imgfig.split_by(label_of("ガン"), lambda it: it["pred_ja"])
+imgfig.panels_figure([(f"ラベルガン→予測{p}", by_prob(g), LABEL_ERR) for p, g in lg], caption=cap, counts=True);
+```
+
+[13枚をすべて表示（確信度の小さい順）。`{python} source`]{.source}
+
+## ラベルの誤り22枚のうち、カモとハクチョウのラベルの9枚を全数で示す
+
+```{python}
+#| fig-alt: "カモのラベルが付いた写真8枚と、ハクチョウのラベルが付いた写真1枚。カモのラベルにはカナダガンなどのガン6枚と黒いハクチョウ2枚、ハクチョウのラベルには飛ぶハクガン2羽が写る。"
+lc = imgfig.split_by(label_of("カモ") + label_of("ハクチョウ"), lambda it: (it["true_ja"], it["pred_ja"]))
+imgfig.panels_figure([(f"{t}→{p}", by_prob(g), LABEL_ERR) for (t, p), g in lc], caption=cap, counts=True, cols_each=[3, 3, 2]);
+```
+
+[見出しは「ラベル→予測」。9枚をすべて表示（確信度の小さい順）。`{python} source`]{.source}
+
+## 両方写る1枚と、種を決められない3枚は、どちらの誤りにも数えない
+
+```{python}
+#| fig-alt: "どちらの誤りにも数えない4枚。カモの群れの右下にハクチョウがいる写真、ハクチョウ4羽と右上に小さな鳥が写る写真、ツクシガモの仲間に見える鳥が杭の上で羽づくろいする写真、白黒で右奥に白い影が写るカモの写真。"
+imgfig.grid_figure(K["both"] + K["undecided"], caption=lambda it: cap(it) if shown_classes(it) else f"決められない\n{it['note']}", color=OTHER);
+```
+
+- 両方写る1枚: ラベルはハクチョウ、予測はカモ。カモの群れの右下にハクチョウが1羽
+- 決められない3枚: 右上の小鳥（ラベルはカモ）、ツクシガモ類（ラベルはガン）、右奥の白い影（ラベルはハクチョウ）
+
+[4枚をすべて表示。`{python} source`]{.source}
+
+## 正解した黒いハクチョウ14枚の確信度は0.43〜0.98に散らばる
+
+```{python}
+#| fig-alt: "ハクチョウと予測して正解になった黒いハクチョウ14枚。水上や岸辺で、1羽または2羽、雛連れ、白いハクチョウと並ぶ写真もある。確信度は写真の下に示す。"
+imgfig.grid_figure(by_prob(black_ok), caption=lambda it: cap(it).splitlines()[0] + "\n" + (cap(it).splitlines()[1] + " " if len(shown_classes(it)) > 1 else "") + f"{it.num('prob'):.2f}", color=OTHER);
+```
+
+[14枚をすべて表示（確信度の小さい順）。`{python} source`]{.source}
+
+## ハクチョウの正解26枚にも、ハクチョウの写らない写真が4枚ある
+
+```{python}
+#| fig-alt: "ハクチョウと予測されて正解になった26枚のうち、ハクチョウが写らない4枚。家禽のガンと白いカモ、サギの首、フラミンゴ2枚。"
+imgfig.grid_figure(no_swan_ok, caption=seen, color=LABEL_ERR);
+```
+
+- 26枚を元の写真で見た。正解率の数字にも、ラベルの誤りが含まれる
+
+[4枚をすべて表示。`{python} source`]{.source}
+
+## 分類は誤り51枚とハクチョウ正解26枚を、元の写真で1枚ずつ見て付けた
+
+- データ: Open Images V7 の評価用240枚（6種×40枚）。モデルは CLIP ViT-B/32 の zero-shot 分類
+- 目視: 元の写真（長辺1024px）を1枚ずつ開き、写っている分類の対象をすべて data/look.csv に記録
+- ラベルの誤り: ラベルのクラスが写真のどこにも写らない。両方写る写真は別に数えた
+- 写真の作者・出典: [credits.html](credits.html)

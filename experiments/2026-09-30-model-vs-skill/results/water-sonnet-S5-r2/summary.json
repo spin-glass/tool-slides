@@ -1,0 +1,46 @@
+{
+  "run_id": "water-sonnet-S5-r2",
+  "task": "water",
+  "model": "sonnet",
+  "skill": "S5",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 733,
+  "num_turns": 80,
+  "cost_usd": 2.769,
+  "output_tokens": 85632,
+  "models_used": {
+    "claude-sonnet-5-5": 2.769
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/label_fix.csv",
+    "decks/water-errors/data/review.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 30,
+    "Read": 49
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.31,
+    "seven_day": 0.77,
+    "status": "allowed_warning"
+  },
+  "final_message": "`decks/water-errors/index.qmd` は完成し、`quarto render` で HTML が出ました（`_output/decks/water-errors/index.html`）。lint は block 0・warning 0 です。本編は6枚、付録は6枚です。git の commit・push、Notion への保存、公開はしていません。\n\n## 私が決めた前提\n\n任せていただいたので、次のように決めました。\n\n- **聴衆**: 画像分類を運用するチーム（エンジニアとアノテーター）。数字は見ているが、間違えた画像は見たことがない。\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間**: 10分。枚数は 10÷1.5 で切り捨てて 6枚にしました。\n- **承認待ち**: 骨子の承認待ちは省きました。タイトルを上から通して読んで、論旨が一本で通ることは確かめています。\n\n## タイトル（本編）\n\n1. 正解率79%の誤り51枚は、すべてカモ・ガン・ハクチョウの間で起きている\n2. 誤り51枚のうち、ラベルどおりの鳥をモデルが取り違えたのは13枚だけだ\n3. モデルの誤り13枚のうち10枚は、コクチョウの取り違えだ\n4. 誤り51枚のうち23枚は、写っている鳥がデータのラベルと違う\n5. 6種にない鳥が写る10枚は、どう予測しても正解にならない\n6. 対策を決める前に、間違えた画像を1枚ずつ見て、原因ごとに分けよう\n\n## 見て分かったこと\n\n誤り51枚を元の大きさで1枚ずつ見て、写っている鳥で分けました。\n\n| 分類 | 枚数 | 中身 |\n|---|---|---|\n| ラベルの誤り | 23枚 | 写真がデータのラベルと違う種。うち21枚はモデルの予測のほうが写真に合う |\n| モデルの誤り | 13枚 | ラベルどおりの鳥を取り違えた。10枚がコクチョウで、24枚中10枚を外した |\n| 6種にない鳥 | 10枚 | カモメ、サギ、ペリカン、バン、オオバンなど |\n| 判断が分かれる | 5枚 | 写真から種を言い切れない |\n\n- **コクチョウ以外のモデルの誤り**: 飛ぶガンのシルエット、ヒドリガモ類、アカハシハジロの3枚です。\n- **正解側のラベルの誤り**: 正解と判定されたハクチョウ26枚にも、フラミンゴ2枚・サギ1枚・ガチョウ1枚が混じっていました。\n\n## 確認してほしい点\n\n- **分類は私の目視です**（1人、撮影者の題名で裏付け）。データはコミット対象の `data/` に置きました。\n  - 判定表: `data/review.csv`\n  - 直したラベル: `data/label_fix.csv`\n  - 判断が分かれる5枚は、別に数えています。\n- **種名は写真と題名から付けたもの**です。ツクシガモ類などは言い切らず、判断が分かれる群に入れました。\n- **正解側は、ハクチョウ26枚だけを見ました**。ほかの正解163枚は見ていません。\n- **1枚目の混同行列は、サムネイルが約100pxです**。目安の150pxには届きませんが、種は見分けられます。\n- **コクチョウの推測はノートに書きました**。「白い鳥を想定した判定基準に合っていないかもしれない」という推測は、ノートに推測と断って書いています。\n- **`render_check.sh` の表示について**: 1枚目の図を86pxと表示していますが、実際の画面ではもう少し大きく出ます。\n- **`.gitignore` の自動変更**: `quarto render` が `.gitignore` に2行足したので、元に戻しました。\n\n出典は `decks/water-errors/credits.html` にまとめました。"
+}

@@ -1,0 +1,51 @@
+{
+  "run_id": "water-opus-S8-r2",
+  "task": "water",
+  "model": "opus",
+  "skill": "S8",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 1572,
+  "num_turns": 4,
+  "cost_usd": 7.839,
+  "output_tokens": 2489,
+  "models_used": {
+    "claude-opus-5-5": 7.839
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/label_fix.csv",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/errors.py",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 31,
+    "Read": 92,
+    "Write": 5,
+    "Edit": 17,
+    "ToolSearch": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 6,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.07,
+    "seven_day": 0.83,
+    "status": "allowed_warning"
+  },
+  "final_message": "I've built the deck at `decks/water-errors/index.qmd`, and `quarto render decks/water-errors/index.qmd` produces `_output/decks/water-errors/index.html` (6 main slides, 5 appendix slides, plus the title slide). Lint shows 0 blocks and 0 warnings. I checked every slide in the screenshots, and the check of photo captions against my notes on each photo found no mismatches. Nothing was saved to Notion, committed, pushed or published.\n\n**Main finding:** when I opened all 51 misclassified photos at full size, only 12 were real model errors. In 34 the label didn't match the photo. So the talk is built on that difference between how the confusion matrix looks and what the photos show.\n\n## What I decided (you can send any of this back)\n- **Audience, action, time:** as you specified. I set the main part to 6 slides (10 min ÷ 1.5).\n- **Main slide titles:**\n  1. 混同行列では、誤り51枚はすべて鳥3種の取り違えに見える\n  2. 写真を開くと、誤り51枚のうち34枚はラベルが写真と合わない\n  3. ラベルが合わない34枚のうち23枚は、モデルの答えが写真に合う\n  4. ラベルが合わない残り11枚のうち8枚は、6種以外の鳥の写真だ\n  5. モデル自身の誤り12枚のうち10枚は、黒いハクチョウの写真だ\n  6. 対策を決める前に、誤った写真を開いてラベルとモデルの誤りを分けよう\n- **Appendix:** all 23 photos where the model's answer is correct, the 4 unclear photos with close-ups, 2 photos where a second class hides behind or beside the main bird, and how I sorted the errors.\n\n## How the 51 errors break down\nI viewed each photo at full size (1024px), including the edges and background, and recorded every class that appears in `data/look.csv`.\n- **Label wrong: 34.** The labelled class appears nowhere in the photo.\n  - In 23 of these, the model's answer is what's actually in the photo, e.g. a Canada goose labelled カモ.\n  - 8 show birds outside the six classes: gannet, pigeon, gull, lapwing, moorhen, heron and two coots.\n- **Model wrong: 12.** The labelled class is in the photo but the model picked another. 10 of these are black swans, with confidence between 0.42 and 0.62.\n- **Both classes in the photo: 1.**\n- **Can't tell: 4.** A small, backlit or blurred bird can't be identified as the labelled class.\n\nThe swap between geese and swans in the confusion matrix is mostly label errors. The one large group of genuine model errors is black swans.\n\n## Things to know\n- **Only the errors were checked.** I didn't check the 189 photos classed as correct. In the reduced-size review sheets I noticed storks, cranes and flamingos among them, but didn't count them. The notes say the corrected accuracy can't be stated yet.\n- **Judgement calls:** \"Can't tell\" photos and bird names are my own visual judgement. Where the photographer's title was the evidence, the speaker notes say so. Anything I'm guessing about *why* the model fails (for example that CLIP's idea of \"swan\" leans toward white swans) is only in the speaker notes, marked as a guess.\n- **Two photo slides are a bit small.** Photos on slides 4–6 are about 126–149px, just under the 150px guideline, because I kept the bullet points. They're readable in the screenshots.\n\n## Files added\n- `index.qmd`: the deck. A hidden cell checks the numbers in the titles, so rendering stops if the data changes.\n- `errors.py`: sorts each error into the four groups above.\n- `prepare.py`: writes the list of corrected labels (`data/label_fix.csv`) and the photo credits page (`credits.html`).\n- `data/look.csv`: what I saw in each photo.\n\nQuarto also added `/.quarto/` and `**/*.quarto_ipynb` to `.gitignore` on its own when rendering; I left that change in place. The skill's step to run tests doesn't apply here: there's no `tests/` folder, and I didn't change the lint or figure scripts."
+}

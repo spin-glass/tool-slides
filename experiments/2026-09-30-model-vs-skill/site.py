@@ -106,8 +106,9 @@ def content_sections() -> list[str]:
             mine = [r for r in table if r["code"] == code]
             wrong = {(r["kind"], r["slide"], r["n"]) for r in mine if r["final"] == "wrong"}
             over = {(r["kind"], r["slide"], r["n"]) for r in mine if r["final"] == "overclaim"}
-            if mine:
-                counts[run] = (len(wrong), len(over))
+            if mine:                        # 追加の回（D2 など）は同じデッキの残りの写真なので足す
+                w0, o0 = counts.get(run, (0, 0))
+                counts[run] = (w0 + len(wrong), o0 + len(over))
     metrics = [m for m in csv.DictReader(open(report.RESULTS / "metrics.csv", encoding="utf-8")) if m["task"] in CONTENT_TASKS]
     out = []
     for task, (title, deck) in CONTENT_TASKS.items():

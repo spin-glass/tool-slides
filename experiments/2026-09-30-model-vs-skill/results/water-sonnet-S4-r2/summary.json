@@ -1,0 +1,48 @@
+{
+  "run_id": "water-sonnet-S4-r2",
+  "task": "water",
+  "model": "sonnet",
+  "skill": "S4",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 568,
+  "num_turns": 57,
+  "cost_usd": 1.952,
+  "output_tokens": 64906,
+  "models_used": {
+    "claude-sonnet-5-5": 1.952
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/review.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 24,
+    "Read": 29,
+    "Write": 2,
+    "Edit": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.3,
+    "seven_day": 0.76,
+    "status": "allowed_warning"
+  },
+  "final_message": "`decks/water-errors/index.qmd` を作り、`quarto render decks/water-errors/index.qmd` で `_output/decks/water-errors/index.html` が出ることまで確かめました。lint は block 0 / warning 0、全11枚(本編6枚+付録4枚+表紙)を目視しました。commit・push・Notion保存・公開はしていません。\n\n`.gitignore` に `/.quarto/` と `**/*.quarto_ipynb` の2行が追加されています。私は編集しておらず、Quarto の実行が足したものと思います。不要なら戻してください。\n\n## 決めた前提(差し戻し可)\n- **聴衆**: 画像分類を運用するエンジニアとアノテーター\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る\n- **持ち時間**: 10分。本編は6枚(10÷1.5を切り捨て)。骨子の承認は省き、タイトルの連読だけ自分で確認しました。\n\n## タイトル一覧(本編)\n1. 正解率78.8%の誤り51枚は、すべて鳥3種の取り違えだ\n2. ガン→ハクチョウと判定された13枚で、ガンが写っているのは1枚だけだ\n3. カモとガンの取り違え20枚のうち、ラベルどおりの鳥は2枚だけだ\n4. 黒いハクチョウ35枚のうち、ハクチョウと判定されたのは19枚だけだ\n5. 誤り51枚のうち34枚は、ラベルと別の鳥が写っている\n6. 対策を決める前に、誤り51枚を自分の目で見て、ラベルを確かめよう\n\n付録の4枚に、残りの組の全数(カモ→ガン10枚、ガン→カモ10枚、ハクチョウ→ガン10枚、残り2組の8枚)を置きました。\n\n## 分かったこと\n- **誤りの範囲**: 誤り51枚はカモ・ガン・ハクチョウの間だけです。ボート・灯台・アザラシは各40枚すべて正解でした。\n- **ラベルと写真の不一致**: 51枚を1枚ずつ見ると、写っている鳥がラベルどおりなのは14枚だけでした。34枚は別の鳥が写っています。24枚は6種のうち別の鳥、10枚は6種にない鳥(カモメ、サギ、バンなど)です。\n- **モデルの答えのほうが合う画像**: 6種の別の鳥24枚のうち22枚は、モデルの答えが写真に合っています。\n- **黒いハクチョウ**: ラベルに関係なく数えると35枚あり、ハクチョウと判定されたのは19枚です。ガンは15枚、カモは1枚と判定されました。\n\n## 確認してほしいこと\n- **目視は私1人の判断です。** 写っている鳥の判断は `data/review.csv` に残しました。種を決められなかった3枚は「判別できない」にしています。スライド6とノートで、アノテーターが同じ画像を見直すよう促しています。\n- **スライド3の図は5+5枚の抜粋です。** 確信度の差の小さい順に等間隔で選んだ規則どおりで、ラベルどおりの2枚は含まれていません。全20枚は付録にあります。\n- **黒いハクチョウの判定は誤り51枚の外にも及びます。** 正しく判定された画像も見て数えました。その中には、ラベルがガンなのにガンと判定されて「正解」に数えられている黒いハクチョウが4枚ありました。\n\n## 追加したファイル\n- `prepare.py`: `data/review.csv` と `credits.html` を作ります。\n- `credits.html`: 写真の作者・出典一覧です。YAML の `resources:` に入れています。\n\n最終スライドは、下半分が空いた箇条書き3つだけの構成です。"
+}

@@ -1,0 +1,52 @@
+{
+  "run_id": "water-sonnet-S8-r1",
+  "task": "water",
+  "model": "sonnet",
+  "skill": "S8",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 651,
+  "num_turns": 68,
+  "cost_usd": 2.494,
+  "output_tokens": 80976,
+  "models_used": {
+    "claude-sonnet-5-5": 2.494
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/label_fix.csv",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/data/review.csv",
+    "decks/water-errors/data/swan_photos.csv",
+    "decks/water-errors/figs.py",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 26,
+    "Read": 39,
+    "Write": 1,
+    "Edit": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.05,
+    "seven_day": 0.83,
+    "status": "allowed_warning"
+  },
+  "final_message": "`decks/water-errors/index.qmd` を作り、`quarto render decks/water-errors/index.qmd` で `_output/decks/water-errors/index.html` が出ることを確かめました。lint は block 0・warning 0 です。全13枚をスクショで見て、図の説明と確認の表の食い違いも0件でした。\n\n## 私が決めたこと（差し戻し用）\n委任の原文「構成や見せ方は任せます。途中の確認や承認は要らない」を `decided-by` に記録してあります。\n\n- **聴衆:** 画像分類の運用チーム（エンジニアとアノテーター）。正解率と混同行列は毎回見ているが、間違えた画像は見ていない。\n- **行動:** 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間:** 10分。本編の上限は6枚、付録は7枚。\n\n本編のタイトルは次の6つです。\n\n1. 誤り51枚を写真で見ると、35枚はラベルの誤りで、モデルの誤りは13枚だ\n2. ラベルの誤り35枚のうち26枚は、写真にラベルと別のクラスが写っている\n3. 残る9枚のラベルの誤りは、オオバンやカモメなど6種以外の鳥の写真だ\n4. モデルの誤り13枚のうち10枚は、コクチョウをガンかカモと答えた\n5. コクチョウ以外のモデルの誤りは3枚で、カモ2枚と夕暮れのガン4羽だ\n6. 次の改善で対策を決める前に、間違えた画像を組ごとに並べて見よう\n\n## 元の写真で見て分かったこと\n誤り51枚を元の写真（長辺1024px）で1枚ずつ確かめました。\n\n- **ラベルの誤りが35枚。** ラベルのクラスが写っていません。26枚は別のクラスが写っていて、うち23枚はモデルの予測のほうが写真に合っています。残り9枚はオオバン・カモメ・ハト・サギなど6種以外の鳥です。\n- **モデルの誤りは13枚。** うち10枚はコクチョウをガンかカモと答えたものです。コクチョウが写るハクチョウ24枚のうち10枚（42%）を誤り、コクチョウが写らない16枚にモデルの誤りはありません。\n- **カモとガンの取り違え20枚のうち、モデルの誤りは2枚。** 混同行列で最大のガン→ハクチョウ13枚でも、モデルの誤りは1枚です。\n- 両方写る1枚と、決められない2枚は別に数え、付録に置きました。\n\n## 弱点\n- 判定は目視で、確認したのは1人（私）だけです。迷った3枚（頭のアップ、飛ぶ影4羽、赤いくちばしの群れ）は付録のノートに書きました。チームで見直すと数字が動く可能性があります。\n- 写真は誤り51枚しか見ていません。正解に数えられたハクチョウのうちフラミンゴ2枚は、ラベルの誤りのまま「正解」になっていました。最終スライドのノートに書きました。\n\n## 作ったもの\n- **判定の記録（`data/`）:** `review.csv`（判定）、`look.csv`（写っているクラス）、`label_fix.csv`（直したラベル35枚と理由）、`swan_photos.csv`。\n- **出典（`credits.html`）:** `make_credits.py` で作った作者・出典の一覧。\n- **図の関数（`figs.py`）:** 説明文の長さに合わせて列の間隔を広げます。共通の `imgfig.grid_figure` は説明が長いと隣と重なったため、デッキ側に用意しました。共通コードは変更していません。\n- **タイトルの数字の検算:** 最初のセルで assert しています。\n\nNotion への保存、git の commit・push、公開はしていません。Quarto が `.gitignore` に `/.quarto/` と `**/*.quarto_ipynb` を自動で追記したので、git status には `M .gitignore` が出ます。"
+}

@@ -1,0 +1,1126 @@
+{
+ "UT": {
+  "images": [
+   {
+    "n": 1,
+    "slide": 2,
+    "claim": "カモメ（群: ガン→ハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 2,
+    "slide": 2,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 3,
+    "slide": 2,
+    "claim": "カモ（群: カモ→ガン）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 4,
+    "slide": 2,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 5,
+    "slide": 2,
+    "claim": "オオバン（群: ガン→カモ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 6,
+    "slide": 2,
+    "claim": "カモ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 7,
+    "slide": 2,
+    "claim": "ガン（群: ハクチョウ→ガン）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 8,
+    "slide": 2,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 9,
+    "slide": 2,
+    "claim": "カツオドリ（群: カモ→ハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 10,
+    "slide": 2,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 11,
+    "slide": 2,
+    "claim": "オオバン（群: ハクチョウ→カモ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 12,
+    "slide": 2,
+    "claim": "ハクチョウ+カモ",
+    "verdict": "ok",
+    "detail": "中央の水しぶきの群れに「ガン」の枠があるが、大きさ・形は周りのカモと同じに見え、ガンかは決めきれない"
+   },
+   {
+    "n": 13,
+    "slide": 4,
+    "claim": "ハクチョウ（ラベルが写真と合わずモデルが合う群）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 14,
+    "slide": 4,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 15,
+    "slide": 4,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 16,
+    "slide": 4,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 17,
+    "slide": 4,
+    "claim": "カモ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 18,
+    "slide": 4,
+    "claim": "カモ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 19,
+    "slide": 4,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 20,
+    "slide": 4,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 21,
+    "slide": 4,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 22,
+    "slide": 5,
+    "claim": "黒いハクチョウ（ラベルもモデルも外れる）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 23,
+    "slide": 5,
+    "claim": "黒いハクチョウ（ラベルもモデルも外れる）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 24,
+    "slide": 5,
+    "claim": "カツオドリ（3種以外の鳥が主役）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 25,
+    "slide": 5,
+    "claim": "ハト",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 26,
+    "slide": 5,
+    "claim": "カモ、手前はサギ（3種以外の鳥が主役）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 27,
+    "slide": 5,
+    "claim": "チドリの仲間",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 28,
+    "slide": 5,
+    "claim": "バンの仲間",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 29,
+    "slide": 5,
+    "claim": "サギの仲間",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 30,
+    "slide": 5,
+    "claim": "ペリカン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 31,
+    "slide": 5,
+    "claim": "オオバン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 32,
+    "slide": 5,
+    "claim": "オオバン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 33,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 34,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 35,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 36,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 37,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 38,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 39,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": "左端と奥にカモが小さく写るが、主役のハクチョウを述べており矛盾しない"
+   },
+   {
+    "n": 40,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 41,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 42,
+    "slide": 6,
+    "claim": "ハクチョウ（ラベルが合うのに外した黒いハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 43,
+    "slide": 7,
+    "claim": "ラベル ガン／予測 カモ／写真 カモ（ラベル側の例）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 44,
+    "slide": 7,
+    "claim": "ラベル ガン／予測 ハクチョウ／写真 ペリカン（選択肢の外の例）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 45,
+    "slide": 7,
+    "claim": "ラベル ハクチョウ／予測 ガン／写真 ハクチョウ（モデル側の例）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 46,
+    "slide": 8,
+    "claim": "ハクチョウ・カモ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": "手前と左にハトも写るが、説明と矛盾しない"
+   },
+   {
+    "n": 47,
+    "slide": 8,
+    "claim": "ハクチョウ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 48,
+    "slide": 8,
+    "claim": "ハクチョウ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 49,
+    "slide": 8,
+    "claim": "ハクチョウ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 50,
+    "slide": 8,
+    "claim": "ハクチョウ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 51,
+    "slide": 8,
+    "claim": "ハクチョウ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 52,
+    "slide": 8,
+    "claim": "ハクチョウ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 53,
+    "slide": 8,
+    "claim": "カモ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 54,
+    "slide": 8,
+    "claim": "カモ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 55,
+    "slide": 8,
+    "claim": "カモ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 56,
+    "slide": 8,
+    "claim": "カモ（ラベル ガンでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 57,
+    "slide": 9,
+    "claim": "ガン（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 58,
+    "slide": 9,
+    "claim": "ガン（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 59,
+    "slide": 9,
+    "claim": "ガン（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 60,
+    "slide": 9,
+    "claim": "ガン（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 61,
+    "slide": 9,
+    "claim": "ガン（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 62,
+    "slide": 9,
+    "claim": "ガン（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 63,
+    "slide": 9,
+    "claim": "ハクチョウ（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 64,
+    "slide": 9,
+    "claim": "ハクチョウ（ラベル カモでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 65,
+    "slide": 9,
+    "claim": "ガン（ラベル ハクチョウでモデルが合う）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 66,
+    "slide": 11,
+    "claim": "ハクチョウ、奥の小鳥は決められない",
+    "verdict": "ok",
+    "detail": "奥の小鳥は小さく、種は決めきれない"
+   },
+   {
+    "n": 67,
+    "slide": 11,
+    "claim": "ツクシガモの仲間",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 68,
+    "slide": 11,
+    "claim": "リュウキュウガモ類",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 69,
+    "slide": 11,
+    "claim": "顔のアップ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 70,
+    "slide": 11,
+    "claim": "カモ、右奥に白い影",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 71,
+    "slide": 11,
+    "claim": "飛ぶ4羽の影",
+    "verdict": "ok",
+    "detail": ""
+   }
+  ],
+  "slide_claims": [
+   {
+    "slide": 4,
+    "text": "写真と合わないラベル32枚のうち20枚は、モデルの答えが写真に合う",
+    "verdict": "ok",
+    "detail": "表示の9枚はすべてラベルが写真と合わず予測が合う。20枚は付録（スライド8・9）の全数とも合う"
+   },
+   {
+    "slide": 5,
+    "text": "ラベルもモデルも外れる12枚は、黒いハクチョウ2枚と別の鳥10枚",
+    "verdict": "ok",
+    "detail": "#26 は奥にマガモの雄も写るが、主役はサギで見出しの説明どおり"
+   },
+   {
+    "slide": 5,
+    "text": "オオバン・カモメ・ペリカンなどの主役に当たる選択肢が6種の中にない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 6,
+    "text": "ラベルが合うのに外した12枚のうち10枚は黒いハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 6,
+    "text": "外した黒いハクチョウ10枚をガン9枚・カモ1枚と判定",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 6,
+    "text": "残り2枚はカモの雄をガンと判定（アカハシハジロ、アメリカヒドリ）",
+    "verdict": "unknown",
+    "detail": "このスライドに写真がない（スライド2の#3はアカハシハジロの雄で、この点は合う）"
+   },
+   {
+    "slide": 7,
+    "text": "原因の3分類: ラベル側・モデル側（黒いハクチョウ）・選択肢の外（別の鳥）",
+    "verdict": "ok",
+    "detail": "表示の3枚はそれぞれの分類の例として写真と合う"
+   },
+   {
+    "slide": 8,
+    "text": "ラベルがガンで、モデルの答えが合う11枚",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 9,
+    "text": "ラベルがカモ・ハクチョウで、モデルの答えが合う9枚",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 11,
+    "text": "決められない6枚は、種や写る鳥を写真から絞れなかった／左端の1枚は奥の小鳥が決められない",
+    "verdict": "ok",
+    "detail": ""
+   }
+  ],
+  "comment": "写真の中身と合わない説明は見つからなかった。小さく写る物（#12 中央の群れ、#66 奥の小鳥）は決めきれない。"
+ },
+ "CR": {
+  "images": [
+   {
+    "n": 1,
+    "slide": 2,
+    "claim": "ガン、逆光のシルエット",
+    "verdict": "ok",
+    "detail": "逆光のシルエットで種は決めきれないが、首の長い形はガンと矛盾しない"
+   },
+   {
+    "n": 2,
+    "slide": 2,
+    "claim": "ハクチョウ+カモ（コクチョウ、ハトも）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 3,
+    "slide": 2,
+    "claim": "サギ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 4,
+    "slide": 2,
+    "claim": "ハクチョウ（コクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 5,
+    "slide": 2,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 6,
+    "slide": 2,
+    "claim": "カモ、主役はサギ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 7,
+    "slide": 2,
+    "claim": "ペリカン、右端不明",
+    "verdict": "ok",
+    "detail": "右端の物は小さく、鳥かどうかも決めきれない"
+   },
+   {
+    "n": 8,
+    "slide": 2,
+    "claim": "ハクチョウ（コクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 9,
+    "slide": 2,
+    "claim": "ハクチョウ（ニュース画面）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 10,
+    "slide": 2,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 11,
+    "slide": 2,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 12,
+    "slide": 4,
+    "claim": "ハクチョウ+カモ（コクチョウ、ハトも）／ラベルがガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 13,
+    "slide": 4,
+    "claim": "カモ（ツクシガモの仲間）／ラベルがガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 14,
+    "slide": 4,
+    "claim": "ハクチョウ（ニュース画面）／ラベルがガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 15,
+    "slide": 4,
+    "claim": "カモ（オシドリ）／ラベルがガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 16,
+    "slide": 4,
+    "claim": "ガン／ラベルがカモ・ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 17,
+    "slide": 4,
+    "claim": "ガン／ラベルがカモ・ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 18,
+    "slide": 4,
+    "claim": "ハクチョウ（コクチョウ）／ラベルがカモ・ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 19,
+    "slide": 4,
+    "claim": "ガン／ラベルがカモ・ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 20,
+    "slide": 5,
+    "claim": "ハクチョウ（コクチョウ）、ラベルとも予測とも違うクラスが写る",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 21,
+    "slide": 5,
+    "claim": "サギ、6種のどれも写らない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 22,
+    "slide": 5,
+    "claim": "チドリの仲間、6種のどれも写らない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 23,
+    "slide": 5,
+    "claim": "ハクチョウ（コクチョウ）、ラベルとも予測とも違うクラスが写る",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 24,
+    "slide": 5,
+    "claim": "オオバン、6種のどれも写らない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 25,
+    "slide": 5,
+    "claim": "オオバン、6種のどれも写らない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 26,
+    "slide": 5,
+    "claim": "カツオドリ、6種のどれも写らない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 27,
+    "slide": 5,
+    "claim": "バン、6種のどれも写らない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 28,
+    "slide": 5,
+    "claim": "カモ、主役はサギ、ラベルとも予測とも違うクラスが写る",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 29,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 30,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 31,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 32,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 33,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 34,
+    "slide": 6,
+    "claim": "カモ（そのほか）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 35,
+    "slide": 6,
+    "claim": "ガン、逆光のシルエット（そのほか）",
+    "verdict": "ok",
+    "detail": "逆光のシルエットで種は決めきれないが、首の長い形はガンと矛盾しない"
+   },
+   {
+    "n": 36,
+    "slide": 6,
+    "claim": "ハクチョウ+カモ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 37,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 38,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 39,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 40,
+    "slide": 6,
+    "claim": "ハクチョウ（コクチョウ、モデル自身の誤り）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 41,
+    "slide": 6,
+    "claim": "カモ（そのほか）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 42,
+    "slide": 8,
+    "claim": "カモ、頭の接写（ラベルガン・写真カモ）",
+    "verdict": "ok",
+    "detail": "頭だけで種は決めきれないが、嘴の形はカモと矛盾しない"
+   },
+   {
+    "n": 43,
+    "slide": 8,
+    "claim": "カモ、リュウキュウガモ類（ラベルガン・写真カモ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 44,
+    "slide": 8,
+    "claim": "カモ、ツクシガモの仲間（ラベルガン・写真カモ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 45,
+    "slide": 8,
+    "claim": "カモ（ラベルガン・写真カモ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 46,
+    "slide": 8,
+    "claim": "ハクチョウ+カモ（コクチョウ、ハトも）（ラベルガン・写真ハクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 47,
+    "slide": 8,
+    "claim": "ハクチョウ（コクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 48,
+    "slide": 8,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 49,
+    "slide": 8,
+    "claim": "ハクチョウ（コクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 50,
+    "slide": 8,
+    "claim": "カモ（オシドリ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 51,
+    "slide": 8,
+    "claim": "カモ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 52,
+    "slide": 8,
+    "claim": "ハクチョウ（ニュース画面）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 53,
+    "slide": 8,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 54,
+    "slide": 8,
+    "claim": "ハクチョウ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 55,
+    "slide": 8,
+    "claim": "カモ",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 56,
+    "slide": 9,
+    "claim": "ガン（写真はガン）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 57,
+    "slide": 9,
+    "claim": "ハクチョウ（コクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 58,
+    "slide": 9,
+    "claim": "ハクチョウ（コクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 59,
+    "slide": 9,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 60,
+    "slide": 9,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 61,
+    "slide": 9,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 62,
+    "slide": 9,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 63,
+    "slide": 9,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 64,
+    "slide": 9,
+    "claim": "ガン",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "n": 65,
+    "slide": 10,
+    "claim": "カモ（奥の白い鳥は不明）",
+    "verdict": "ok",
+    "detail": "奥の白い物はぼけていて、種は決めきれない"
+   },
+   {
+    "n": 66,
+    "slide": 10,
+    "claim": "ペリカン、右端不明",
+    "verdict": "ok",
+    "detail": "右端の物は小さく、鳥かどうかも決めきれない"
+   },
+   {
+    "n": 67,
+    "slide": 10,
+    "claim": "カモ+ハクチョウ（カモの群れとハクチョウが両方写る）",
+    "verdict": "ok",
+    "detail": "中央の水しぶきの群れに「ガン」の枠があるが、大きさ・形は周りのカモと同じに見え、ガンかは決めきれない"
+   }
+  ],
+  "slide_claims": [
+   {
+    "slide": 2,
+    "text": "最多の「ガン→ハクチョウ」13枚で、ガンと確かめられたのは1枚",
+    "verdict": "ok",
+    "detail": "ほかの12枚にガンは写っていない。その1枚（#1）は逆光のシルエットで、形はガンと矛盾しないが種は決めきれない"
+   },
+   {
+    "slide": 2,
+    "text": "写真はハクチョウ7枚、6種以外の鳥が主役5枚、ガン1枚",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 4,
+    "text": "ラベルが合わない34枚のうち23枚は、モデルの答えが写真に合う",
+    "verdict": "ok",
+    "detail": "表示の8枚はすべてラベルが写真と合わず予測が合う。23枚は付録（スライド8・9）の全数とも合う"
+   },
+   {
+    "slide": 4,
+    "text": "ラベルがガンの14枚は、写真ではハクチョウ7枚・カモ7枚",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 4,
+    "text": "ラベルがカモ・ハクチョウの9枚は、写真ではガン7枚・ハクチョウ2枚",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 5,
+    "text": "残る11枚のうち8枚には、6種のどれも写っていない",
+    "verdict": "ok",
+    "detail": "番号付きの6枚（サギ・チドリの仲間・オオバン2枚・カツオドリ・バン）に6種は写っていない"
+   },
+   {
+    "slide": 6,
+    "text": "モデル自身の誤り13枚のうち10枚は、黒いハクチョウ（コクチョウ）",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 6,
+    "text": "コクチョウ10枚を、ガン9枚・カモ1枚と答えた",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 6,
+    "text": "残る3枚は、ガンの逆光のシルエットと、カモ2枚",
+    "verdict": "ok",
+    "detail": "シルエット（#35）は種を決めきれない"
+   },
+   {
+    "slide": 8,
+    "text": "ラベルがガンの14枚は、写真ではハクチョウ7枚とカモ7枚",
+    "verdict": "ok",
+    "detail": "#42 は頭の接写で種は決めきれないが、カモと矛盾しない"
+   },
+   {
+    "slide": 9,
+    "text": "ラベルがカモ・ハクチョウの9枚は、写真ではガン7枚とハクチョウ2枚",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 10,
+    "text": "判別できない3枚と両方写る1枚は、決め手の鳥が端や奥にいる",
+    "verdict": "ok",
+    "detail": "#66 の右端の物は小さく、鳥かどうかも決めきれない"
+   },
+   {
+    "slide": 10,
+    "text": "判別できない3枚は、ラベルのクラスが枠の中の鳥かどうかを決められない",
+    "verdict": "ok",
+    "detail": ""
+   },
+   {
+    "slide": 10,
+    "text": "右下の1枚は、カモの群れとハクチョウが両方写る",
+    "verdict": "ok",
+    "detail": ""
+   }
+  ],
+  "comment": "写真の中身と合わない説明は見つからなかった。#1・#35 の逆光のシルエットを「ガン」とする点は、形は合うが写真からは決めきれない。"
+ }
+}

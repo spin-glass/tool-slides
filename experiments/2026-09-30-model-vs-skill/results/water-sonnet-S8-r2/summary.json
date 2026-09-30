@@ -1,0 +1,50 @@
+{
+  "run_id": "water-sonnet-S8-r2",
+  "task": "water",
+  "model": "sonnet",
+  "skill": "S8",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 1043,
+  "num_turns": 97,
+  "cost_usd": 4.511,
+  "output_tokens": 130367,
+  "models_used": {
+    "claude-sonnet-5-5": 4.511
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/black_swan.csv",
+    "decks/water-errors/data/cause.csv",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/make_credits.py",
+    "decks/water-errors/make_tables.py"
+  ],
+  "tools": {
+    "Bash": 36,
+    "Read": 59,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.07,
+    "seven_day": 0.83,
+    "status": "allowed_warning"
+  },
+  "final_message": "`decks/water-errors/index.qmd` を作り、`quarto render` で `_output/decks/water-errors/index.html` が出ることを確かめました。lint は block 0・warning 0、写真の説明と確認の表の食い違いも 0 件です。\n\n## 私が決めた前提（差し戻し可）\n- **聴衆**: 画像分類を運用するエンジニアとアノテーター。混同行列の数字は見ているが、誤った画像は見たことがない。\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間**: 口頭 10 分。budget は 10÷1.5 で 6 枚とした。\n- **委任の記録**: 「構成や見せ方は任せます」を `decided-by` に残した。骨子の承認待ちは省いた。\n\n## 本編 6 枚のタイトル\n1. 誤り51枚はすべて鳥3種の取り違えで、最多はガン→ハクチョウの13枚だ\n2. 誤り51枚の32枚はラベルが写真と合わず、モデルだけの誤りは12枚だ\n3. 写真と合わないラベル32枚のうち20枚は、モデルの答えが写真に合う\n4. ラベルもモデルも外れる12枚は、黒いハクチョウ2枚と別の鳥10枚だ\n5. ラベルが合うのに外した12枚のうち10枚は、黒いハクチョウだ\n6. 対策を決める前に、間違えた画像を実際に見て、原因を3つに分けよう\n\n付録は 7 枚です。ラベルと写真が合わず、モデルの答えが合う 20 枚の全数（2 枚）、カモの雄をガンとした 2 枚、決められない 6 枚、拡大図、判定方法と出典です。\n\n## 分かったこと\n- **誤り51枚の内訳**: ラベルと写真が合わないのが 32 枚、ラベルは合うのにモデルが外したのが 12 枚、両方写るのが 1 枚、決められないのが 6 枚。\n- **確信度の高い誤り**: 確信度 0.8 以上の誤り 17 枚のうち 15 枚は、ラベルと写真が合わない。モデルだけの誤り 12 枚は、すべて確信度 0.62 以下。\n- **モデルだけの誤り**: 12 枚のうち 10 枚は、黒いハクチョウをガン（9枚）かカモ（1枚）と判定したもの。黒いハクチョウ 24 枚では 10 枚（42%）にあたる。\n\n## 判定の確かめ方と限界\n- 判定は私の目視です。51 枚は元の写真から作った確認シートで 1 枚ずつ見ました。判断が割れる画像と、ラベルのクラスが写らないとした画像は、元の写真を大きく開いて確かめました。\n- 種が決められない 6 枚は、どちらの数にも入れていません。付録に置き、奥の小鳥は拡大して載せています。\n- 判定の表は `data/look.csv`、`data/cause.csv`、`data/black_swan.csv` に残しました。\n- 図の 1 枚の大きさは、誤りの組ごとの見本の図と、ラベルが合わないのにモデルが合う 20 枚の見本の図で約 125〜150px です。150px 以上の目安に届かない図もありますが、何が写っているかは読める大きさです。\n- 最終枚の「原因ごとに確信度が最も高い 1 枚」の図は、各原因で確信度が最も高い 1 枚を規則どおり選びました。\n\n## その他\n- Notion への保存、git の commit・push、公開はしていません。\n- Quarto が `.gitignore` に `/.quarto/` と `**/*.quarto_ipynb` を自動で足したので、差分に出ます。\n- `make_tables.py`（判定表の生成）と `make_credits.py`（`credits.html` の生成）を deck フォルダに置きました。"
+}
