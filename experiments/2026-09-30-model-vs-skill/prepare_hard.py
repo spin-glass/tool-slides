@@ -223,7 +223,9 @@ def gt() -> None:
         im = Image.open(pd.IMG / f"{r['id']}.jpg").convert("RGB")
         d = ImageDraw.Draw(im)
         W, H = im.size
-        for n, bs in bx.items():
+        order = sorted(bx, key=lambda n: n == r["true"])          # データのラベルの種（赤）を最後に描いて上に出す
+        for n in order:
+            bs = bx[n]
             if n not in targets and (not others or n != others[0][1]):
                 continue
             color, width = ("#ff2020", 5) if n == r["true"] else ("#1e90ff", 5) if n in targets else ("#ffd000", 2)
