@@ -154,9 +154,10 @@ def summarize(run_dir: Path) -> dict:
     """ログから、使った道具・スキル・フックの block 回数・最後の発言を取り出す。"""
     tools: dict[str, int] = {}
     skills: list[str] = []
-    hook_blocks = 0
+    hook_blocks = stop_hooks = stops = 0
     init_skills: list[str] = []
     final = ""
+    limits: dict = {}
     for log in sorted(run_dir.glob("turn*.jsonl")):
         for line in open(log):
             try:
@@ -166,8 +167,13 @@ def summarize(run_dir: Path) -> dict:
             if d.get("type") == "system" and d.get("subtype") == "init":
                 init_skills = d.get("skills") or []
             if d.get("type") == "system" and d.get("subtype") == "hook_response" and d.get("hook_event") == "Stop":
+                stop_hooks += 1
                 if '"decision": "block"' in (d.get("stdout") or ""):
                     hook_blocks += 1
+            if d.get("type") == "rate_limit_event":
+                limits = {k: v.get("utilization") for k, v in
+                          (d.get("rate_limit_info", {}).get("unifiedWindows") or {}).items()}
+                limits["status"] = d.get("rate_limit_info", {}).get("status")
             if d.get("type") == "assistant":
                 for c in d["message"].get("content", []):
                     if c.get("type") == "tool_use":
@@ -176,10 +182,10 @@ def summarize(run_dir: Path) -> dict:
                             skills.append(str(c.get("input", {}).get("skill")))
             if d.get("type") == "result":
                 final = d.get("result") or final
-    raw = "".join(open(f).read() for f in sorted(run_dir.glob("turn*.jsonl")))
+                stops += 1
     return {"tools": tools, "skill_calls": skills, "slides_skill_listed": "slides" in init_skills,
-            "slides_skill_loaded": "skills/slides" in raw and "Base directory for this skill" in raw,
-            "stop_hook_blocks": hook_blocks, "final_message": final}
+            "stop_hook_responses": stop_hooks, "stop_hook_blocks": hook_blocks, "rate_limits": limits,
+            "final_message": final}
 
 
 def run(task: str, model: str, skill: str, rep: str, natural: bool = False) -> None:
@@ -221,7 +227,7 @@ def run(task: str, model: str, skill: str, rep: str, natural: bool = False) -> N
     }
     (run_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({k: summary[k] for k in ("run_id", "followups", "num_turns", "wall_s", "cost_usd", "deck_exists",
-                                              "stop_reasons", "slides_skill_loaded", "stop_hook_blocks")},
+                                              "stop_reasons", "skill_calls", "stop_hook_blocks", "rate_limits")},
                      ensure_ascii=False))
 
 
