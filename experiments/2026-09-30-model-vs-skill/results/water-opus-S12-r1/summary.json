@@ -1,0 +1,48 @@
+{
+  "run_id": "water-opus-S12-r1",
+  "task": "water",
+  "model": "opus",
+  "skill": "S12",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    1
+  ],
+  "wall_s": 959,
+  "num_turns": 61,
+  "cost_usd": 6.25,
+  "output_tokens": 86786,
+  "models_used": {
+    "claude-opus-5-5": 6.25
+  },
+  "stop_reasons": [
+    "error_max_turns"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 26,
+    "Read": 87,
+    "Write": 2,
+    "Edit": 14
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 0,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.11,
+    "seven_day": 0.92,
+    "status": "allowed_warning"
+  },
+  "final_message": ""
+}

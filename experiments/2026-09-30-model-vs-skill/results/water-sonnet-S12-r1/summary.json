@@ -1,0 +1,46 @@
+{
+  "run_id": "water-sonnet-S12-r1",
+  "task": "water",
+  "model": "sonnet",
+  "skill": "S12",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    1
+  ],
+  "wall_s": 970,
+  "num_turns": 61,
+  "cost_usd": 5.296,
+  "output_tokens": 118068,
+  "models_used": {
+    "claude-sonnet-5-5": 5.296
+  },
+  "stop_reasons": [
+    "error_max_turns"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 35,
+    "Read": 106
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 0,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.11,
+    "seven_day": 0.92,
+    "status": "allowed_warning"
+  },
+  "final_message": ""
+}
