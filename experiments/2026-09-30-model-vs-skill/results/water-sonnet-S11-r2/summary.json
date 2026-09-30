@@ -1,0 +1,47 @@
+{
+  "run_id": "water-sonnet-S11-r2",
+  "task": "water",
+  "model": "sonnet",
+  "skill": "S11",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 961,
+  "num_turns": 111,
+  "cost_usd": 4.028,
+  "output_tokens": 124147,
+  "models_used": {
+    "claude-sonnet-5-5": 4.028
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 26,
+    "Read": 83,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.38,
+    "seven_day": 0.89,
+    "status": "allowed_warning"
+  },
+  "final_message": "`decks/water-errors/index.qmd` を作り、`quarto render decks/water-errors/index.qmd` で HTML が出ることを確かめました。出力先は `_output/decks/water-errors/index.html` です。lint は block 0 件、本編は budget 6 枚に収まっています。Notion への保存、commit、push、公開はしていません。\n\n## 私が決めた前提と、タイトル一覧\n\n「構成や見せ方は任せます」という委任に従い、骨子の承認待ちは省きました。差し戻す場合は、下の前提かタイトルを指定してください。\n\n- **聴衆**: 画像分類を運用するチーム（エンジニアとアノテーター）。数字は見ているが、誤りの画像は見たことがない。\n- **してほしいこと**: 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間**: 10分。本編は 6 枚、付録は 5 枚です。\n\n1. 誤り51枚はすべて鳥3種の間で起き、ほかの3種は120枚全問正解だ\n2. 誤り51枚のうち32枚は、写真にラベルの鳥が写っていない\n3. ラベルの鳥が写らない32枚のうち9枚は、3種以外の鳥が写っている\n4. 残る23枚は、ラベルとは別の種がはっきり写っている\n5. モデルの誤り12枚のうち10枚は、黒いハクチョウをガンかカモと答えた\n6. 次の改善の前に、間違えた画像を実際に見て、対策を決めよう\n\n## 見つかったこと\n\n誤り51枚を元の写真で1枚ずつ確認すると、モデルの誤りは12枚だけでした。\n\n| 内訳 | 枚数 |\n|---|---|\n| ラベルの鳥が写真に写っていない | 32 |\n| ラベルの鳥が写っていて、モデルだけが間違えた | 12 |\n| 決めにくい | 6 |\n| ラベルの鳥も答えの鳥も写る | 1 |\n\n- **ラベルの誤り**: ガンのラベルで外れた23枚は、モデルの誤りが1枚もありません。写っていたのはハクチョウ、カモ、ハト、カモメ、ペリカンなどでした。\n- **モデルの誤り**: 12枚のうち10枚は黒いハクチョウです。ハクチョウのラベルの黒い個体24枚のうち10枚を、ガンかカモと答えました。\n\n## 確認すべき点\n\n- **確認の範囲**: 目視で確認したのは誤り51枚と、正解したハクチョウ26枚だけです。ハクチョウのラベルの正解26枚にも、フラミンゴ2枚・サギ1枚・ガンが写る1枚が混じっていました。残りの正解163枚は未確認です。範囲は付録にも書いています。\n- **決めにくい6枚**: 夕空の影やシルエット、奥に小さな鳥がいる写真などは、ラベルの誤りにもモデルの誤りにも数えていません。\n- **lint の警告4件**: 「写っていない」という言い切りへの警告です。該当する写真は、元の写真と4区画の拡大で全数確認しています。\n- **図の大きさ**: 1枚あたり 103〜149px です。目標の 150px には届いていません。混同行列に写真を置く案は 64px と小さすぎたので、1枚目は数字の表にしました。\n- **`.gitignore`**: quarto が自動で 2 行を追加しています。意図した変更ではないので、戻す場合は指示してください。\n- **Notion**: 今回は使っていません。\n\n## 追加したファイル\n\n- `data/look.csv`: 写真ごとに、写っている鳥と確認結果を記録した確認の表です。\n- `credits.html` と `make_credits.py`: CC BY 2.0 の作者表示と、その生成スクリプトです。\n- 確認用の画像は `_check/` にあります（git 管理外）。"
+}
