@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """独立した検証（鳥の課題）の集計: 指標1・2と副次の値を条件ごとにまとめ、README の判定規則を当てはめる。
 
-    MVS_WORK=… .venv/bin/python experiments/2026-09-30-model-vs-skill/birds_report.py   # results/birds_summary.md
+    MVS_WORK=… .venv/bin/python experiments/2026-09-30-model-vs-skill/birds_report.py [birds2]   # results/<課題>_summary.md
 
-読むもの（先に作っておく）:
+課題は birds（省略時）か、その追加の birds2（欠陥を直したデータ。指標1は行わない）。読むもの（先に作っておく）:
   results/metrics.csv                 score.py（本編の枚数・タイトル・字数・ターン・時間・費用）
-  results/birds_shown.csv             birdcheck.py（誤りの画像29枚が載ったか）
-  results/birds_planted.csv           仕込みの6枚を見抜いたか（birdcheck.py の材料を読んで決めたもの。根拠つき）
-  results/imagecheck_birds_rates.csv  imagecheck.py table birds（確認者ごと・デッキごとの食い違いの率）
+  results/<課題>_shown.csv            birdcheck.py（誤りの画像29枚が載ったか）
+  results/<課題>_planted.csv          仕込みの6枚を見抜いたか（birdcheck.py の材料を読んで決めたもの。根拠つき）
+  results/imagecheck_birds_rates.csv  imagecheck.py table birds（確認者ごと・デッキごとの食い違いの率。birds だけ）
 """
 from __future__ import annotations
 
@@ -52,12 +52,13 @@ def image_absolute(run: str) -> int:
 
 
 def main() -> None:
-    metrics = {m["run_id"]: m for m in read("metrics.csv") if m["task"] == "birds"}
+    task = (sys.argv[1:] or ["birds"])[0]
+    metrics = {m["run_id"]: m for m in read("metrics.csv") if m["task"] == task}
     runs = sorted(metrics)
-    shown = read("birds_shown.csv")
-    planted = {(r["run_id"], r["id"]): r for r in read("birds_planted.csv")}
+    shown = read(f"{task}_shown.csv")
+    planted = {(r["run_id"], r["id"]): r for r in read(f"{task}_planted.csv")}
     rates: dict[str, list[float]] = {}
-    for r in read("imagecheck_birds_rates.csv"):
+    for r in read("imagecheck_birds_rates.csv") if task == "birds" else []:
         if r["rate"] != "":
             rates.setdefault(r["deck"], []).append(float(r["rate"]))
 
@@ -81,7 +82,7 @@ def main() -> None:
             "absolute": image_absolute(run),
         }
 
-    lines = ["# 独立した検証（鳥の課題）の集計", "",
+    lines = [f"# 独立した検証（鳥の課題{'' if task == 'birds' else '・追加'}）の集計", "",
              "`birds_report.py` が書いた。指標と判定規則は README「独立した検証の計画」。", "",
              "## デッキごと", "",
              "| 実行 | 指標1 食い違い（確認者数） | 見抜いた | 誤ったラベルのまま見せた | 応答でだけ触れた | 誤りの画像を載せた（本編） "
@@ -123,7 +124,9 @@ def main() -> None:
         verdicts.append(f"- 規則(8)（ラベル）: **はっきりしない**（S5 {c[(None, 'S5')]}枚 対 S4 {c[(None, 'S4')]}枚。"
                         f"Opus {c[('opus', 'S5')]} 対 {c[('opus', 'S4')]}、Sonnet {c[('sonnet', 'S5')]} 対 {c[('sonnet', 'S4')]}）")
     r = {(m, s): cell(m, s, "m1", mean) for m in (*MODELS, None) for s in SKILLS}
-    if any(v is None for v in r.values()):
+    if task != "birds":
+        verdicts.append("- 規則(7): この課題では照合（指標1）を行わない")
+    elif any(v is None for v in r.values()):
         verdicts.append("- 規則(7): 照合の結果がそろっていない（results/imagecheck_birds_rates.csv）")
     else:
         d = 100 * (r[(None, "S5")] - r[(None, "S4")])
@@ -134,7 +137,7 @@ def main() -> None:
                         f"差 {d:+.1f} ポイント。Opus {100 * r[('opus', 'S5')]:.1f}% 対 {100 * r[('opus', 'S4')]:.1f}%、"
                         f"Sonnet {100 * r[('sonnet', 'S5')]:.1f}% 対 {100 * r[('sonnet', 'S4')]:.1f}%）")
     lines += verdicts
-    out = RESULTS / "birds_summary.md"
+    out = RESULTS / f"{task}_summary.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
 

@@ -336,11 +336,12 @@ def truth_rows(rows: list[dict]) -> dict:
 def truth(task: str = "image") -> dict:
     if task == "change":
         return truth_change()
-    if task != "birds":
+    if task not in ("birds", "birds2"):
         return truth_rows(list(csv.DictReader(open(HERE / "task/data/predictions.csv", encoding="utf-8"))))
     # 鳥の課題: モデルに渡したデータ（ラベルを変えた6枚を含む）と、6枚のラベルを戻したデータの、どちらの値も正しいとする
-    rows = list(csv.DictReader(open(HERE / "task3/data/predictions.csv", encoding="utf-8")))
-    planted = {r["id"]: r for r in csv.DictReader(open(HERE / "task3/planted.csv", encoding="utf-8"))}
+    base = HERE / ("task3" if task == "birds" else "task3b")
+    rows = list(csv.DictReader(open(base / "data/predictions.csv", encoding="utf-8")))
+    planted = {r["id"]: r for r in csv.DictReader(open(base / "planted.csv", encoding="utf-8"))}
     fixed = [r | {"true_ja": planted[r["id"]]["content_ja"]} if r["id"] in planted else r for r in rows]
     given, back = truth_rows(rows), truth_rows(fixed)
     return {"counts": given["counts"] | back["counts"] | {len(planted)}, "pct": given["pct"] | back["pct"],
@@ -428,8 +429,13 @@ def main() -> None:
             rows.append(row)
             print({k: row.get(k) for k in ("run_id", "renders", "n_main", "title_ok_rate", "chars_max", "bullets_max",
                                            "numbers_to_check", "image_slides")})
-    if not rows or only:
+    if not rows:
         return
+    if only:                               # 名前を挙げた実行だけを採点したときは、metrics.csv のその行だけを差し替える
+        path = RESULTS / "metrics.csv"
+        old = list(csv.DictReader(open(path, encoding="utf-8"))) if path.exists() else []
+        done = {r["run_id"] for r in rows}
+        rows = sorted([r for r in old if r["run_id"] not in done] + rows, key=lambda r: r["run_id"])
     fields = list(dict.fromkeys(k for r in rows for k in r))
     with open(RESULTS / "metrics.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)

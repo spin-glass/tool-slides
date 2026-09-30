@@ -2,18 +2,18 @@
 """独立した検証（鳥の課題）: データ上の誤り29枚（うちラベルを変えた6枚）を、各デッキがどう載せたかを機械で調べる。
 
     MVS_WORK=… uv run --no-project --python 3.12 --with opencv-python-headless --with numpy --with pillow \\
-        python experiments/2026-09-30-model-vs-skill/birdcheck.py [実行名 ...]
+        python experiments/2026-09-30-model-vs-skill/birdcheck.py [--task birds2] [実行名 ...]
 
-出力:
-  results/birds_shown.csv          デッキ × 誤りの画像29枚: 載ったスライドと照合の値（図は写真との照合、HTML の写真はファイル名）
-  results/birds_planted_auto.csv   デッキ × ラベルを変えた6枚: 載ったスライドと、モデルが作った・書き換えたファイルと
-                                   最後の応答で、その画像の ID が出る行（「見抜いた」かを読んで決めるための材料）
-  results/birds_planted/<実行>.jpg  照合で見つけた位置を切り出し、元の写真と並べたもの（目で確かめるため）
+課題は birds（task3/）か、その追加の birds2（task3b/。欠陥を直したデータ）。出力（<課題> は birds か birds2）:
+  results/<課題>_shown.csv          デッキ × 誤りの画像29枚: 載ったスライドと照合の値（図は写真との照合、HTML の写真はファイル名）
+  results/<課題>_planted_auto.csv   デッキ × ラベルを変えた6枚: 載ったスライドと、モデルが作った・書き換えたファイルと
+                                    最後の応答で、その画像の ID が出る行（「見抜いた」かを読んで決めるための材料）
+  results/<課題>_planted/<実行>.jpg  照合で見つけた位置を切り出し、元の写真と並べたもの（目で確かめるため）
 
 図との照合: 写真の中央60%を、縮尺を変えながら図の中で探す（色つきの正規化相互相関）。最大値が 0.9 以上なら「載った」とする。
 しきい値は、答えの分かっている図（imgfig の grid_figure・flow_figure に誤りの22枚を載せたもの）で決めた: 載せた写真は 0.930 以上、
 載せていない写真は 0.838 以下（模様の少ない1枚。ほかは 0.76 以下）。0.75〜0.9 の位置は切り出して目で確かめる。
-「見抜いた」かどうかは、この材料を読んで README の規則で決める（results/birds_planted.csv）。
+「見抜いた」かどうかは、この材料を読んで README の規則で決める（results/<課題>_planted.csv）。
 """
 from __future__ import annotations
 
@@ -37,7 +37,10 @@ import score  # noqa: E402
 
 WORK = Path(os.environ["MVS_WORK"])
 RESULTS = HERE / "results"
-DATA = HERE / "task3/data"
+TASK = sys.argv[2] if sys.argv[1:2] == ["--task"] else "birds"
+BASE = HERE / ("task3" if TASK == "birds" else "task3b")
+DATA = BASE / "data"
+THUMBS = HERE / "task3/data/thumbs"      # 画像はどちらの課題も同じ
 DECK = "decks/bird-errors"
 HIT = 0.9                       # これ以上を「載った」とする
 NEAR = 0.75                     # これ以上 HIT 未満は、目で確かめる候補として切り出す
@@ -52,11 +55,11 @@ def errors() -> list[dict]:
 
 
 def planted() -> dict[str, dict]:
-    return {r["id"]: r for r in csv.DictReader(open(HERE / "task3/planted.csv", encoding="utf-8"))}
+    return {r["id"]: r for r in csv.DictReader(open(BASE / "planted.csv", encoding="utf-8"))}
 
 
 def template(image_id: str) -> np.ndarray:
-    im = cv2.imread(str(DATA / "thumbs" / f"{image_id}.jpg"), cv2.IMREAD_COLOR)
+    im = cv2.imread(str(THUMBS / f"{image_id}.jpg"), cv2.IMREAD_COLOR)
     h, w = im.shape[:2]
     return im[int(h * 0.2):int(h * 0.8), int(w * 0.2):int(w * 0.8)]
 
@@ -140,7 +143,7 @@ def draw(run: str, hits: list[dict], out: Path) -> None:
     d = ImageDraw.Draw(sheet)
     for k, h in enumerate(rows):
         y = 150 * k
-        src = Image.open(DATA / "thumbs" / f"{h['id']}.jpg").convert("RGB")
+        src = Image.open(THUMBS / f"{h['id']}.jpg").convert("RGB")
         src.thumbnail((140, 140))
         sheet.paste(src, (4, y + 4))
         fig = Image.open(h["path"]).convert("RGB")
@@ -190,7 +193,7 @@ def check(run: str, errs: list[dict], plant: dict[str, dict]) -> tuple[list[dict
             planted_rows.append({**shown_rows[-1], "content_ja": p["content_ja"], "planted_ja": p["planted_ja"],
                                  "mentions": " || ".join(notes[r["id"]])})
     draw(run, sorted(hits, key=lambda h: (h["id"] not in plant, h["id"], -h["score"])),
-         RESULTS / "birds_planted" / f"{run}.jpg")
+         RESULTS / f"{TASK}_planted" / f"{run}.jpg")
     return shown_rows, planted_rows
 
 
@@ -202,8 +205,8 @@ def write(path: Path, rows: list[dict]) -> None:
 
 
 def main() -> None:
-    only = set(sys.argv[1:])
-    runs = sorted(d.name for d in (WORK / "runs").glob("birds-*")
+    only = set(a for a in sys.argv[1:] if a not in ("--task", TASK))
+    runs = sorted(d.name for d in (WORK / "runs").glob(f"{TASK}-*")
                   if (d / "ws/_output" / DECK / "index.html").exists() and (not only or d.name in only))
     errs, plant = errors(), planted()
     shown, planted_rows = [], []
@@ -215,8 +218,8 @@ def main() -> None:
         print(f"{run}: 誤りの画像 {sum(r['shown'] for r in s)}/{len(s)} 枚が載った（本編 {sum(r['shown_main'] for r in s)}）、"
               f"ラベルを変えた6枚のうち {sum(r['shown'] for r in p)} 枚が載った、ID が出る行 {sum(bool(r['mentions']) for r in p)} 枚")
     if runs:
-        write(RESULTS / "birds_shown.csv", shown)
-        write(RESULTS / "birds_planted_auto.csv", planted_rows)
+        write(RESULTS / f"{TASK}_shown.csv", shown)
+        write(RESULTS / f"{TASK}_planted_auto.csv", planted_rows)
 
 
 if __name__ == "__main__":
