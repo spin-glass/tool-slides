@@ -75,9 +75,11 @@ def slide_images(run: str, deck: str) -> tuple[list[dict], list[dict]]:
     n_main = score.n_main_slides(ws / deck / "index.qmd", score.parse_slides(html))
     out = []
     for n, s in enumerate(slides):
+        s["part"] = "付録" if n > n_main or "appendix" in s["cls"] else "本編"
         if n == 0 or "quarto-title-block" in s["cls"]:
+            s["part"] = ""
             continue
-        part = "付録" if n > n_main or "appendix" in s["cls"] else "本編"
+        part = s["part"]
         for src, _ in s["imgs"]:
             if not src or src.startswith(("data:", "http")):
                 continue
@@ -314,12 +316,15 @@ def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None) -> No
             by_slide.setdefault(f["slide"], []).append(
                 f"`{name}.jpg`（スライドの図。#{', #'.join(str(p['n']) for p in mine)}）／ `{name}-truth.jpg`（同じ番号の元の写真）"
                 + ("" if not f["id"] else f"。HTML の写真で、番号は #{mine[0]['n']}"))
-        for sn in sorted(by_slide):
-            s = slides[sn - 1]
+        for sn, s in enumerate(slides, start=1):
             text = s["text"] if len(s["text"]) <= 900 else s["text"][:900] + "…"
-            part = next(f["part"] for f in imgs if f["slide"] == sn)
-            body += [f"## スライド {sn}（{part}）", "", f"- タイトル: {s['title']}", f"- 画面の文字: {text}",
-                     f"- 確認用の画像: {' ／ '.join(by_slide[sn])}", ""]
+            if sn in by_slide:
+                body += [f"## スライド {sn}（{s['part']}）", "", f"- タイトル: {s['title']}", f"- 画面の文字: {text}",
+                         f"- 確認用の画像: {' ／ '.join(by_slide[sn])}", ""]
+            elif s["part"] and (s["title"] or text).strip() and not skip:
+                # 誤りの写真が無いスライドも、箇条書きなどで写真の中身に触れることがある（D まではここを渡していなかった）
+                body += [f"## スライド {sn}（{s['part']}・誤りの写真なし）", "", f"- タイトル: {s['title']}",
+                         f"- 画面の文字: {text}", ""]
         (d / "manifest.md").write_text("\n".join(body) + "\n", encoding="utf-8")
         key[code] = {"run": run, "images": {str(p["n"]): p["id"] for p in placed}}
         print(f"{code} {run}: {len(placed)} error photos on {len(by_slide)} slides")
