@@ -59,6 +59,11 @@ def errors(task: str) -> dict[str, dict]:
     return {r["id"]: r for r in csv.DictReader(open(base / "gt.csv", encoding="utf-8")) if r["error"] == "True"}
 
 
+def photos(task: str) -> set[str]:
+    """課題の写真すべての ID（誤りでない写真も）。"""
+    return {r["id"] for r in csv.DictReader(open(HERE / TASKS[task][0] / "gt.csv", encoding="utf-8"))}
+
+
 def labels_ja(task: str) -> dict[str, dict]:
     base = HERE / TASKS[task][0] / "data"
     return {r["id"]: r for r in csv.DictReader(open(base / "predictions.csv", encoding="utf-8"))}
@@ -103,7 +108,8 @@ def match_job(job: tuple) -> dict[str, tuple]:
 
     import birdcheck as bc
 
-    task, path, ids = job
+    task, path, ids, *rest = job
+    narrow_only = bool(rest and rest[0])
     bc.THUMBS = HERE / TASKS[task][0] / "data/thumbs"
     for i in ids:
         if i not in _TMPLS:
@@ -120,6 +126,9 @@ def match_job(job: tuple) -> dict[str, tuple]:
     out = {}
     for i in ids:
         narrow = best(np.geomspace(0.2, 1.6, 36))
+        if narrow_only:
+            out[i] = (*narrow, *narrow)
+            continue
         wide = best(np.geomspace(1.6, 4.0, 14))       # 大きく載せた写真（2枚だけの図・拡大の図）。D までは探していなかった
         out[i] = (*max(narrow, wide, key=lambda t: t[0]), *narrow)
     return out
@@ -193,7 +202,7 @@ def checked(rnd: str) -> dict[str, set[tuple[int, int, str]]]:
     return out
 
 
-def coverage(rnds: list[str]) -> None:
+def coverage(rnds: list[str], errors_only: bool = False) -> None:
     """渡した回の資料が、デッキに載った誤りの写真をすべて含むかを、デッキの図の記録（imgfig の IMGFIG_REPORT）と照らす。
     デッキを描き直して記録を取り、記録の図ごとに、その図の誤りの写真すべてを含む図が資料にあるかを見る。"""
     runs: dict[str, set[tuple[int, int, str]]] = {}
@@ -202,7 +211,7 @@ def coverage(rnds: list[str]) -> None:
             runs.setdefault(run, set()).update(s)
     for run in sorted(runs):
         task = next(t for t in TASKS if run.startswith(t + "-"))
-        errs = errors(task)
+        errs = set(errors(task)) if errors_only else photos(task)
         lines = drawn(run, task)
         figs: dict[int, set[str]] = {}
         for _, fig, i in runs[run]:
@@ -219,8 +228,9 @@ def coverage(rnds: list[str]) -> None:
             print(f"   記録の図 {k}: 資料に無い {ids}")
 
 
-def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None) -> None:
-    """skip に前の回を渡すと、その回で渡した (スライド, 写真) を除いて、照合で新しく見つかった分だけを資料にする。"""
+def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None, errors_only: bool = False) -> None:
+    """デッキに載った写真すべて（誤りでない写真も。E から）を確認者に渡す資料を作る。errors_only なら誤りの写真だけ（D・D2）。
+    skip に前の回を渡すと、その回で渡した (スライド, 写真) を除いて、新しく見つかった分だけを資料にする。"""
     from concurrent.futures import ProcessPoolExecutor
 
     from PIL import Image, ImageDraw, ImageFont
@@ -228,6 +238,7 @@ def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None) -> No
     base, cache, deck = TASKS[task]
     done = checked(skip) if skip else {}
     errs = errors(task)
+    targets = set(errs) if errors_only else photos(task)
     lab = labels_ja(task)
     OUT = out_dir(rnd)
     if OUT.exists():
@@ -247,6 +258,13 @@ def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None) -> No
     scores: dict[str, dict[int, dict]] = {}
     for (run, k, _), sc in zip(jobs, found):
         scores.setdefault(run, {})[k] = sc
+    recs = {run: align(decks[run][0], lines[run], scores.get(run, {})) for run in runs}
+    # 記録の無い図（imgfig 以外で描いた図）は、写真すべてを狭い縮尺で探す（2回目の照合）
+    jobs2 = [(run, k, path) for run, k, path in jobs if k not in recs[run]]
+    with ProcessPoolExecutor(max_workers=8) as pool:
+        found2 = list(pool.map(match_job, [(task, path, sorted(targets), True) for _, _, path in jobs2]))
+    for (run, k, _), sc in zip(jobs2, found2):
+        scores[run][k] = {**sc, **{i: v for i, v in scores[run][k].items() if i not in sc}}
     key = {}
     for run, code in zip(sorted(runs), codes):
         d = OUT / code
@@ -256,19 +274,19 @@ def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None) -> No
         body = [f"# デッキ {code}", ""]
         by_slide: dict[int, list[str]] = {}
         placed = []
-        rec = align(imgs, lines[run], scores.get(run, {}))
+        rec = recs[run]
         if len(rec) < sum(1 for ln in lines[run] if ln):
             print(f"   {run}: 図の記録 {sum(1 for ln in lines[run] if ln)} のうち {len(rec)} だけが図のファイルに対応した。目で確かめる")
         for k, f in enumerate(imgs):
             if f["id"]:                     # HTML の写真（ファイル名で分かる）
-                if f["id"] in errs and (f["slide"], k + 1, f["id"]) not in done.get(run, set()):
+                if f["id"] in targets and (f["slide"], k + 1, f["id"]) not in done.get(run, set()):
                     placed.append({**f, "fig": k, "box": None, "id": f["id"], "score": 1.0})
                 continue
             sc = scores[run][k]
-            if k in rec:                    # 図の記録（imgfig）がある図: 記録にある誤りの写真すべて。位置は照合で
-                ids = [(i, *sc[i][:2]) for i in dict.fromkeys(rec[k]) if i in errs]
+            if k in rec:                    # 図の記録（imgfig）がある図: 記録にある写真すべて。位置は照合で
+                ids = [(i, *sc[i][:2]) for i in dict.fromkeys(rec[k]) if i in targets]
             else:                           # 記録の無い図（imgfig 以外で描いた図）: A〜D と同じ照合で 0.9 以上
-                ids = [(i, *sc[i][2:]) for i in errs if sc[i][2] >= HIT]
+                ids = [(i, *sc[i][2:]) for i in sorted(targets) if i in sc and sc[i][2] >= HIT]
             for i, v, box in ids:
                 if (f["slide"], k + 1, i) in done.get(run, set()):
                     continue
@@ -322,12 +340,12 @@ def prepare(rnd: str, task: str, runs: list[str], skip: str | None = None) -> No
                 body += [f"## スライド {sn}（{s['part']}）", "", f"- タイトル: {s['title']}", f"- 画面の文字: {text}",
                          f"- 確認用の画像: {' ／ '.join(by_slide[sn])}", ""]
             elif s["part"] and (s["title"] or text).strip() and not skip:
-                # 誤りの写真が無いスライドも、箇条書きなどで写真の中身に触れることがある（D まではここを渡していなかった）
-                body += [f"## スライド {sn}（{s['part']}・誤りの写真なし）", "", f"- タイトル: {s['title']}",
-                         f"- 画面の文字: {text}", ""]
+                # 写真が無いスライドも、箇条書きなどで写真の中身に触れることがある（D まではここを渡していなかった）
+                body += [f"## スライド {sn}（{s['part']}・{'誤りの写真' if errors_only else '写真'}なし）", "",
+                         f"- タイトル: {s['title']}", f"- 画面の文字: {text}", ""]
         (d / "manifest.md").write_text("\n".join(body) + "\n", encoding="utf-8")
         key[code] = {"run": run, "images": {str(p["n"]): p["id"] for p in placed}}
-        print(f"{code} {run}: {len(placed)} error photos on {len(by_slide)} slides")
+        print(f"{code} {run}: {len(placed)} photos ({sum(p['id'] in errs for p in placed)} errors) on {len(by_slide)} slides")
     RESULTS.mkdir(exist_ok=True)
     key_path(rnd).write_text(json.dumps(dict(sorted(key.items())), indent=1) + "\n")
 
@@ -412,20 +430,24 @@ def table(rnd: str) -> None:
     for code in sorted(key):
         mine = [r for r in rows if r["code"] == code]
         wrong = {(r["kind"], r["slide"], r["n"]) for r in mine if r["final"] == "wrong"}
+        task = next(t for t in TASKS if key[code]["run"].startswith(t + "-"))
+        errs = errors(task)
+        wrong_err = {w for w in wrong if w[0] == "image" and key[code]["images"].get(w[2]) in errs}
         over = {(r["kind"], r["slide"], r["n"]) for r in mine if r["final"] == "overclaim"}
         imgs = {r["n"] for r in mine if r["kind"] == "image"}
         none = {r["n"] for r in mine if r["kind"] == "image" and r["verdict"] == "none"}
         print(f"{code} {key[code]['run']:28s} images {len(key[code]['images']):2d}  judged {len(imgs):2d}  "
-              f"not described {len(none):2d}  confirmed wrong {len(wrong)}  overclaim {len(over)}")
+              f"not described {len(none):2d}  confirmed wrong {len(wrong)}（写真の説明 {sum(w[0] == 'image' for w in wrong)}・"
+              f"うち誤りの写真 {len(wrong_err)}／スライドの主張 {sum(w[0] == 'slide' for w in wrong)}）  overclaim {len(over)}")
 
 
 if __name__ == "__main__":
     a = sys.argv[1:] or ["help"]
     if a[0] == "prepare":
         skip = a[a.index("--skip") + 1] if "--skip" in a else None
-        prepare(a[1], a[2], [r for r in a[3:] if r not in ("--skip", skip)], skip)
+        prepare(a[1], a[2], [r for r in a[3:] if r not in ("--skip", skip, "--errors-only")], skip, "--errors-only" in a)
     elif a[0] == "coverage":
-        coverage(a[1:])
+        coverage([r for r in a[1:] if r != "--errors-only"], "--errors-only" in a)
     elif a[0] in ("prompts", "collect", "table"):
         {"prompts": prompts, "collect": collect, "table": table}[a[0]](a[1])
     else:
