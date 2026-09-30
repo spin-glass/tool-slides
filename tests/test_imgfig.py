@@ -3,6 +3,7 @@
     .venv/bin/python -m unittest discover -s tests -v
 matplotlib の無い環境では読み飛ばす。
 """
+import dataclasses
 import json
 import os
 import sys
@@ -143,6 +144,50 @@ class Layout(unittest.TestCase):
         from PIL import Image
         self.assertEqual(Image.open(files[0]).width, 6 * 262 + 8)          # 1枚あたり元の大きさ（256px）＋余白
         self.assertEqual(Image.open(files[1]).width, 6 * 262 + 8)          # 残り6枚
+
+    def test_load_table_finds_originals_next_to_thumbs(self):
+        from PIL import Image
+        d = Path(tempfile.mkdtemp())
+        (d / "thumbs").mkdir()
+        (d / "images").mkdir()
+        for i in ("a", "b"):
+            Image.new("RGB", (256, 171)).save(d / "thumbs" / f"{i}.jpg")
+        Image.new("RGB", (1024, 683)).save(d / "images" / "a.jpg")           # b の元の写真は無い
+        (d / "t.csv").write_text("id,x\na,1\nb,2\n", encoding="utf-8")
+        items = imgfig.load_table(d / "t.csv", d / "thumbs")
+        self.assertEqual([it.original.name if it.original else None for it in items], ["a.jpg", None])
+        (d / "images" / "a.jpg").unlink()
+        (d / "images").rmdir()
+        self.assertIsNone(imgfig.load_table(d / "t.csv", d / "thumbs")[0].original)   # images/ が無ければ使わない
+
+    def test_review_sheet_uses_originals_large(self):
+        from PIL import Image
+        items = []
+        for it in self.photos([(256, 171)] * 10):
+            big = it.path.with_name(f"{it.id}-big.jpg")
+            Image.new("RGB", (1024, 683), (90, 120, 140)).save(big)
+            items.append(dataclasses.replace(it, original=big))
+        files = imgfig.review_sheet(items, Path(tempfile.mkdtemp()) / "check.jpg")
+        self.assertEqual(len(files), 2)                                      # 元の写真は1枚に9つまで
+        self.assertEqual(Image.open(files[0]).width, 3 * 486 + 8)            # 長辺480px・3列
+
+    def test_zoom_figure_pairs_whole_photo_and_crop(self):
+        report = Path(tempfile.mkdtemp()) / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            items = self.photos([(256, 171)] * 3)
+            imgfig.zoom_figure([(it, (0.6, 0.1, 0.9, 0.4)) for it in items], caption=lambda it: f"ラベル {it['n']}\n拡大")
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+            imgfig.plt.close("all")
+        row = json.loads(report.read_text().splitlines()[0])
+        self.assertEqual((row["kind"], row["thumbs"]), ("zoom", 6))          # 写真全体と拡大の組が3つ
+
+    def test_locate_image_draws_a_grid(self):
+        from PIL import Image
+        src = self.photos([(2048, 1365)])[0].path
+        out = imgfig.locate_image(src, Path(tempfile.mkdtemp()) / "locate.jpg")
+        self.assertEqual(max(Image.open(out).size), 1024)
 
     def test_figures_report_their_size(self):
         items = self.photos([(256, 171)] * 12)

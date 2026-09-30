@@ -68,7 +68,8 @@ PLOT_RE = re.compile(r"\b(plt|imgfig|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
 IMGFIG_RE = re.compile(r"\bimgfig\.\w+_figure\(")
 PICK_RE = re.compile(r"すべて|全数|全部|全\d+枚|等間隔|上位|下位|大きい順|小さい順|無作為|抜粋|代表")
 # 画像の中身についての言い切り。縮小した画像では見落としやすい（小さく写るもの、よく似た種）ので、元の大きさで確かめさせる
-ABSOLUTE_RE = re.compile(r"ばかり|[1一]枚も|写っていない|写らない|だけが写|しか写|例外なく|全員|全頭")
+ABSOLUTE_RE = re.compile(r"ばかり|[1一]枚も|写っていない|写らない|だけが写|しか写|例外なく|全員|全頭|どれでもない|"
+                         r"だけの写真|ラベルの誤り|ラベルが誤")
 APPENDIX_RE = re.compile(r"<!--\s*appendix\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 QUOTE_RE = re.compile(r"「[^」]*」")
@@ -427,8 +428,8 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
             if hits:
                 words = "、".join(dict.fromkeys(w for _, w in hits))
                 issues.append(Issue("warning", hits[0][0], s, "image-absolute",
-                                    f"画像について言い切っている（{words}）。`imgfig.py sheet` で該当する画像を元の大きさで"
-                                    "全枚見て、1枚も外れないことを確かめる"))
+                                    f"画像について言い切っている（{words}）。`imgfig.py sheet` で該当する画像を元の写真で"
+                                    "全枚見て（端・奥・物の陰まで）、1枚も外れないことを確かめる"))
 
         if s.appendix:
             continue   # appendix は密度制限を免除

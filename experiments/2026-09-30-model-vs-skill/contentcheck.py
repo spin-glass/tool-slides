@@ -269,7 +269,8 @@ def table(rnd: str) -> None:
            for a in csv.DictReader(open(adj_path, encoding="utf-8"))} if adj_path.exists() else {}
     for r in rows:
         a = next((v for (c, k, s, n, pre), v in adj.items() if c == r["code"] and k == r["kind"]
-                  and s == str(r["slide"]) and n == r["n"] and r["claim"].startswith(pre)), None)
+                  and s == str(r["slide"]) and n == r["n"] and r["claim"].startswith(pre)), None) \
+            if r["verdict"] in ("wrong", "overclaim") else None           # 確かめ直すのは、指摘のあった判定だけ
         r["final"] = a["final"] if a else ("" if r["verdict"] in ("wrong", "overclaim") else r["verdict"])
         r["adjudication"] = a["reason"] if a else ""
     with open(RESULTS / f"content_{rnd}.csv", "w", newline="", encoding="utf-8") as fh:

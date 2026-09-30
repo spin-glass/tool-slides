@@ -30,8 +30,11 @@ CLI（qmd を書かずに1枚の図にする）:
     python imgfig.py matrix --table table.csv --thumbs thumbs/ --row true --col pred --out matrix.png
     python imgfig.py moved  --scores scores.csv --thumbs thumbs/ --normal-group dog --from-loss 0.01 --to-loss 0.05 --out moved.png
     python imgfig.py sheet  --table table.csv --thumbs thumbs/ --where result=wrong --caption true,pred --credits credits.csv --out check.jpg
-                            （確認用。見せる画像を元の大きさで並べる。画像について書く前に Read で見る）
-表の列は自由（id 列が必須）。画像は <thumbs>/<id>.jpg。
+                            （確認用。見せる画像を大きく並べる。元の写真 images/ があればそれを使う。画像について書く前に Read で見る）
+    python imgfig.py locate --image images/<id>.jpg --out locate.jpg
+                            （確認用。元の写真に10等分の目盛りを描く。拡大して見せる範囲を 0〜1 の割合で読む）
+表の列は自由（id 列が必須）。画像は <thumbs>/<id>.jpg。thumbs と同じ階層に images/ があれば、元の写真として使う
+（確認用の一覧と、zoom_figure の切り出し）。
 """
 from __future__ import annotations
 
@@ -87,6 +90,7 @@ class Item:
     label: str = ""
     role: str = ""
     attrs: dict = field(default_factory=dict, compare=False, repr=False)
+    original: Path | None = field(default=None, compare=False, repr=False)   # 元の写真（縮小前）。無ければ None
 
     def __getitem__(self, key: str) -> str:
         return self.attrs[key]
@@ -98,15 +102,29 @@ class Item:
         return float(self.attrs[key])
 
 
+def _originals(thumbs_dir, images_dir) -> Path | None:
+    """元の写真の置き場所。指定が無ければ、thumbs と同じ階層の images/ があればそれ。"""
+    if images_dir:
+        return Path(images_dir)
+    cand = Path(thumbs_dir).parent / "images"
+    return cand if cand.is_dir() and cand.resolve() != Path(thumbs_dir).resolve() else None
+
+
 def load_table(table_csv, thumbs_dir, id_col: str = "id", label_col: str | None = None,
-               score_col: str | None = None, ext: str = ".jpg") -> list[Item]:
-    """表（1行 = 1画像）を読む。列は it["列名"]、数値は it.num("列名")。行の順序は表のまま。"""
+               score_col: str | None = None, ext: str = ".jpg", images_dir=None) -> list[Item]:
+    """表（1行 = 1画像）を読む。列は it["列名"]、数値は it.num("列名")。行の順序は表のまま。
+
+    元の写真（縮小前）があれば it.original に入る（images_dir、無ければ thumbs と同じ階層の images/）。
+    """
+    orig = _originals(thumbs_dir, images_dir)
     items = []
     with open(table_csv, newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
+            o = orig / f"{r[id_col]}{ext}" if orig else None
             items.append(Item(r[id_col], Path(thumbs_dir) / f"{r[id_col]}{ext}",
                               score=float(r[score_col]) if score_col else 0.0,
-                              label=r[label_col] if label_col else "", role=r.get("role", ""), attrs=dict(r)))
+                              label=r[label_col] if label_col else "", role=r.get("role", ""), attrs=dict(r),
+                              original=o if o and o.exists() else None))
     return items
 
 
@@ -612,12 +630,15 @@ def moved_figure(items, t_from: float, t_to: float, cols_each=None, caption=None
 
 
 # ---- 確認用のシート（スライドには載せない） --------------------------------------
-def review_sheet(items, out, caption=None, cols: int = 6, per_sheet: int = 24) -> list[Path]:
-    """画像を元の大きさ（長辺256pxまで）で並べ、#番号と説明を添えた確認用の画像を書く。
+def review_sheet(items, out, caption=None, cols: int | None = None, per_sheet: int | None = None,
+                 size: int | None = None) -> list[Path]:
+    """画像を大きく並べ、#番号と説明を添えた確認用の画像を書く。
 
-    図の縮小画像やスライドのスクショでは、小さく写るもの（車の中の動物、遠くの群れ）や、よく似た種を見分けられない。
-    画像について書く前に、この画像を Read で開いて1枚ずつ確かめる。caption は Item → 文字列（改行可。ラベル・データ・
-    撮影者の題名など）。枚数が per_sheet を超えると、out の名前に -2, -3 … を付けて分ける。返り値は書いたファイル。
+    図の縮小画像やスライドのスクショでは、小さく写るもの（車の中の動物、遠くの群れ、端の鳥）や、よく似た種を見分けられない。
+    画像について書く前に、この画像を Read で開いて1枚ずつ確かめる。元の写真（it.original）があれば、それを長辺480pxで
+    3列・1枚9つずつ並べる（無ければ縮小画像を256pxで6列・24ずつ）。それでも小さい物は、元の写真を直接 Read で開く。
+    caption は Item → 文字列（改行可。ラベル・データ・撮影者の題名など）。枚数が per_sheet を超えると、out の名前に
+    -2, -3 … を付けて分ける。返り値は書いたファイル。
     """
     from PIL import ImageDraw, ImageFont
 
@@ -628,6 +649,9 @@ def review_sheet(items, out, caption=None, cols: int = 6, per_sheet: int = 24) -
             break
     font = font or ImageFont.load_default()
     items, out = list(items), Path(out)
+    big = size or (480 if any(it.original for it in items) else 256)
+    cols = cols or (3 if big > 300 else 6)
+    per_sheet = per_sheet or (9 if big > 300 else 24)
     written = []
     for k in range(0, max(1, len(items)), per_sheet):
         chunk = items[k:k + per_sheet]
@@ -635,22 +659,93 @@ def review_sheet(items, out, caption=None, cols: int = 6, per_sheet: int = 24) -
             break
         c = min(cols, len(chunk))
         rows = (len(chunk) - 1) // c + 1
-        cell, text_h = 262, 96
+        cell, text_h = big + 6, 96
+        wrap = max(15, big // 17)
         sheet = Image.new("RGB", (c * cell + 8, rows * (cell + text_h) + 8), "white")
         d = ImageDraw.Draw(sheet)
         for n, it in enumerate(chunk):
             x, y = 4 + (n % c) * cell, 4 + (n // c) * (cell + text_h)
-            im = Image.open(it.path).convert("RGB")
-            im.thumbnail((256, 256))
-            sheet.paste(im, (x + (256 - im.width) // 2, y + (256 - im.height) // 2))
-            lines = [f"#{k + n + 1} {it.id}"]
+            im = Image.open(it.original or it.path).convert("RGB")
+            im.thumbnail((big, big))
+            sheet.paste(im, (x + (big - im.width) // 2, y + (big - im.height) // 2))
+            lines = [f"#{k + n + 1} {it.id}" + ("" if it.original or big <= 256 else "（縮小画像）")]
             for part in (str(caption(it)) if caption else "").split("\n"):
-                lines += [part[i:i + 15] for i in range(0, len(part), 15)] or [""]
-            d.multiline_text((x + 2, y + 258), "\n".join(lines[:5]), fill=INK, font=font, spacing=2)
+                lines += [part[i:i + wrap] for i in range(0, len(part), wrap)] or [""]
+            d.multiline_text((x + 2, y + big + 2), "\n".join(lines[:5]), fill=INK, font=font, spacing=2)
         name = out if k == 0 else out.with_name(f"{out.stem}-{k // per_sheet + 1}{out.suffix}")
         sheet.save(name, quality=88)
         written.append(name)
     return written
+
+
+def zoom_figure(entries, caption=None, cols: int | None = None, color=ORANGE, caption_size=0.16, **canvas_kw):
+    """小さく写る・端に写る・物の陰にいる対象を、写真全体（枠つき）と、その部分を拡大したものの組で見せる。
+
+    entries は [(item, (x0, y0, x1, y1)), ...]。枠は写真の幅・高さに対する割合（0〜1、左上が 0,0）。拡大は元の写真
+    （it.original）があればそこから切り出す（縮小画像を拡大すると細部が出ない）。枠は locate の目盛りつき画像で位置を
+    読んで決め、描いた図を Read で開いて、枠の中に対象が入っていることを必ず確かめる。caption は Item → 文字列（改行可）。
+    """
+    entries = list(entries)
+    cols = cols or min(2, len(entries))
+    rows = (len(entries) - 1) // cols + 1
+    pair_w, gap, cell_h = 2.1, 0.35, 1.0
+    lines = [str(caption(it)).split("\n") for it, _ in entries] if caption else []
+    cap_lines = max((len(ls) for ls in lines), default=0)
+    cap_h = CAPTION_H + max(0, cap_lines - 1) * CAPTION_LINE if cap_lines else 0.0
+    cap_w = max((_text_w(line, caption_size) for ls in lines for line in ls), default=0.0)
+    pair_w = max(pair_w, cap_w + 0.1)             # 説明文が組の幅より長いときは、組の間を空ける
+    c = Canvas(cols * pair_w + (cols - 1) * gap, rows * (cell_h + cap_h + 0.15), cell_h=cell_h, kind="zoom",
+               **canvas_kw)
+    for n, (it, box) in enumerate(entries):
+        x, y = (n % cols) * (pair_w + gap), (n // cols) * (cell_h + cap_h + 0.15)
+        x += (pair_w - 2.1) / 2                   # 写真の組は、広げた幅の中央に置く
+        x0, y0, x1, y1 = box
+        for k, (img, is_crop) in enumerate(((Image.open(it.path).convert("RGB"), False),
+                                           (Image.open(it.original or it.path).convert("RGB"), True))):
+            if is_crop:
+                W, H = img.size
+                img = img.crop((int(x0 * W), int(y0 * H), max(int(x1 * W), int(x0 * W) + 1),
+                                max(int(y1 * H), int(y0 * H) + 1)))
+            cx = x + k * 1.1
+            c.ax.add_patch(Rectangle((cx, y), 1.0, cell_h, fc=BG, ec="none", zorder=1))
+            w, h = img.size
+            s = 0.94 * min(1.0 / w, cell_h / h)
+            iw, ih = w * s, h * s
+            ix, iy = cx + (1.0 - iw) / 2, y + (cell_h - ih) / 2
+            c.ax.imshow(np.asarray(img), extent=(ix, ix + iw, iy + ih, iy), zorder=2, interpolation="antialiased")
+            if not is_crop:
+                c.ax.add_patch(Rectangle((ix + x0 * iw, iy + y0 * ih), (x1 - x0) * iw, (y1 - y0) * ih,
+                                         fc="none", ec=color, lw=0.03 * c.pt, zorder=3))
+            else:
+                c.ax.add_patch(Rectangle((ix, iy), iw, ih, fc="none", ec=color, lw=0.035 * c.pt, zorder=3))
+            c.n_thumbs += 1
+        c.text(x + 1.05, y + cell_h / 2, "→", size=0.2, color=color)
+        for k, line in enumerate(str(caption(it)).split("\n") if caption else []):
+            c.text(x + 1.05, y + cell_h + caption_size * 0.7 + k * CAPTION_LINE, line, size=caption_size,
+                   color=color if k == 0 else INK)
+    return c.finish()
+
+
+def locate_image(image, out, divisions: int = 10) -> Path:
+    """元の写真に目盛り（幅・高さを divisions 等分、0〜1 の割合）を描いた確認用の画像を書く。zoom_figure の枠を読むため。"""
+    from PIL import ImageDraw, ImageFont
+
+    im = Image.open(image).convert("RGB")
+    im.thumbnail((1024, 1024))
+    W, H = im.size
+    d = ImageDraw.Draw(im)
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc", 18)
+    except OSError:
+        font = ImageFont.load_default()
+    for k in range(1, divisions):
+        x, y = W * k / divisions, H * k / divisions
+        d.line([(x, 0), (x, H)], fill=(255, 255, 0), width=1)
+        d.line([(0, y), (W, y)], fill=(255, 255, 0), width=1)
+        d.text((x + 2, 2), f"{k / divisions:.1f}", fill=(255, 255, 0), font=font, stroke_width=2, stroke_fill="black")
+        d.text((2, y + 2), f"{k / divisions:.1f}", fill=(255, 255, 0), font=font, stroke_width=2, stroke_fill="black")
+    im.save(out, quality=88)
+    return Path(out)
 
 
 # ---- CLI ------------------------------------------------------------------
@@ -693,7 +788,12 @@ def main() -> int:
     sh.add_argument("--ids", help="画像IDをカンマ区切りで（前方一致）")
     sh.add_argument("--caption", help="画像の下に書く列（カンマ区切りで複数）")
     sh.add_argument("--credits", help="撮影者の題名を添える出典の表（id, title の列）")
+    sh.add_argument("--images", help="元の写真の置き場所（省略時は thumbs と同じ階層の images/ があればそれ）")
     sh.add_argument("--out", required=True)
+
+    lo = sub.add_parser("locate", help="元の写真に0〜1の目盛りを描く（拡大して見せる範囲を読むため）")
+    lo.add_argument("--image", required=True)
+    lo.add_argument("--out", required=True)
 
     mv = sub.add_parser("moved", help="2つの閾値の間で判定が変わる画像を1枚にする")
     mv.add_argument("--scores", required=True)
@@ -722,8 +822,12 @@ def main() -> int:
         print("; ".join(f"{' → '.join(v)}: {len(g)}" for v, g in groups), "->", a.out)
         return 0
 
+    if a.cmd == "locate":
+        print(locate_image(a.image, a.out))
+        return 0
+
     if a.cmd == "sheet":
-        items = _where(load_table(a.table, a.thumbs), a.where)
+        items = _where(load_table(a.table, a.thumbs, images_dir=a.images), a.where)
         if a.ids:
             want = [x.strip() for x in a.ids.split(",") if x.strip()]
             items = [it for it in items if any(it.id.startswith(w) for w in want)]
