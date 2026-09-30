@@ -45,3 +45,15 @@ $presentation-heading-color: #111418;
   font-size: 0.5em;
   color: #6e7781;
 }
+
+// <!-- appendix --> より後のスライド（filters/strip-comments.lua が appendix クラスを付ける）。
+// 発表の流れの外であることが聴衆に分かるよう、タイトルの上に「付録」と出す
+.reveal .slides section.appendix::before {
+  content: "付録";
+  display: block;
+  font-size: 0.5em;
+  font-weight: 700;
+  color: #6e7781;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.1em;
+}

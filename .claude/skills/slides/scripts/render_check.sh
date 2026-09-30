@@ -28,10 +28,16 @@ if [[ -z "$CHROME" ]]; then
 fi
 [[ -n "$CHROME" ]] || { echo "Chrome が見つからない（CHROME=... で指定）" >&2; exit 1; }
 
-(cd "$ROOT" && quarto render "$REL" --to revealjs --quiet)
+# imgfig の図ごとの大きさは、セルの実行時に IMGFIG_REPORT へ書き出される。
+# セルが再実行されなかったとき（freeze で変更なし）は、前回の記録をそのまま使う。
+REPORT="$OUT/imgfig.jsonl"
+PREV="$(cat "$REPORT" 2>/dev/null || true)"
+NEW="$(mktemp)"
+(cd "$ROOT" && IMGFIG_REPORT="$NEW" quarto render "$REL" --to revealjs --quiet)
 [[ -f "$HTML" ]] || { echo "HTML が出力されていない: $HTML" >&2; exit 1; }
 
 rm -rf "$OUT" && mkdir -p "$OUT"
+if [[ -s "$NEW" ]]; then cp "$NEW" "$REPORT"; elif [[ -n "$PREV" ]]; then printf '%s\n' "$PREV" > "$REPORT"; fi
 # スライド数 = タイトルスライド + 各 section.slide（縦スタックは使わない前提）
 N=$(grep -oE '<section[^>]*class="[^"]*(quarto-title-block|slide level)' "$HTML" | wc -l | tr -d ' ')
 [[ "$N" -gt 0 ]] || { echo "スライドが見つからない" >&2; exit 1; }
@@ -45,6 +51,25 @@ done
 wait
 echo "$N slides -> $OUT"
 ls "$OUT"/slide-*.png
+
+# 画像を並べた図（imgfig）の、スライド上での1枚の大きさの目安
+if [[ -s "$REPORT" ]]; then
+  "$PY" - "$REPORT" <<'PYEOF'
+import json, sys
+rows = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8") if line.strip()]
+rows = [r for r in rows if r.get("thumbs")]
+if rows:
+    print("画像の図: スライド上での1枚の大きさの目安（150px 以上が見やすい。100px 未満は何が写っているかが読めない）")
+for n, r in enumerate(rows, 1):
+    size = f"約{r['px']}px" if r["px"] == r["px_tall"] else f"約{r['px']}px（bullets を置かなければ約{r['px_tall']}px）"
+    note = ""
+    if r["px_tall"] < 100:
+        note = "  ← 小さい: 見せる枚数を減らす（pick）か、図を分ける。全数は appendix に回せる"
+    elif r["px"] < 100:
+        note = "  ← bullets を置くと小さい: bullets を減らすか、見せる枚数を減らす"
+    print(f"  図{n}: {r['thumbs']}枚 {size}{note}")
+PYEOF
+fi
 
 # 図のファイルサイズ（公開ページの重さ）。写真を並べた図は PNG だと1枚1MBを超える
 FIG_DIR="${HTML%.html}_files/figure-revealjs"

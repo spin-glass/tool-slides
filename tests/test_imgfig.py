@@ -1,14 +1,18 @@
-"""imgfig.py の閾値と「動く画像」の計算を確かめる（描画はしない）。
+"""imgfig.py の閾値・切り口・選び方・並べ方の計算を確かめる。
 
     .venv/bin/python -m unittest discover -s tests -v
 matplotlib の無い環境では読み飛ばす。
 """
+import json
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / ".claude/skills/slides/scripts"))
+os.environ.setdefault("MPLBACKEND", "Agg")      # 図を作るテストで窓を開かない
 try:
     import imgfig
 except ImportError:          # matplotlib / pillow が無い
@@ -84,6 +88,67 @@ class Generic(unittest.TestCase):
         items = imgfig.load_table(deck / "data/scores.csv", deck / "data/thumbs", score_col="score")
         self.assertEqual(len(items), 600)
         self.assertEqual(set(items[0].attrs), {"id", "role", "group", "label", "label_ja", "score"})
+
+
+@unittest.skipUnless(imgfig, "matplotlib / pillow が必要")
+class Layout(unittest.TestCase):
+    """並べ方: 1枚が最も大きくなる列数、横長の枠、折り返し、説明文の行数。"""
+
+    def photos(self, sizes):
+        from PIL import Image
+        d = Path(tempfile.mkdtemp())
+        items = []
+        for n, (w, h) in enumerate(sizes):
+            Image.new("RGB", (w, h), (120, 140, 90)).save(d / f"p{n}.jpg")
+            items.append(imgfig.Item(f"p{n}", d / f"p{n}.jpg", attrs={"n": str(n)}))
+        return items
+
+    def test_unit_px_is_limited_by_width_or_height(self):
+        self.assertEqual(round(imgfig.unit_px(6, 2)), 197)        # 横幅 1180px が先に効く
+        self.assertEqual(round(imgfig.unit_px(6, 4)), 100)        # 高さ 400px が先に効く
+        self.assertEqual(round(imgfig.unit_px(6, 4, imgfig.SLIDE_BOX_TALL)), 125)
+
+    def test_best_picks_the_largest_thumbnail(self):
+        pitch = imgfig.WIDE_CELL + imgfig.CAPTION_H
+        best = imgfig._best((n, n, imgfig._rows(12, n) * pitch) for n in range(1, 13))
+        self.assertEqual(best, 6)                                  # 12枚は 6列×2段が最大
+
+    def test_cell_is_wide_only_when_most_photos_are_landscape(self):
+        landscape, portrait = (256, 171), (171, 256)
+        self.assertEqual(imgfig._cell_h(self.photos([landscape] * 7 + [portrait]), None), imgfig.WIDE_CELL)
+        self.assertEqual(imgfig._cell_h(self.photos([landscape] * 2 + [portrait] * 2), None), 1.0)
+        self.assertEqual(imgfig._cell_h([], None), 1.0)
+        self.assertEqual(imgfig._cell_h(self.photos([portrait]), 0.75), 0.75)      # 指定があればそれを使う
+
+    def test_caption_height_counts_lines(self):
+        items = self.photos([(256, 171)] * 2)
+        self.assertEqual(imgfig._cap_h(items, None), 0.0)
+        self.assertEqual(imgfig._cap_h(items, lambda it: "a"), imgfig.CAPTION_H)
+        self.assertEqual(imgfig._cap_h(items, lambda it: "a\nb" if it.id == "p1" else "a"),
+                         imgfig.CAPTION_H + imgfig.CAPTION_LINE)
+
+    def test_flow_wraps_groups_and_keeps_room_for_headings(self):
+        lines = imgfig._flow_lines([12, 3, 3, 3, 2, 1], [2.0] * 6, width=12)
+        self.assertEqual([[g for g, *_ in line] for line in lines], [[0], [1, 2, 3], [4, 5]])
+        self.assertEqual([cols for _, cols, _, _ in lines[1]], [3, 3, 3])
+        self.assertEqual(lines[2][1][2], 2.0)                      # 1枚の群でも、見出しの幅は確保する
+        narrow = imgfig._flow_lines([12], [2.0], width=6)
+        self.assertEqual(narrow[0][0][1], 6)                       # 幅より多い群は、群の中で折り返す
+
+    def test_figures_report_their_size(self):
+        items = self.photos([(256, 171)] * 12)
+        report = Path(tempfile.mkdtemp()) / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.grid_figure(items, caption=lambda it: it["n"])
+            imgfig.flow_figure([("a", items[:5]), ("b", items[5:7]), ("c", items[7:])], caption=lambda it: "x\ny")
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+            imgfig.plt.close("all")
+        rows = [json.loads(line) for line in report.read_text().splitlines()]
+        self.assertEqual([(r["kind"], r["thumbs"]) for r in rows], [("grid", 12), ("flow", 12)])
+        self.assertEqual(rows[0]["px"], 182)                       # 6列×2段、横長の枠、説明文1行
+        self.assertGreaterEqual(rows[0]["px_tall"], rows[0]["px"])
 
 
 @unittest.skipUnless(imgfig, "matplotlib / pillow が必要")
