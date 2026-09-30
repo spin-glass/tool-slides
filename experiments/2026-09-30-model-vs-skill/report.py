@@ -18,7 +18,7 @@ HERE = Path(__file__).resolve().parent
 RESULTS = HERE / "results"
 MODEL_JA = {"fable": "Fable 5.1", "opus": "Opus 5.5", "sonnet": "Sonnet 5.5", "haiku": "Haiku 4.5"}
 SKILL_JA = {"S0": "なし", "S1": "初版", "S3": "検証時の版", "S4": "改訂版", "S5": "規則を足した版",
-            "S6": "元の写真で確かめる版", "S7": "確認の表で照らす版"}
+            "S6": "元の写真で確かめる版", "S7": "確認の表で照らす版", "S8": "説明にメモも入れる版"}
 SCORES = ["audience", "images", "titles", "economy", "layout", "action", "overall"]
 SCORE_JA = {"audience": "聴衆", "images": "画像", "titles": "タイトル", "economy": "量", "layout": "見た目",
             "action": "行動", "overall": "総合"}
