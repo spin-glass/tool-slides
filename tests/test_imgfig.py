@@ -239,6 +239,27 @@ class Layout(unittest.TestCase):
         self.assertEqual(len(found), 1, found)                  # 1つの図に、拡大で確かめていない2枚（p0, p1）
         self.assertIn("2 枚（p0, p1）", found[0])
 
+    def test_unsure_is_neither_present_nor_absent(self):
+        items = self.photos([(256, 171)] * 3)          # p0: ガンか決めきれない影、p1: ガンは写らない、p2: note だけ「不明」
+        d = Path(tempfile.mkdtemp())
+        (d / "look.csv").write_text("id,label_class,classes,unsure,note,closeup\np0,ガン,,ガン,遠くの影,yes\n"
+                                    "p1,ガン,,,サギ,yes\np2,ガン,カモ,,奥の鳥は不明,yes\n", encoding="utf-8")
+        looked = imgfig.load_look(items, d / "look.csv")
+        self.assertEqual(imgfig.seen(looked[0]), "ガン?（遠くの影）")
+        self.assertEqual([imgfig.absent(it, "ガン") for it in looked], [False, True, True])
+        self.assertEqual([imgfig.present(it, "カモ") for it in looked], [False, False, True])
+        report = d / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.flow_figure([("ガンが写っていない", looked[:2]), ("カモ", looked[2:])], caption=imgfig.seen)
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+            imgfig.plt.close("all")
+        found = imgfig.check_look(report, d / "look.csv")
+        self.assertEqual(len(found), 2, found)          # note に「不明」で unsure が空（p2）／「写っていない」の群に p0
+        self.assertTrue(any("unsure 列が空" in f and "p2" in f for f in found))
+        self.assertTrue(any("写っていない" in f and "p0" in f for f in found))
+
     def test_figures_report_their_size(self):
         items = self.photos([(256, 171)] * 12)
         report = Path(tempfile.mkdtemp()) / "report.jsonl"

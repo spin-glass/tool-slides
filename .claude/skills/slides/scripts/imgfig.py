@@ -131,8 +131,9 @@ def load_table(table_csv, thumbs_dir, id_col: str = "id", label_col: str | None 
 
 
 def load_look(items, look_csv, id_col: str = "id") -> list[Item]:
-    """確認の表（data/look.csv: id, classes, note）を items に足す。classes は元の写真に写っている分類の対象を
-    「;」で区切ったもの（スライドに書く名前で）。note はほかの物・様子。表に無い画像はそのまま返す。"""
+    """確認の表（data/look.csv: id, label_class, classes, unsure, note, closeup）を items に足す。classes は元の写真に
+    写っている分類の対象を「;」で区切ったもの（スライドに書く名前で）。unsure は写っているかを写真から決めきれない分類の
+    対象。note はほかの物・様子。表に無い画像はそのまま返す。"""
     import dataclasses
 
     with open(look_csv, newline="", encoding="utf-8") as f:
@@ -141,14 +142,30 @@ def load_look(items, look_csv, id_col: str = "id") -> list[Item]:
             if it.id in look else it for it in items]
 
 
+def _split(v) -> list[str]:
+    return [c.strip() for c in str(v or "").split(";") if c.strip()]
+
+
 def seen(it: Item, sep: str = "＋", note: bool = True) -> str:
-    """確認の表から、説明に使う文字列を作る: classes（写っている分類の対象すべて）をつなぎ、note があれば括弧で添える。
-    例: 「犬＋猫（奥にオウムも）」「猫（主役はオウム）」。classes が空なら note だけ。"""
-    classes = sep.join(c.strip() for c in str(it.get("classes", "")).split(";") if c.strip())
+    """確認の表から、説明に使う文字列を作る: classes（写っている分類の対象すべて）と、決めきれない対象（unsure）に「?」を
+    付けたものをつなぎ、note があれば括弧で添える。例: 「犬＋猫（奥にオウムも）」「猫（主役はオウム）」「犬?（遠くの影）」。
+    classes も unsure も空なら note だけ。"""
+    names = sep.join(_split(it.get("classes")) + [f"{u}?" for u in _split(it.get("unsure"))])
     extra = str(it.get("note", "") or "").strip() if note else ""
     if not extra:
-        return classes
-    return f"{classes}（{extra}）" if classes else extra
+        return names
+    return f"{names}（{extra}）" if names else extra
+
+
+def present(it: Item, cls: str) -> bool:
+    """確認の表で、cls が写っていると確かめた写真か。"""
+    return cls in _split(it.get("classes"))
+
+
+def absent(it: Item, cls: str) -> bool:
+    """確認の表で、cls が写っていないと言える写真か。決めきれない（unsure に cls がある）写真は含めない。
+    「写っていない」「〜以外」と数えるときは、これで数える（決めきれない写真は別に数える）。"""
+    return cls not in _split(it.get("classes")) and cls not in _split(it.get("unsure"))
 
 
 CHECKED = {"yes", "y", "1", "true", "済", "はい"}
@@ -172,17 +189,25 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
       （見出しに「ラベル」「予測」「正解」「答え」「判定」「→」があるときは、データの値の見出しとみなして照らさない）
     - 分類の対象が写っていない、またはラベルのクラスが写っていないとした写真（needs_closeup）を、拡大
       （closeup の全体と4区画）で確かめていない（look.csv の closeup 列が yes でない）
+    - 「写っていない」「以外」などを言う見出しの群に、決めきれない（unsure のある）写真が入っている
+    - note に「不明」「決めきれない」などとあるのに、unsure 列が空（決めきれない写真を「写っていない」と数えてしまう）
     """
     import re as _re
 
     with open(look_csv, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    look = {r[id_col]: [c.strip() for c in r.get("classes", "").split(";") if c.strip()] for r in rows}
+    look = {r[id_col]: _split(r.get("classes")) for r in rows}
+    unsure = {r[id_col]: _split(r.get("unsure")) for r in rows}
     notes = {r[id_col]: (r.get("note") or "").strip() for r in rows}
+    vague = [r[id_col] for r in rows if not unsure[r[id_col]]
+             and _re.search(r"不明|決めきれ|決められ|わから|分から|判別でき|見分けられ", notes[r[id_col]])]
     unchecked = {r[id_col] for r in rows
                  if needs_closeup(r) and (r.get("closeup") or "").strip().lower() not in CHECKED}
     vocab = sorted({c for cs in look.values() for c in cs}, key=len, reverse=True)
     out = []
+    if vague:
+        out.append(f"確認の表: note に「不明」などとあるのに unsure 列が空の写真 {len(vague)} 枚（{', '.join(vague[:8])}"
+                   f"{' ほか' if len(vague) > 8 else ''}）。決めきれない分類の対象を unsure 列に書く（「写っていない」と数えないため）")
     for n, line in enumerate(open(report, encoding="utf-8"), 1):
         if not line.strip():
             continue
@@ -195,7 +220,7 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
         for cap in rec.get("captions", []):
             classes = look.get(cap["id"])
             if cap["id"] in look and cap["caption"]:
-                missing = [c for c in classes if c not in cap["caption"]]
+                missing = [c for c in classes + unsure.get(cap["id"], []) if c not in cap["caption"]]
                 note = notes.get(cap["id"], "")
                 if note and note not in cap["caption"].replace("\n", ""):
                     missing.append(f"note: {note}")
@@ -204,6 +229,10 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
                                f"「{'・'.join(missing)}」が無い")
         for g in rec.get("groups", []):
             title = g["title"]
+            vague_in = [i for i in g["ids"] if unsure.get(i)]
+            if vague_in and _re.search(r"写っていない|写らない|いない|無い|ない写真|以外|どれでもない", title):
+                out.append(f"図{n}: 見出し「{title}」は写っていないことを言うが、決めきれない写真 {', '.join(vague_in)} が"
+                           "入っている。「決めきれない」の群に分ける")
             if _re.search(r"ラベル|予測|正解|答え|判定|→", title):
                 continue
             named = [c for c in vocab if c in title]
