@@ -194,18 +194,21 @@ class Layout(unittest.TestCase):
         d = Path(tempfile.mkdtemp())
         (d / "look.csv").write_text("id,classes,note\np0,白鳥;カモ,奥にハト\np1,白鳥,\np2,カモ,\n", encoding="utf-8")
         looked = imgfig.load_look(items, d / "look.csv")
-        self.assertEqual(imgfig.seen(looked[0]), "白鳥＋カモ")
+        self.assertEqual(imgfig.seen(looked[0]), "白鳥＋カモ（奥にハト）")
+        self.assertEqual(imgfig.seen(looked[0], note=False), "白鳥＋カモ")
         report = d / "report.jsonl"
         os.environ["IMGFIG_REPORT"] = str(report)
         try:
             imgfig.flow_figure([("白鳥の写真", looked[:2]), ("ラベル 白鳥 → 予測 カモ", looked[2:])],
                                caption=lambda it: it.id if it.id == "p0" else imgfig.seen(it))
             imgfig.grid_figure(looked, caption=imgfig.seen)
+            imgfig.grid_figure(looked[:1], caption=lambda it: imgfig.seen(it, note=False))     # note を落とす
         finally:
             del os.environ["IMGFIG_REPORT"]
             imgfig.plt.close("all")
         found = imgfig.check_look(report, d / "look.csv")
-        self.assertEqual(len(found), 2, found)                  # p0 の説明に「白鳥・カモ」が無い／見出し「白鳥の写真」に p0
+        self.assertEqual(len(found), 3, found)                  # p0 の説明に「白鳥・カモ」が無い／見出し「白鳥の写真」に p0／note が無い
+        self.assertTrue(any("note: 奥にハト" in f for f in found))
         self.assertTrue(any("p0 の説明" in f for f in found))
         self.assertTrue(any("見出し「白鳥の写真" in f and "p0" in f for f in found))
 

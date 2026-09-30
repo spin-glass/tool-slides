@@ -139,22 +139,30 @@ def load_look(items, look_csv, id_col: str = "id") -> list[Item]:
             if it.id in look else it for it in items]
 
 
-def seen(it: Item, sep: str = "＋") -> str:
-    """確認の表の classes（写っている分類の対象すべて）を、説明に使う文字列にする。例: 「コクチョウ＋カモ」。"""
-    return sep.join(c.strip() for c in str(it.get("classes", "")).split(";") if c.strip())
+def seen(it: Item, sep: str = "＋", note: bool = True) -> str:
+    """確認の表から、説明に使う文字列を作る: classes（写っている分類の対象すべて）をつなぎ、note があれば括弧で添える。
+    例: 「ハクチョウ＋カモ（ハトも）」「カモ（主役はサギ）」。classes が空なら note だけ。"""
+    classes = sep.join(c.strip() for c in str(it.get("classes", "")).split(";") if c.strip())
+    extra = str(it.get("note", "") or "").strip() if note else ""
+    if not extra:
+        return classes
+    return f"{classes}（{extra}）" if classes else extra
 
 
 def check_look(report, look_csv, id_col: str = "id") -> list[str]:
     """図に書いた写真ごとの説明と群の見出しを、確認の表と照らす。食い違いの文を返す（無ければ空）。
 
     - 説明に、その写真の classes のどれかが入っていない（主役だけを書いて、ほかに写る対象を落としている）
+    - 説明に、その写真の note が入っていない（分類の対象以外の主役や目立つ物を落としている）
     - 見出しが1つのクラスだけを言う群に、そのクラス以外も写る写真や、そのクラスが写らない写真が入っている
       （見出しに「ラベル」「予測」「正解」「答え」「判定」「→」があるときは、データの値の見出しとみなして照らさない）
     """
     import re as _re
 
     with open(look_csv, newline="", encoding="utf-8") as f:
-        look = {r[id_col]: [c.strip() for c in r.get("classes", "").split(";") if c.strip()] for r in csv.DictReader(f)}
+        rows = list(csv.DictReader(f))
+    look = {r[id_col]: [c.strip() for c in r.get("classes", "").split(";") if c.strip()] for r in rows}
+    notes = {r[id_col]: (r.get("note") or "").strip() for r in rows}
     vocab = sorted({c for cs in look.values() for c in cs}, key=len, reverse=True)
     out = []
     for n, line in enumerate(open(report, encoding="utf-8"), 1):
@@ -163,8 +171,11 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
         rec = json.loads(line)
         for cap in rec.get("captions", []):
             classes = look.get(cap["id"])
-            if classes and cap["caption"]:
+            if cap["id"] in look and cap["caption"]:
                 missing = [c for c in classes if c not in cap["caption"]]
+                note = notes.get(cap["id"], "")
+                if note and note not in cap["caption"].replace("\n", ""):
+                    missing.append(f"note: {note}")
                 if missing:
                     out.append(f"図{n}: {cap['id']} の説明「{cap['caption'].replace(chr(10), ' ')}」に、確認の表の"
                                f"「{'・'.join(missing)}」が無い")
