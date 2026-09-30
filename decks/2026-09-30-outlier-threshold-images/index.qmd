@@ -21,6 +21,8 @@ fig-dpi: 200
 
 ```{python}
 #| include: false
+import csv
+import dataclasses
 import json
 import sys
 from collections import Counter
@@ -32,6 +34,9 @@ from IPython.display import Markdown
 
 meta = json.loads(Path("data/meta.json").read_text())
 items = imgfig.load_items("data/scores.csv", "data/thumbs", normal_group="dog")
+# Open Images のラベルが写真と合わない写真は、目視で表示のラベルを直す（data/label_fix.csv）。犬／犬以外の区別は変わらない
+fix = {r["id"]: r["label_ja"] for r in csv.DictReader(open("data/label_fix.csv", encoding="utf-8"))}
+items = [dataclasses.replace(i, label=fix.get(i.id, i.label)) for i in items]
 cal = [i.score for i in items if i.role == "cal"]          # 線を決める犬
 ev = [i for i in items if i.role == "eval"]                # 評価用（犬＋犬以外）
 dogs, others = [i for i in ev if i.normal], [i for i in ev if not i.normal]
@@ -119,7 +124,7 @@ imgfig.moved_figure(ev, T[1], T[5], cols_each=[10, 2], caption=cap,
 <!-- evidence: 5%の線と10%の線の間にいた20枚の全数（犬以外12＋犬8）と、犬1枚あたりの交換比 -->
 
 ```{python}
-#| fig-alt: "5%の線と10%の線の間にいた20枚。犬以外12枚は猫5枚、オオカミ4枚、キツネ、ジャッカル、ハイエナ。犬8枚は子犬の群れ、服を着た犬、洗われている犬など。"
+#| fig-alt: "5%の線と10%の線の間にいた20枚。犬以外12枚は猫5枚、オオカミ4枚、キツネ、コヨーテ、ハイエナ。犬8枚は子犬の群れ、服を着た犬、洗われている犬など。"
 imgfig.moved_figure(ev, T[5], T[10], cols_each=[6, 4], caption=cap,
                     outlier_title="外れ値に移る 犬以外", normal_title="失う犬", max_height_in=3.4);
 ```
@@ -191,7 +196,7 @@ imgfig.moved_figure(ev, T[5], T[10], cols_each=[6, 4], caption=cap,
 ```{python}
 #| include: false
 auroc = sum((o.score > d.score) + 0.5 * (o.score == d.score) for o in others for d in dogs) / (len(others) * len(dogs))
-groups = Counter(r for r in (("犬に似た動物" if i.label in ("オオカミ", "ジャッカル", "ハイエナ", "キツネ") else
+groups = Counter(r for r in (("犬に似た動物" if i.label in ("オオカミ", "ジャッカル", "ハイエナ", "キツネ", "コヨーテ") else
                               "動物以外" if i.label in ("ぬいぐるみ", "飛行機", "建物", "花", "料理") else "ほかの動物")
                              for i in others))
 ```
@@ -203,6 +208,7 @@ groups = Counter(r for r in (("犬に似た動物" if i.label in ("オオカミ"
 | 線を決める犬 | `{python} len(cal)`枚。このうち外れ値にする割合が線の名前になる |
 | 評価用 | 犬`{python} len(dogs)`枚＋犬以外`{python} len(others)`枚（犬に似た動物`{python} groups["犬に似た動物"]`、ほかの動物`{python} groups["ほかの動物"]`、動物以外`{python} groups["動物以外"]`） |
 | 外れ値スコア | CLIP ViT-B/32 の埋め込みで、参照用の犬のうち`{python} meta["k"]`番目に近い写真とのコサイン距離 |
+| ラベルの修正 | `{python} len(fix)`枚は Open Images のラベルが写真と合わないため、表示のラベルを目視で直した（例: コヨーテに付いたオオカミ・キツネ・ジャッカル、モルモットに付いたウサギ。一覧は data/label_fix.csv） |
 | 除いた写真 | 人物の写真と自動判定した`{python} meta["n_person_filtered"]`枚と、目視で外した`{python} meta["n_excluded_by_eye"]`枚（顔・ナンバープレート・ラベル違いなど）。どちらもスコアを見る前に外した |
 | 分離の良さ | 評価用300枚での AUROC は`{python} f"{auroc:.3f}"` |
 
