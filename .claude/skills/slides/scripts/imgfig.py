@@ -497,6 +497,7 @@ def main() -> int:
     mx.add_argument("--thumbs", required=True)
     mx.add_argument("--row", required=True)
     mx.add_argument("--col", required=True)
+    mx.add_argument("--where", action="append", help="列=値 で絞り込む（複数可）")
     mx.add_argument("--k", type=int, default=2)
     mx.add_argument("--show-diagonal", action="store_true", help="行と列の値が同じマスにも画像を置く")
     mx.add_argument("--out", required=True)
@@ -529,7 +530,7 @@ def main() -> int:
         return 0
 
     if a.cmd == "matrix":
-        items = load_table(a.table, a.thumbs)
+        items = _where(load_table(a.table, a.thumbs), a.where)
         mute = None if a.show_diagonal else (lambda r, c: r == c)
         fig = matrix_figure(items, lambda it: it[a.row], lambda it: it[a.col], k=a.k, mute=mute,
                             row_title=a.row, col_title=a.col)
