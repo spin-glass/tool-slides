@@ -283,7 +283,39 @@ def count_ng(texts: list[str], cls: str) -> int:
 NUM_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(枚|件|%|％)")
 
 
-def truth() -> dict:
+def truth_change() -> dict:
+    """追試の課題（変更の前後）で、表から出る枚数と割合。"""
+    rows = list(csv.DictReader(open(HERE / "task2/changes.csv", encoding="utf-8")))
+    n = len(rows)
+    ok_old = [r["true"] == r["old"] for r in rows]
+    ok_new = [r["true"] == r["new"] for r in rows]
+    fixed = [not a and b for a, b in zip(ok_old, ok_new)]
+    broken = [a and not b for a, b in zip(ok_old, ok_new)]
+    both = [not a and not b for a, b in zip(ok_old, ok_new)]
+    moved = [r["old"] != r["new"] for r in rows]
+    counts = {n, 40, sum(ok_old), sum(ok_new), n - sum(ok_old), n - sum(ok_new), sum(fixed), sum(broken), sum(both),
+              sum(fixed) + sum(broken), sum(moved), n - sum(moved), n - sum(fixed) - sum(broken),
+              sum(m and b for m, b in zip(moved, both)), sum(not m and b for m, b in zip(moved, both))}
+    for cls in sorted({r["true"] for r in rows}):
+        mine = [r["true"] == cls for r in rows]
+        for flags in (ok_old, ok_new, fixed, broken, both):
+            k = sum(m and f for m, f in zip(mine, flags))
+            counts |= {k, 40 - k}
+    for flags, col in ((fixed, "old"), (broken, "new"), (both, "old"), (both, "new")):     # 組ごとの枚数
+        pairs: dict = {}
+        for r, f in zip(rows, flags):
+            if f:
+                pairs[(r["true"], r[col])] = pairs.get((r["true"], r[col]), 0) + 1
+        counts |= set(pairs.values())
+    pct = {round(100 * v / n, 1) for v in (sum(ok_old), sum(ok_new), n - sum(ok_old), n - sum(ok_new),
+                                          sum(fixed), sum(broken), sum(fixed) + sum(broken))}
+    pct |= {round(100 * k / 40, 1) for k in range(41) if k in counts}
+    return {"counts": counts, "pct": pct, "n": n, "wrong": n - sum(ok_new)}
+
+
+def truth(task: str = "image") -> dict:
+    if task == "change":
+        return truth_change()
     rows = list(csv.DictReader(open(HERE / "task/data/predictions.csv", encoding="utf-8")))
     classes = sorted({r["true_ja"] for r in rows})
     cell = {(t, p): sum(r["true_ja"] == t and r["pred_ja"] == p for r in rows) for t in classes for p in classes}
@@ -361,7 +393,7 @@ def score(run_dir: Path) -> dict | None:
         "buzzwords": count_ng([t for s in main for t in [s["title"]] + s["text"]], "buzzword"),
         "notes_slides": sum(s["notes"] for s in main), "image_slides": sum(s["img"] > 0 for s in main),
     }
-    claims = numeric_claims(main, truth())
+    claims = numeric_claims(main, truth(summary["task"]))
     row |= {"numbers": len(claims), "numbers_to_check": sum(not c["auto_ok"] for c in claims)}
     with open(out / "numbers.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["slide", "value", "auto_ok", "context"])

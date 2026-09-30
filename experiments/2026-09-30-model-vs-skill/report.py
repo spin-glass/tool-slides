@@ -65,7 +65,8 @@ def compare_image(run_ids: list[str], labels: list[str], out: Path) -> None:
         if Path(path).exists():
             font = ImageFont.truetype(path, 30)
             break
-    sheets = [Image.open(RESULTS / r / "sheet.jpg").crop((0, 26, 1920, 10**6)) for r in run_ids]
+    sheets = [Image.open(RESULTS / r / "sheet.jpg") for r in run_ids]
+    sheets = [s.crop((0, 26, s.width, s.height)) for s in sheets]        # 上端の実行名の帯を除く
     head = 56
     total = sum(s.height + head for s in sheets)
     canvas = Image.new("RGB", (1920, total), "white")

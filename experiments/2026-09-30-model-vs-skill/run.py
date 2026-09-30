@@ -3,6 +3,7 @@
 
     python run.py run image fable S3 1          # 課題 image、モデル fable、スキル S3、1回目
     python run.py run gate opus S3 1 --natural  # ゲート課題。--natural は `/slides` を付けない
+    python run.py run change opus S4 1          # 追試の課題（変更の前後）。S4 は検証後に改訂したスキル
     python run.py list
 
 作業場所はリポジトリの外（環境変数 MVS_WORK。既定は $TMPDIR/tool-slides-mvs）に作る。
@@ -26,10 +27,15 @@ WORK = Path(os.environ.get("MVS_WORK", Path(tempfile.gettempdir()) / "tool-slide
 
 MODELS = {"fable": "claude-fable-5-1", "opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5",
           "haiku": "claude-haiku-4-5-20251001"}
-SKILLS = {"S0": None, "S1": "7b4428f", "S3": "769927d"}       # スキルを取り出すコミット
-# (依頼文, 最大ターン, 予算USD)。under は gate と同じ依頼文（聴衆・行動・時間なし）で、最後まで作らせる
-TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0), "under": ("prompt_gate.md", 60, 12.0)}
+SKILLS = {"S0": None, "S1": "7b4428f", "S3": "769927d", "S4": "4bf36be"}       # スキルを取り出すコミット
+REPO_THEME = {"S4"}          # テーマとフィルタもそのコミットから取る版（付録の印はテーマとフィルタで出すため）
+BASE = "769927d"             # それ以外の条件で使う、共通のテーマの版
+# (依頼文, 最大ターン, 予算USD)。under は gate と同じ依頼文（聴衆・行動・時間なし）で、最後まで作らせる。
+# change は追試の課題（同じ240枚を新旧2つの版で判定した結果。切り口は「変更の前後」）
+TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0), "under": ("prompt_gate.md", 60, 12.0),
+         "change": ("prompt_change.md", 60, 12.0)}
 DECK = "decks/farm-errors"
+DECKS = {"change": "decks/farm-change"}     # 課題ごとの保存先（無い課題は DECK）
 APPROVE = "承認します。このまま最後まで作ってください。"
 # under で質問が返ってきたときの答え（image の依頼文と同じ内容）
 ANSWER = (HERE / "task/prompt_image.md").read_text().split("\n\n", 1)[1].strip()
@@ -88,18 +94,31 @@ def sh(cmd, cwd=None, **kw):
     return subprocess.run(cmd, cwd=cwd, check=True, capture_output=True, text=True, **kw)
 
 
-def build_workspace(ws: Path, skill: str) -> None:
+def git_show(commit: str, path: str) -> str:
+    return sh(["git", "show", f"{commit}:{path}"], cwd=ROOT).stdout
+
+
+def build_workspace(ws: Path, skill: str, task: str = "image") -> None:
     ws.mkdir(parents=True)
+    commit = SKILLS[skill]
+    own = skill in REPO_THEME
     (ws / "_quarto.yml").write_text(QUARTO_YML)
     (ws / "filters").mkdir()
-    (ws / "filters/strip-comments.lua").write_text(LUA)
+    (ws / "filters/strip-comments.lua").write_text(git_show(commit, "filters/strip-comments.lua") if own else LUA)
     (ws / "theme").mkdir()
-    shutil.copy(ROOT / "theme/custom.scss", ws / "theme/custom.scss")
+    (ws / "theme/custom.scss").write_text(git_show(commit if own else BASE, "theme/custom.scss"))
     shutil.copy(ROOT / "requirements.txt", ws / "requirements.txt")
     (ws / ".gitignore").write_text(GITIGNORE)
     shutil.copy(HERE / "task/workspace_README.md", ws / "README.md")
-    shutil.copytree(HERE / "task/data", ws / DECK / "data")
-    commit = SKILLS[skill]
+    data = ws / DECKS.get(task, DECK) / "data"
+    if task == "change":                     # 画像と出典は主課題と同じ。表と説明だけが違う
+        data.mkdir(parents=True)
+        for name in ("changes.csv", "README.md", "meta.json"):
+            shutil.copy(HERE / "task2" / name, data / name)
+        shutil.copy(HERE / "task/data/credits.csv", data / "credits.csv")
+        shutil.copytree(HERE / "task/data/thumbs", data / "thumbs")
+    else:
+        shutil.copytree(HERE / "task/data", data)
     if commit:
         tar = subprocess.run(["git", "archive", commit, ".claude/skills/slides", "decks/_template"], cwd=ROOT,
                              check=True, capture_output=True)
@@ -150,9 +169,9 @@ def call_claude(ws: Path, log: Path, prompt: str, model: str, max_turns: int, bu
 
 def find_deck(ws: Path) -> Path | None:
     """作られたデッキ。保存先を指定しない依頼（under）では、_template 以外でいちばん新しい index.qmd。"""
-    fixed = ws / DECK / "index.qmd"
-    if fixed.exists():
-        return fixed
+    for deck in (DECK, *DECKS.values()):
+        if (ws / deck / "index.qmd").exists():
+            return ws / deck / "index.qmd"
     others = [p for p in (ws / "decks").glob("*/index.qmd") if p.parent.name != "_template"]
     return max(others, key=lambda p: p.stat().st_mtime) if others else None
 
@@ -208,13 +227,13 @@ def run(task: str, model: str, skill: str, rep: str, natural: bool = False) -> N
     if run_dir.exists():
         sys.exit(f"既にある: {run_dir}")
     ws = run_dir / "ws"
-    build_workspace(ws, skill)
+    build_workspace(ws, skill, task)
     prompt = (HERE / "task" / prompt_file).read_text().strip()
     if skill != "S0" and not natural:
         prompt = "/slides " + prompt
     calls = [call_claude(ws, run_dir / "turn1.jsonl", prompt, model, max_turns, budget, None)]
     followups = 0
-    while task in ("image", "under") and followups < MAX_FOLLOWUPS and needs_followup(ws):
+    while task in ("image", "under", "change") and followups < MAX_FOLLOWUPS and needs_followup(ws):
         session = calls[-1]["result"].get("session_id")
         if not session:
             break
