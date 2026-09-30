@@ -1,0 +1,329 @@
+---
+title: "新版モデルで判定が変わった写真を見る"
+subtitle: "牧場の動物6クラス・評価用240枚での新旧比較"
+format:
+  revealjs:
+    css: farm.css
+resources:
+  - data/thumbs/*.jpg
+---
+
+## 正解率の差は4枚分だが、判定が入れ替わった写真は28枚ある
+
+```{python}
+#| include: false
+import csv
+from html import escape
+
+rows = {r["id"]: r for r in csv.DictReader(open("data/changes.csv", encoding="utf-8"))}
+credits = {r["id"]: r for r in csv.DictReader(open("data/credits.csv", encoding="utf-8"))}
+CLASSES = ["羊", "ヤギ", "アルパカ", "鹿", "牛", "馬"]
+
+
+def status(r):
+    old_ok, new_ok = r["old"] == r["true"], r["new"] == r["true"]
+    if old_ok and new_ok:
+        return "both-ok"
+    if new_ok:
+        return "fixed"
+    if old_ok:
+        return "broke"
+    return "both-wrong"
+
+
+def count(st, cls=None):
+    return sum(1 for r in rows.values() if status(r) == st and (cls is None or r["true_ja"] == cls))
+
+
+def md_safe(text):
+    """出典の文字列を Markdown に解釈させない（* や ~ が箇条書き・下付きになるのを防ぐ）"""
+    return "".join(f"&#{ord(ch)};" if ch in "*_~`[]#<>&\"'\\." else ch for ch in text)
+
+
+def pct(prob):
+    # 0.998 を「100%」と丸めない
+    p = float(prob)
+    return f"{p:.1%}" if p >= 0.995 else f"{p:.0%}"
+
+
+def pred(label, cls, prob, ok):
+    mark = '<span class="ok">✓</span>' if ok else '<span class="ng">✗</span>'
+    return f'<div class="pred">{mark}{label} <b>{cls}</b> {pct(prob)}</div>'
+
+
+def cards(ids, cols=4, height=150, notes=None):
+    """写真カードを並べる。notes は id → 補足の文字列"""
+    out = [f'<div class="cards" style="grid-template-columns: repeat({cols}, 1fr)">']
+    for i in ids:
+        r = rows[i]
+        note = f'<div class="tag">{notes[i]}</div>' if notes and i in notes else ""
+        out.append(
+            f'<figure class="{status(r)}">'
+            f'<img src="data/thumbs/{i}.jpg" style="height:{height}px" alt="{md_safe(credits[i]["title"])}">'
+            f'<figcaption><div class="truth">正解 {r["true_ja"]}</div>'
+            + pred("旧", r["old_ja"], r["old_prob"], r["old"] == r["true"])
+            + pred("新", r["new_ja"], r["new_prob"], r["new"] == r["true"])
+            + note
+            + "</figcaption></figure>"
+        )
+    out.append("</div>")
+    print("".join(out))
+
+
+def source(ids):
+    names = " / ".join(dict.fromkeys(credits[i]["author"] for i in ids))
+    print(f'\n<div class="source">写真: {md_safe(names)}（Open Images V7 収録、CC BY 2.0。題と出典は付録）</div>\n')
+
+
+# 作成者が縮小画像を目視して分けた群（種の同定は専門家に確認していない）
+FIXED_WILD = ["78a98dcc91cace3b", "41f666db2257e015", "0af497431132df18", "4a51f8dd244cd303",
+              "bd871cfa3b03e1ae", "d4d91a285942921a", "54fd0a4958cbc9f8"]
+FIXED_FARM = ["5c46432f977c05d6", "f462a8897c96f952", "10962f6bc7c6d013", "f70c40ea63bec82d"]
+BROKE_FARM = ["a91edddd4a19b12d", "1ded8e6b919074f0", "4b4e13563b6e6af0",
+              "153d164e827a6716", "dfe574fae44eb66b", "55311cf721c5f2e6", "e662a562f784d93c"]
+BROKE_WILD = ["203b7cfdabfc70f8", "4eb2c72a6ea1cd4f", "db8056c96b9c83a1"]
+QUESTION = ["5f8987c72f9b3b21", "65c0b6996cd9938b", "7da4e355186ce058", "d6db7584e8734c0d",
+            "fa5de43462910548", "659930c803700986", "68d16e7efbb42509"]
+BOTH_WRONG_CHANGED = [i for i, r in rows.items() if status(r) == "both-wrong" and r["old"] != r["new"]]
+
+assert sorted(FIXED_WILD + FIXED_FARM + ["68d16e7efbb42509"]) == sorted(i for i in rows if status(rows[i]) == "fixed")
+assert sorted(BROKE_FARM + BROKE_WILD + QUESTION[:6]) == sorted(i for i in rows if status(rows[i]) == "broke")
+SHOWN = FIXED_WILD + FIXED_FARM + BROKE_FARM + BROKE_WILD + QUESTION + BOTH_WRONG_CHANGED
+```
+
+```{python}
+#| output: asis
+n = len(rows)
+old_ok = sum(r["old"] == r["true"] for r in rows.values())
+new_ok = sum(r["new"] == r["true"] for r in rows.values())
+print(f'''<div class="accuracy">
+<div>旧版 <b>{old_ok / n:.1%}</b>（{n}枚中 {old_ok}枚）</div>
+<div>新版 <b>{new_ok / n:.1%}</b>（{n}枚中 {new_ok}枚）</div>
+</div>
+<div class="tiles">
+<div class="tile fixed"><div class="num">{count("fixed")}<small> 枚</small></div><div class="lbl">直った<br>旧版は誤り → 新版は正解</div></div>
+<div class="tile broke"><div class="num">{count("broke")}<small> 枚</small></div><div class="lbl">新たに間違えた<br>旧版は正解 → 新版は誤り</div></div>
+<div class="tile both-wrong"><div class="num">{count("both-wrong")}<small> 枚</small></div><div class="lbl">どちらも誤り<br>うち{len(BOTH_WRONG_CHANGED)}枚は答えが変化</div></div>
+<div class="tile"><div class="num">{count("both-ok")}<small> 枚</small></div><div class="lbl">どちらも正解</div></div>
+</div>''')
+```
+
+::: {.lead .muted}
+差し引きの「4枚減」の裏で、12枚が直り16枚が壊れている。今日はこの28枚を見ます。
+:::
+
+::: notes
+新旧の正解率 88% と 87% はご存じのとおりです。実際は 88.3% と 86.7%、240枚中 212枚と 208枚。
+ただ、差の4枚は「新版が4枚苦手になった」ではありません。12枚直って16枚新たに間違えた、その差し引きです。
+今日はこの28枚を実物で見て、切り替えるかどうかを判断する材料にしてもらいます。
+:::
+
+## 入れ替わりはヤギと牛に集中し、牛は正解が37枚から31枚に減る
+
+```{python}
+#| output: asis
+order = {"fixed": 0, "broke": 1, "both-wrong": 2, "both-ok": 3}
+out = ['<div class="waffle"><div></div><div class="head">1マス＝写真1枚（各クラス40枚）</div><div class="head">正解した枚数</div>']
+for cls in CLASSES:
+    members = sorted((r for r in rows.values() if r["true_ja"] == cls), key=lambda r: order[status(r)])
+    cells = "".join(
+        f'<div class="cell {status(r)}" title="正解 {r["true_ja"]} / 旧 {r["old_ja"]} / 新 {r["new_ja"]}"></div>'
+        for r in members
+    )
+    o = sum(r["old"] == r["true"] for r in members)
+    w = sum(r["new"] == r["true"] for r in members)
+    out.append(f'<div class="cls">{cls}</div><div class="cells">{cells}</div>'
+               f'<div class="score">旧 {o} → 新 <b>{w}</b></div>')
+out.append("</div>")
+out.append('<div class="legend"><span class="fixed">直った</span><span class="broke">新たに間違えた</span>'
+           '<span class="both-wrong">どちらも誤り</span><span>どちらも正解</span></div>')
+print("".join(out))
+```
+
+::: {.lead .muted}
+ヤギは8枚直って6枚壊れ、差し引き＋2。牛は直った写真がなく、6枚壊れる。
+:::
+
+::: notes
+横1列が1クラス40枚、1マスが写真1枚です。青が直った写真、橙が新たに間違えた写真。
+ヤギは青8・橙6で差し引き2枚よくなる。牛は青がなく橙が6、37枚から31枚に落ちます。
+アルパカと馬はほぼ変わりません。つまり「どのクラスで何が起きたか」は、正解率の数字からは見えません。
+ここからは、写真の中身ごとに見ていきます。
+:::
+
+## 直った12枚のうち7枚は野生種。旧版は山のヤギ類を「鹿」としていた
+
+```{python}
+#| output: asis
+cards(FIXED_WILD, cols=4, height=165)
+source(FIXED_WILD)
+```
+
+::: notes
+直った写真のいちばん大きな群がこれです。岩場や山にいる角の大きなヤギの仲間。
+旧版はこれをほぼ「鹿」と答えていて、新版は「ヤギ」と答えるようになりました。右下は雪原のシカで、旧版は牛と答えていたものです。
+改善ははっきりしていますが、牧場で撮る写真ではあまり見ない被写体だ、という点を覚えておいてください。
+:::
+
+## 家畜の写真で直ったのは4枚：遠景の羊2枚、荷を運ぶラバ、岩場のヤギ
+
+```{python}
+#| output: asis
+cards(FIXED_FARM, cols=4, height=300)
+source(FIXED_FARM)
+```
+
+::: notes
+家畜が写っていて直った写真はこの4枚です。
+左の2枚は遠くに羊がいる写真で、旧版は牛と答えていました。3枚目は荷を運ぶラバで、正解ラベルは馬。
+4枚目は岩場の白いヤギで、旧版は羊と答えていました。
+:::
+
+## 一方で新版は、旧版が当てていた牛3枚と白いヤギ4枚を新たに間違える
+
+```{python}
+#| output: asis
+cards(BROKE_FARM, cols=4, height=165)
+source(BROKE_FARM)
+```
+
+::: notes
+新たに間違えた写真のうち、家畜の写真がこの7枚です。
+上の段の3枚は牛。旧版はどれも9割以上の確信度で牛と答えていましたが、新版はヤギ、羊、鹿と答えます。
+残りの4枚は白い家畜のヤギで、新版は羊と答えます。どれも牧場や畜舎でふつうに撮れる写真です。
+:::
+
+## 野生種と展示の写真で新たに間違えたのは3枚
+
+```{python}
+#| output: asis
+cards(BROKE_WILD, cols=3, height=260)
+source(BROKE_WILD)
+```
+
+::: notes
+野生種で新たに間違えたのは3枚です。
+バイソンの親子（正解ラベルは牛）を新版は羊と答えます。真ん中は博物館の展示と思われる白い羊で、新版はヤギ。右は角の大きいヤギ類で、新版は羊。
+:::
+
+## 残る7枚は、ラベルか写真自体に疑問がある。アノテーターの確認を
+
+```{python}
+#| output: asis
+notes = {
+    "5f8987c72f9b3b21": "写真の題「Mountain Goats」",
+    "65c0b6996cd9938b": "写真の題「Llama couple」",
+    "7da4e355186ce058": "題「Addax」＝アンテロープ",
+    "d6db7584e8734c0d": "牛と馬が両方写る",
+    "fa5de43462910548": "題「Bongo」＝アンテロープ",
+    "659930c803700986": "主役は車（題「One Goatpower」）",
+    "68d16e7efbb42509": "写真の題「Bighorn sheep」",
+}
+cards(QUESTION, cols=4, height=120, notes=notes)
+source(QUESTION)
+```
+
+::: notes
+ここはアノテーターの方に特に見てほしい7枚です。最初の6枚が新たに間違えた写真、最後の1枚が直った写真。
+題が「Mountain Goats」なのに正解ラベルが羊、「Llama couple」なのに羊、アダックスやボンゴといったアンテロープに牛や鹿のラベル、ロデオで牛と馬が両方写っている写真などです。
+新版が98%以上の確信度で「間違えた」3枚は、すべてこの中にあります。ラベルを直すと、新版の正解率は今より上がる可能性があります。
+なお、ここでの判断は私が縮小画像と写真の題を見て付けたもので、確定ではありません。
+:::
+
+## 家畜の写真に限ると、直ったのは4枚、新たに間違えたのは7枚
+
+<table class="split">
+<thead><tr><th>写真の種類</th><th class="fixed">直った</th><th class="broke">新たに間違えた</th><th>差し引き</th></tr></thead>
+<tbody>
+<tr class="hl"><td>家畜（牧場・畜舎の羊・牛・ヤギ、ラバ）</td><td class="n">4</td><td class="n">7</td><td class="n">−3</td></tr>
+<tr><td>野生種・動物園・展示</td><td class="n">7</td><td class="n">3</td><td class="n">+4</td></tr>
+<tr><td>正解ラベルか写真に疑問</td><td class="n">1</td><td class="n">6</td><td class="n">−5</td></tr>
+<tr><td><b>計</b></td><td class="n">12</td><td class="n">16</td><td class="n">−4</td></tr>
+</tbody>
+</table>
+
+::: {.small .muted}
+- 新版が良くなったのは主に野生のヤギ類。悪くなったのは牛と白い家畜のヤギ
+- 疑問のある7枚のラベルが直れば「−5」の行は変わりうる
+:::
+
+<div class="source">分類は作成者が縮小画像（長辺256px）と写真の題を見て付けたもの。動物の種は専門家に確認していない</div>
+
+::: notes
+ここまでを1枚の表にするとこうなります。
+家畜の写真では4枚直って7枚壊れ、差し引きマイナス3。野生種では7枚直って3枚壊れ、プラス4。
+全体の「マイナス4枚」は、この性質の違う増減が打ち消し合った結果です。
+:::
+
+## 切り替えるかどうかは、運用で届く写真がどちらの群に近いかで決まる
+
+:::: {.columns}
+::: {.column width="50%"}
+**家畜の写真が中心なら**
+
+- 新版は4枚直して7枚壊す
+- 9割超の確信度で当てていた牛を落とす
+- **今の新版には切り替えない方が安全**<br><span class="muted small">（作成者の見立て）</span>
+:::
+::: {.column width="50%"}
+**野生種の写真も多く届くなら**
+
+- 新版は7枚直して3枚壊す
+- 旧版が「鹿」と誤る山のヤギ類が直る
+- **新版に切り替える利点がある**
+:::
+::::
+
+::: {.small .muted}
+どちらの場合も、疑問のある7枚のラベルを確かめてから正解率を出し直す
+:::
+
+::: notes
+判断の軸は1つです。運用で届く写真が、家畜の写真に近いのか、野生種の写真に近いのか。
+牧場の家畜が中心なら、今の新版は牛と白いヤギで失うものの方が大きいので、切り替えない方が安全だと私は考えます。
+山や動物園の写真も多く来るなら、新版の改善が効いてきます。
+:::
+
+## 決める前に、ラベルの確認と運用写真の中身の確認をしてほしい
+
+1. **アノテーター**：疑問のある7枚の正解ラベルを確かめる
+2. **エンジニア**：確かめたラベルで新旧の正解率を出し直す
+3. **エンジニア**：運用で届いた写真を抜き出し、家畜と野生種の割合を見る
+4. **全員**：判定が変わった写真と 1〜3 の結果を見て、切り替えるかを決める
+
+::: {.small .muted}
+付録に、どちらも誤りで答えだけ変わった6枚と、全写真の出典を載せています
+:::
+
+::: notes
+お願いは4つです。まずアノテーターの方に7枚のラベル確認。
+その結果で正解率を出し直し、並行して運用で実際に届いている写真の中身を確認します。
+それがそろった時点で、今日見た写真と合わせて切り替えを決めましょう。
+:::
+
+## 付録：どちらも誤りで、答えだけ変わった6枚 {.smaller}
+
+```{python}
+#| output: asis
+cards(BOTH_WRONG_CHANGED, cols=3, height=150)
+source(BOTH_WRONG_CHANGED)
+```
+
+::: notes
+どちらの版も外していて、答えだけが変わった6枚です。正解率には影響しませんが、題が「Baby Goats」や「Battaglia capre（ヤギの戦い）」なのに正解ラベルが羊の写真があり、ここにもラベル確認の候補があります。
+:::
+
+## 付録：写真の出典 {.scrollable}
+
+写真はすべて Open Images V7 に収録されたもので、各作者が [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) で公開している。
+
+```{python}
+#| output: asis
+out = ['<table class="credits"><thead><tr><th>題</th><th>作者</th><th>出典</th></tr></thead><tbody>']
+for i in dict.fromkeys(SHOWN):
+    c = credits[i]
+    out.append(f'<tr><td>{md_safe(c["title"])}</td><td>{md_safe(c["author"])}</td>'
+               f'<td><a href="{escape(c["source"])}">{md_safe(c["source"])}</a></td></tr>')
+out.append("</tbody></table>")
+print("".join(out))
+```

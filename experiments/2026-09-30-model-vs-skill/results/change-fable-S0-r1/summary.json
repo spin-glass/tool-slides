@@ -1,0 +1,49 @@
+{
+  "run_id": "change-fable-S0-r1",
+  "task": "change",
+  "model": "fable",
+  "skill": "S0",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 571,
+  "num_turns": 35,
+  "cost_usd": 3.412,
+  "output_tokens": 30374,
+  "models_used": {
+    "claude-fable-5-1": 3.412
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-change/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-change/deck.css",
+    "decks/farm-change/index.qmd"
+  ],
+  "tools": {
+    "Bash": 14,
+    "Read": 16,
+    "Skill": 1,
+    "Write": 2
+  },
+  "skill_calls": [
+    "dataviz"
+  ],
+  "slides_skill_listed": false,
+  "stop_hook_responses": 2,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.74,
+    "seven_day": 0.66,
+    "seven_day_overage_included": 0.94,
+    "status": "allowed_warning"
+  },
+  "final_message": "スライドを `decks/farm-change/index.qmd` に作り、`quarto render decks/farm-change/index.qmd` で `_output/decks/farm-change/index.html` が出ることを確かめました。全スライドを 1280×720 で画面キャプチャし、はみ出しや重なりがないことも見ています。\n\n## 構成（本編8枚＋補足2枚）\n\n| # | スライドの主張 | 見せるもの |\n|---|---|---|\n| 1 | 正解率1ポイント差の内側で、28枚の正誤が入れ替わっている | 表紙 |\n| 2 | 正解数の差は4枚だが、16枚が新たに間違い、12枚が直っている | 212 − 16 ＋ 12 ＝ 208 の足し引き |\n| 3 | 入れ替わりはヤギと牛に集まる | クラス別の枚数（1マス＝1枚） |\n| 4 | 直った12枚のうち8枚はヤギで、6枚は旧版が「鹿」と答えた山や岩場のヤギ | 12枚すべて |\n| 5 | 牛は6枚を新たに間違え、答えは鹿・ヤギ・馬・羊に散らばる | 6枚 |\n| 6 | ヤギも6枚を新たに間違え、5枚は「羊」と答えた | 6枚 |\n| 7 | 残りは羊3枚と鹿1枚。羊の2枚はラベルの確認が先 | 4枚（題名つき） |\n| 8 | 切り替えると何を得て何を失うか、決める前に確かめる2点 | 代表6枚 |\n| 補足 | どちらも不正解の16枚（答えが替わった6枚／同じ誤りの10枚） | 16枚 |\n\n正誤が入れ替わった28枚はすべて載せています。各写真の下に「旧 鹿 ✕ → 新 ヤギ ✓」の形で新旧の答えを示し、口頭用の発表者ノートも付けました。\n\n## データを見て分かったこと\n\n- **クラス別の出入り**: ヤギは8枚直って6枚崩れ（23→25枚）、牛は直りがなく6枚崩れただけ（37→31枚）です。アルパカは40枚とも変化がありません。\n- **羊ラベルの2枚**: 新たに間違えた羊3枚のうち2枚は、撮影者の題名が「Llama couple」「Mountain Goats」で、新版の答え（アルパカ、ヤギ）と同じ側です。仮にこの2枚のラベルが替わると、正解数は新旧とも210枚で並びます。ラベルが誤りとは断定せず、アノテーターへの確認事項として7枚目と8枚目に入れました。\n- **差の大きさ**: 12枚対16枚という入れ替わりは、240枚の評価では偶然でも起こりうる程度です（符号検定で p≈0.57）。これはスライド本文には出さず、2枚目の発表者ノートにだけ書いています。\n\n## 確認してほしい点\n\n- **最後のスライドは推奨を出していません。** 運用で届く写真の傾向が分からないため、「直った側と崩れた側のどちらに近いか」で決める形にしています。\n- **写真の出典**は、各写真の下の撮影者名（出典へのリンク）と、スライド下部の CC BY 2.0 の注記で示しています。一覧スライドは作っていません。\n- **`.gitignore` に2行増えています**（`/.quarto/` と `**/*.quarto_ipynb`）。render のときに Quarto が自動で足したもので、そのままにしてあります。\n\n追加したファイルは `index.qmd` と、このデッキ専用のスタイル `deck.css` の2つです。Notion への保存、commit・push、公開はしていません。"
+}

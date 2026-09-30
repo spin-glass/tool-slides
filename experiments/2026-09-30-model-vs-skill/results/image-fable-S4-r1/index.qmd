@@ -1,0 +1,223 @@
+---
+title: "誤った28枚を画像で見る"
+subtitle: "牧場の動物6クラス・評価用240枚の分類結果（2026-09-30）"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列の数字は毎回見ているが、どんな画像で間違えているかは見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（構成・骨子・見せ方。本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-09-30） -->
+
+```{python}
+#| include: false
+import sys
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import csv
+import matplotlib.pyplot as plt
+import imgfig
+
+items = imgfig.load_table("data/predictions.csv", "data/thumbs")
+notes = {r["id"]: r for r in csv.DictReader(open("data/notes.csv", encoding="utf-8"))}
+CLASSES = ["羊", "ヤギ", "アルパカ", "鹿", "牛", "馬"]
+
+
+def note(it, col="kind"):
+    return notes[it.id][col]
+
+
+def what(it):
+    """図の説明文: 何が写っているか／場所・写り方"""
+    return f"{note(it, 'subject')}\n{note(it, 'scene')}"
+
+
+wrong = [it for it in items if it["true"] != it["pred"]]
+pairs = imgfig.split_by(wrong, lambda it: (it["true_ja"], it["pred_ja"]))      # 枚数の多い順
+(top_pair, goat_deer), rest_pairs = pairs[0], pairs[1:]
+rest = [it for _, g in rest_pairs for it in g]
+
+goats = [it for it in items if it["true_ja"] == "ヤギ"]
+farm = [it for it in goats if note(it, "kind") == "家畜"]
+wild = [it for it in goats if note(it, "kind") == "野生種"]
+other = [it for it in goats if note(it, "kind") == "その他"]
+
+
+def to(group, pred):
+    return [it for it in group if it["pred_ja"] == pred]
+
+
+far_rest = [it for it in rest if note(it, "far") == "1"]
+title_differs = [it for it in wrong if note(it, "title_animal")]
+acc = (len(items) - len(wrong)) / len(items)
+
+# タイトルに書いた数字の検算（データが変わったら描画が止まる）
+assert len(items) == 240 and len(wrong) == 28 and f"{acc:.0%}" == "88%"
+assert top_pair == ("ヤギ", "鹿") and len(goat_deer) == 12
+assert not [it for it in goat_deer if note(it, "kind") == "家畜"]
+assert len([it for it in goat_deer if note(it, "kind") == "野生種"]) == 10
+assert len(farm) == 17 and len(to(farm, "鹿")) == 0
+assert len(wild) == 15 and len(to(wild, "鹿")) == 10
+assert len(rest) == 16 and len(rest_pairs) == 8 and max(len(g) for _, g in rest_pairs) == 3
+assert len(far_rest) == 6 and len(title_differs) == 8
+```
+
+## 正解率88%の誤り28枚は、12枚が「ヤギ→鹿」の1マスに集まる
+
+```{python}
+#| fig-alt: "左は6クラスの混同行列。対角は羊35・ヤギ23・アルパカ40・鹿38・牛37・馬39。ヤギを鹿と判定したマスが12枚で最も多い。右は誤りの組ごとの枚数の棒グラフ。ヤギ→鹿が12枚、ほかの8組は1〜3枚。"
+plt.rcParams["font.family"] = imgfig.japanese_fonts()
+cells = imgfig.cross(items, lambda it: it["true_ja"], lambda it: it["pred_ja"])
+fig, (ax, bx) = plt.subplots(1, 2, figsize=(10, 4.4), gridspec_kw={"width_ratios": [1.15, 1], "wspace": 0.5})
+for i, t in enumerate(CLASSES):
+    for j, p in enumerate(CLASSES):
+        n = len(cells.get((t, p), []))
+        top = (t, p) == top_pair
+        fc = "#eef1f4" if t == p else imgfig.ORANGE if top else "#ffe3d3" if n else "white"
+        ax.add_patch(plt.Rectangle((j, i), 1, 1, fc=fc, ec="white", lw=2))
+        if n:
+            ax.text(j + 0.5, i + 0.5, str(n), ha="center", va="center", fontsize=15,
+                    weight="bold" if top else "normal",
+                    color="white" if top else imgfig.MUTED if t == p else imgfig.INK)
+ax.set_xlim(0, 6); ax.set_ylim(6, 0); ax.set_aspect("equal")
+ax.set_xticks([k + 0.5 for k in range(6)], CLASSES, fontsize=12)
+ax.set_yticks([k + 0.5 for k in range(6)], CLASSES, fontsize=12)
+ax.xaxis.tick_top(); ax.tick_params(length=0)
+ax.set_xlabel("モデルの判定", fontsize=12, color=imgfig.MUTED); ax.xaxis.set_label_position("top")
+ax.set_ylabel("正解", fontsize=12, color=imgfig.MUTED)
+for s in ax.spines.values():
+    s.set_visible(False)
+
+labels = [f"{t}→{p}" for (t, p), _ in pairs][::-1]
+counts = [len(g) for _, g in pairs][::-1]
+colors = [imgfig.ORANGE if n == len(goat_deer) else "#c4cad1" for n in counts]
+bx.barh(labels, counts, color=colors)
+for y, n in enumerate(counts):
+    bx.text(n + 0.25, y, f"{n}枚", va="center", fontsize=12, color=imgfig.INK)
+bx.set_xlim(0, 14.5); bx.set_xticks([]); bx.tick_params(length=0, labelsize=12)
+bx.set_title("誤りの組ごとの枚数（計28枚）", fontsize=12, color=imgfig.MUTED, loc="left")
+for s in bx.spines.values():
+    s.set_visible(False)
+```
+
+[評価用240枚（各クラス40枚）。モデルは CLIP ViT-B/32 の zero-shot 分類]{.source}
+
+::: {.notes}
+ここまでは毎回見ている数字。正解率88%、誤りは28枚。混同行列ではヤギを鹿と判定したマスが12枚で、誤りの4割を占める。
+数字から分かるのは「ヤギと鹿を取り違える」までで、どんなヤギなのかは分からない。次の枚でその12枚を全部見る。
+:::
+
+## ヤギ→鹿の12枚に家畜のヤギはなく、10枚は山の野生種だ
+
+```{python}
+#| fig-alt: "ヤギを鹿と判定した12枚。岩場のマーコール、草の斜面や岩場のアイベックス、山の斜面のシャモアなど、山や岩場にいる野生のヤギの仲間が10枚。残りは草地のオリックス1枚と、題が雄鹿の1枚。"
+imgfig.grid_figure(goat_deer, cols=6, color=imgfig.ORANGE, caption=what);
+```
+
+- 10枚はアイベックス・シャモア・マーコールなど、岩場や山の斜面にいる野生種
+- 残り2枚は草地のオリックスと、撮影者の題が「Stag（雄鹿）」の1枚
+
+[12枚をすべて表示。写っているものは撮影者の題と目視で分類（data/notes.csv）。写真: Open Images V7、各作者 CC BY 2.0（credits.html）]{.source}
+
+::: {.notes}
+牧場で見る白いヤギは1枚もない。写っているのは角が長く、茶色で、岩場や山の斜面にいる野生のヤギの仲間。
+鹿の確信度は12枚中10枚が0.7以上で、モデルは迷わずに鹿と答えている。
+推測: 体の色と背景が、評価用の鹿の写真（茶色い体、草地や山）に近いためだと考えている。確かめてはいない。
+分類は撮影者の題（Markhor、Nubian ibex、Chamois など）を優先し、題で分からない写真はサムネイルの目視で付けた。
+:::
+
+## 家畜のヤギ17枚は1枚も鹿にならず、野生種は15枚中10枚が鹿になる
+
+```{python}
+#| fig-alt: "正しくヤギと判定された写真。左は家畜のヤギ15枚から8枚で、近くから撮った白や茶色のヤギ。右は野生種5枚で、岩に座る1頭、大きな巻き角、崖のアイベックスなど。"
+imgfig.panels_figure([("家畜 → 正しくヤギ", to(farm, "ヤギ"), imgfig.BLUE),
+                      ("野生種 → 正しくヤギ", to(wild, "ヤギ"), imgfig.BLUE)],
+                     k=8, cols_each=[4, 3], caption=what);
+```
+
+- 家畜 `{python} len(farm)`枚: ヤギ`{python} len(to(farm, "ヤギ"))` / 鹿`{python} len(to(farm, "鹿"))` / 牛・羊`{python} len(to(farm, "牛")) + len(to(farm, "羊"))`
+- 野生種 `{python} len(wild)`枚: ヤギ`{python} len(to(wild, "ヤギ"))` / 鹿`{python} len(to(wild, "鹿"))`
+
+[家畜は15枚から等間隔で8枚、野生種は5枚をすべて表示。ヤギ40枚を目視で家畜17・野生種15・その他8に分類。写真: Open Images V7、各作者 CC BY 2.0]{.source}
+
+::: {.notes}
+ヤギのラベルが付いた40枚を、家畜のヤギ・野生種・その他に目視で分けて数え直した。
+家畜のヤギは17枚のうち15枚が正解で、鹿になった写真は1枚もない。誤った2枚は遠くに小さく写った写真で、牛と羊になった。
+野生種は15枚のうち10枚が鹿になった。つまり「ヤギ→鹿の12枚」は、ヤギ全体の弱さではなく、野生種の扱いの問題である。
+その他8枚は、撮影者の題がビッグホーンやオリックスを指す写真、車のエンジン室にヤギがいる写真など。
+:::
+
+## 残りの誤り16枚は8組に散らばり、6枚は遠くに小さく写った写真だ
+
+```{python}
+#| fig-alt: "ヤギ→鹿以外の誤り16枚。左は動物が遠くに小さく写った6枚で、湖畔の羊2頭、牧草地の羊の群れ、柵の前の白い群れ、街角の白いヤギ、納屋の前の白いヤギ、雪原のエルクの群れ。右はそれ以外の10枚で、ヤギの群れ、巻き角の雄の顔、オリックス、ビッグホーンの群れ、ラバの列など。"
+near_rest = [it for it in rest if it not in far_rest]
+imgfig.panels_figure([("遠くに小さく写る", far_rest, imgfig.ORANGE), ("それ以外", near_rest, imgfig.TEAL)],
+                     cols_each=[3, 5], counts=True,
+                     caption=lambda it: f"{it['true_ja']}→{it['pred_ja']}\n{what(it)}");
+```
+
+[16枚をすべて表示。1行目は「正解→判定」。遠くに小さく写るかどうかは目視で分けた（data/notes.csv）。写真: Open Images V7、各作者 CC BY 2.0]{.source}
+
+::: {.notes}
+残りの16枚は8つの組に分かれ、どの組も3枚以下。1つの組を狙った対策では、1〜3枚しか直らない。
+組をまたいで共通するものが1つある。湖の風景の中の羊2頭、街角のヤギ1頭、雪原のエルクの群れなど、動物が画面の小さな一部でしかない写真が6枚ある。
+もう1つ、この中には「牛」のラベルなのにオリックスやビッグホーンが写っている写真がある。次の枚で数える。
+:::
+
+## 誤り28枚のうち8枚は、撮影者の題がラベルと別の動物を指す
+
+```{python}
+#| fig-alt: "撮影者の題が正解ラベルと別の動物を指す8枚。ヤギのラベルで題が雄鹿・オリックス・ビッグホーンの3枚、羊のラベルで題がヤギ・ヤギの子の2枚、牛のラベルで題がオリックス・ビッグホーンの2枚、馬のラベルで題がラバの1枚。"
+imgfig.grid_figure(title_differs, cols=4, color=imgfig.PURPLE,
+                   caption=lambda it: f"{it['true_ja']}→{it['pred_ja']}\n{note(it, 'title_animal')}");
+```
+
+- 8枚のうち2枚は、モデルの判定のほうが題と合う
+
+[8枚をすべて表示。1行目は「ラベル→判定」、2行目は撮影者の題（Flickr の投稿題）が指す動物。写真: Open Images V7、各作者 CC BY 2.0]{.source}
+
+::: {.notes}
+ここはアノテーターの皆さんに特に見てほしい。誤り28枚のうち8枚は、撮影者が付けた題が、正解ラベルと別の動物を指している。
+たとえば「牛」のラベルで題が Bighorn Sheep の写真を、モデルは羊と判定した。集計では誤りだが、写真を見ると判定のほうが合っている。
+題も間違うことがあるので、8枚すべてがラベルの誤りだとは言えない。言えるのは、この8枚はモデルを直す前にラベルを確かめる必要がある、ということ。
+題では分からないが、目視でラベルと違って見える写真もほかに2枚ある（草地のオリックス、畜舎のぶち模様の子）。
+:::
+
+## 対策を決める前に、誤った28枚を組ごとに並べて見てほしい
+
+- ヤギ→鹿の12枚: 野生種を「ヤギ」に含めるかを先に決める
+- 題がラベルと違う8枚: モデルを直す前にラベルを確かめる
+- 遠くに小さく写った6枚: 小さな動物まで判定の対象にするかを決める
+
+::: {.notes}
+同じ「誤り28枚」でも、画像で見ると中身が3種類あり、打つ手が違う。お願いは1つ。次の改善で対策を決める前に、間違えた画像を組ごとに並べて、エンジニアとアノテーターが一緒に見てほしい。
+今回の28枚は、混同行列では「ヤギと鹿の取り違え」に見えた。画像で見ると、野生種の扱い、ラベルの確認、小さく写った動物の3つに分かれた。
+どれも、学習データを足す・モデルを替えるといった対策の前に決めることである。
+並べる図は predictions.csv と thumbs があれば、今日の図と同じコードで数分で出せる。
+:::
+
+<!-- appendix -->
+
+## 正しくヤギと判定された家畜のヤギ15枚は、近くから撮った写真だ
+
+```{python}
+#| fig-alt: "正しくヤギと判定された家畜のヤギ15枚。白いヤギの顔や横顔、草地や畜舎のヤギ、わらの上の黒い子ヤギなど、ヤギが画面の大部分を占める写真。"
+imgfig.grid_figure(to(farm, "ヤギ"), cols=8, color=imgfig.BLUE, caption=what);
+```
+
+[15枚をすべて表示。目視で分類（data/notes.csv）。写真: Open Images V7、各作者 CC BY 2.0]{.source}
+
+## 写っているものは、撮影者の題とサムネイルの目視で分類した
+
+- 対象: 誤った28枚と、正しくヤギと判定された23枚の計51枚（data/notes.csv）
+- 手順: 撮影者の題が動物名を含めば題を使い、含まなければ長辺256pxのサムネイルを見て付けた
+- 野生種: アイベックス・シャモア・マーコールなど山にすむヤギの仲間。種名までは確かめていない
+- 正しく判定された残り189枚のラベルは確かめていない
+- 正解ラベル: Open Images V7 の人手確認済みラベル。モデル: CLIP ViT-B/32 の zero-shot 分類

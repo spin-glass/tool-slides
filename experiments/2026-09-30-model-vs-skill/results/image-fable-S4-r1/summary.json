@@ -1,0 +1,48 @@
+{
+  "run_id": "image-fable-S4-r1",
+  "task": "image",
+  "model": "fable",
+  "skill": "S4",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 721,
+  "num_turns": 47,
+  "cost_usd": 5.352,
+  "output_tokens": 42214,
+  "models_used": {
+    "claude-fable-5-1": 5.352
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-errors/credits.html",
+    "decks/farm-errors/data/notes.csv",
+    "decks/farm-errors/index.qmd",
+    "decks/farm-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 15,
+    "Read": 29,
+    "Write": 2
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.76,
+    "seven_day": 0.67,
+    "seven_day_overage_included": 0.94,
+    "status": "allowed_warning"
+  },
+  "final_message": "スライドを `decks/farm-errors/index.qmd` に作り、`quarto render decks/farm-errors/index.qmd` で `_output/decks/farm-errors/index.html` が出ることを確かめました。lint は block 0・warning 0、全9枚をスクリーンショットで目視済みです。\n\n写真に何が写っているか（家畜／野生種、遠くに小さく写る、など）は、撮影者の題と、私がサムネイルを見た判断で分類しています。2〜6枚目の数字はこの分類に依存するので、発表前に `data/notes.csv` をアノテーターの方に見直してもらってください。\n\n## 任された範囲で決めたこと\n\n- **聴衆**: 画像分類を運用するチーム（エンジニアとアノテーター）\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る\n- **持ち時間**: 口頭10分 → 本編6枚（付録2枚）\n\n本編のタイトル:\n\n1. 正解率88%の誤り28枚は、12枚が「ヤギ→鹿」の1マスに集まる\n2. ヤギ→鹿の12枚に家畜のヤギはなく、10枚は山の野生種だ\n3. 家畜のヤギ17枚は1枚も鹿にならず、野生種は15枚中10枚が鹿になる\n4. 残りの誤り16枚は8組に散らばり、6枚は遠くに小さく写った写真だ\n5. 誤り28枚のうち8枚は、撮影者の題がラベルと別の動物を指す\n6. 対策を決める前に、誤った28枚を組ごとに並べて見てほしい\n\n付録は、正しく判定された家畜のヤギ15枚の全数と、分類の方法です。\n\n## 画像を見て分かったこと\n\n- **ヤギ→鹿の12枚**: 牧場の白いヤギは1枚もなく、10枚はアイベックス・シャモア・マーコールなど岩場や山の野生種です。残り2枚は草地のオリックスと、題が「Stag（雄鹿）」の1枚です。\n- **題がラベルと食い違う8枚**: たとえば「牛」のラベルで題が Bighorn Sheep の写真を、モデルは羊と判定しています。8枚のうち2枚は、モデルの判定のほうが題と合います。題も間違うことがあるので、スライドでは「ラベルの誤り」と断定せず「題がラベルと別の動物を指す」と書いています。\n- **遠くに小さく写った6枚**: 湖畔の羊2頭、街角のヤギ1頭、雪原のエルクの群れなどです。\n\n## 確かめていないこと\n\n- 分類は長辺256pxのサムネイルで行い、種名までは確かめていません。\n- 分類したのは、誤った28枚と正しくヤギと判定された23枚の計51枚です。正しく判定された残り189枚のラベルは見ていません。\n- 「なぜ鹿と間違えるか」（体の色と背景が鹿の写真に近い）は推測で、ノートにだけ推測と断って書いています。\n\n## 作成・変更したファイル\n\n- `decks/farm-errors/prepare.py` は、目視の表 `data/notes.csv` と作者・出典一覧 `credits.html` を作るスクリプトです。\n- `.gitignore` に `/.quarto/` と `**/*.quarto_ipynb` の2行が増えています。私が書いたものではなく、quarto の描画時に追記されたようです。\n- Notion への保存、git の commit・push、公開はしていません。\n- 写真には人物が小さく写るものが2枚あります（街角のヤギ、小屋の前の群れ）。公開する場合は外すかどうかを確認してください。"
+}

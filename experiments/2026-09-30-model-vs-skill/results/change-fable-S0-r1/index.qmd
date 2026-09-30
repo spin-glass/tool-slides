@@ -1,0 +1,265 @@
+---
+title: "正解率1ポイント差の内側で、28枚の正誤が入れ替わっている"
+subtitle: "牧場の動物6クラス・評価用240枚で、旧版と新版の判定を画像で見比べる"
+format:
+  revealjs:
+    css: deck.css
+resources:
+  - data/thumbs/*.jpg
+---
+
+```{python}
+import csv
+from html import escape
+from IPython.display import HTML
+
+rows = list(csv.DictReader(open("data/changes.csv", encoding="utf-8")))
+credits = {r["id"]: r for r in csv.DictReader(open("data/credits.csv", encoding="utf-8"))}
+for r in rows:
+    r["o"] = r["old"] == r["true"]
+    r["n"] = r["new"] == r["true"]
+
+fixed = [r for r in rows if not r["o"] and r["n"]]       # 旧✕ → 新✓
+broken = [r for r in rows if r["o"] and not r["n"]]      # 旧✓ → 新✕
+both_ng = [r for r in rows if not r["o"] and not r["n"]]
+old_ok = sum(r["o"] for r in rows)
+new_ok = sum(r["n"] for r in rows)
+
+# 見出しに書いた数字がデータとずれたら render を止める
+assert (len(rows), old_ok, new_ok, len(fixed), len(broken), len(both_ng)) == (240, 212, 208, 12, 16, 16)
+
+
+def pick(group, true=None, old=None, new=None):
+    return [r for r in group
+            if (true is None or r["true_ja"] == true)
+            and (old is None or r["old_ja"] == old)
+            and (new is None or r["new_ja"] == new)]
+
+
+def mark(name, ok):
+    return f'<b class="ok">{name}</b>' if ok else f'<span class="ng">{name}</span>'
+
+
+def card(r, title=False, truth=False):
+    c = credits[r["id"]]
+    ttl = f'<div class="ttl">題名「{escape(c["title"])}」</div>' if title else ""
+    if truth:
+        ttl = f'<div class="ttl">正解ラベル：{r["true_ja"]}</div>' + ttl
+    return (
+        '<div class="card">'
+        f'<img src="data/thumbs/{r["id"]}.jpg" alt="正解は{r["true_ja"]}">'
+        f'<div class="judge">旧 {mark(r["old_ja"], r["o"])} → 新 {mark(r["new_ja"], r["n"])}</div>'
+        f'{ttl}'
+        f'<div class="credit">撮影: <a href="{escape(c["source"])}">{escape(c["author"])}</a></div>'
+        '</div>'
+    )
+
+
+def cards(group, cols, title=False, truth=False):
+    return f'<div class="cards c{cols}">' + "".join(card(r, title, truth) for r in group) + "</div>"
+
+
+def show(html):
+    return HTML(html)
+```
+
+## 正解数の差は4枚だが、その裏で16枚が新たに間違い、12枚が直っている
+
+```{python}
+show(f"""
+<div class="flow">
+  <div class="box"><div class="k">旧版の正解</div><div class="v">{old_ok}<small> 枚</small></div><div class="s">240枚中・{old_ok/240:.0%}</div></div>
+  <div class="op">−</div>
+  <div class="box broken"><div class="k">新たに間違えた</div><div class="v">{len(broken)}<small> 枚</small></div><div class="s">旧 ✓ → 新 ✕</div></div>
+  <div class="op">＋</div>
+  <div class="box fixed"><div class="k">直った</div><div class="v">{len(fixed)}<small> 枚</small></div><div class="s">旧 ✕ → 新 ✓</div></div>
+  <div class="op">＝</div>
+  <div class="box"><div class="k">新版の正解</div><div class="v">{new_ok}<small> 枚</small></div><div class="s">240枚中・{new_ok/240:.0%}</div></div>
+</div>
+""")
+```
+
+- 正誤が入れ替わった写真は合わせて **`{python} len(fixed) + len(broken)`枚**。評価用240枚のおよそ8枚に1枚にあたる
+- 今日はこの `{python} len(fixed) + len(broken)`枚を全部見る。残りは、どちらの版も正解の`{python} 240 - len(fixed) - len(broken) - len(both_ng)`枚と、どちらも不正解の`{python} len(both_ng)`枚
+
+::: {.notes}
+88%と87%はご存じの数字。枚数にすると212枚と208枚で、差は4枚。
+ただし4枚だけが変わったのではなく、16枚が崩れて12枚が直った結果の4枚。
+12対16という入れ替わりは、240枚の評価では偶然でも起こりうる程度の差（符号検定で p≈0.57）。
+だから「どちらが上か」よりも「どの写真が入れ替わったか」で決めたい、というのが今日の趣旨。
+:::
+
+## 入れ替わりはヤギと牛に集まる。ヤギは8枚直って6枚崩れ、牛は6枚崩れただけだった
+
+```{python}
+order = sorted(
+    {r["true_ja"] for r in rows},
+    key=lambda c: -(len(pick(fixed, c)) + len(pick(broken, c))),
+)
+h = ['<div class="units">',
+     f'<div class="head l">新たに間違えた（計{len(broken)}枚）</div><div></div>',
+     f'<div class="head r">直った（計{len(fixed)}枚）</div>',
+     '<div class="head">正解数 旧 → 新（各40枚中）</div>']
+for c in order:
+    b, f = len(pick(broken, c)), len(pick(fixed, c))
+    o = sum(r["o"] for r in rows if r["true_ja"] == c)
+    n = sum(r["n"] for r in rows if r["true_ja"] == c)
+    h.append(f'<div class="l"><span class="n">{b}</span>' + '<span class="sq broken"></span>' * b + '</div>')
+    h.append(f'<div class="cls">{c}</div>')
+    h.append('<div class="r">' + '<span class="sq fixed"></span>' * f + f'<span class="n">{f}</span></div>')
+    h.append(f'<div class="acc">{o} → {n} <small>（{"±0" if n == o else f"{n - o:+d}"}）</small></div>')
+h.append('</div>')
+show("".join(h))
+```
+
+[1マス＝写真1枚。クラスは正解ラベルで分けている]{.source}
+
+::: {.notes}
+正解ラベルのクラス別に、左が新たに間違えた枚数、右が直った枚数。
+ヤギは出入りが一番多く、差し引き2枚の改善。牛は直ったものがなく6枚減って37枚から31枚。
+アルパカは40枚とも新旧どちらも正解で、馬も1枚直っただけ。
+ここから、直った側、崩れた側の順に写真を見る。
+:::
+
+## 直った12枚のうち8枚はヤギで、6枚は旧版が「鹿」と答えていた山や岩場のヤギだった
+
+```{python}
+goat_fixed = pick(fixed, "ヤギ", old="鹿") + [r for r in pick(fixed, "ヤギ") if r["old_ja"] != "鹿"]
+rest_fixed = [r for c in ("羊", "鹿", "馬") for r in pick(fixed, c)]
+assert len(pick(fixed, "ヤギ")) == 8 and len(pick(fixed, "ヤギ", old="鹿")) == 6
+show(cards(goat_fixed + rest_fixed, 6))
+```
+
+[上段と下段の左2枚がヤギ。下段の残りは羊2枚・鹿1枚・馬1枚で、旧版はどれも「牛」と答えていた]{.lead}
+
+[写真は Open Images V7 収録、各撮影者が CC BY 2.0 で公開。撮影者名は出典へのリンク]{.source}
+
+::: {.notes}
+✓が正解、✕が誤り。このスライドは全部「旧✕→新✓」。
+上段6枚は旧版が鹿と答えたヤギ。角が大きい、崖や岩場にいる、逆光のシルエットなど、野生のヤギらしい写真。
+下段右の4枚は、遠くに小さく写る羊、雪原の鹿、荷を積んだ馬（ラバ）の列で、旧版はどれも牛と答えていた。
+:::
+
+## 牛は6枚を新たに間違えた。旧版は全部当てていた写真で、新版の答えは鹿・ヤギ・馬・羊に散らばる
+
+```{python}
+cattle_broken = pick(broken, "牛")
+assert len(cattle_broken) == 6 and {r["new_ja"] for r in cattle_broken} == {"鹿", "ヤギ", "馬", "羊"}
+show('<div class="with-side">' + cards(cattle_broken, 3) + """
+<div class="side"><ul>
+<li>6枚とも正解ラベルは「牛」</li>
+<li>角の長い白い動物、ロデオ、バイソンの親子、遠くに小さく写る牛、雪の中の子牛</li>
+<li>牛で直った写真は1枚もない</li>
+</ul></div></div>""")
+```
+
+[写真は Open Images V7 収録、各撮影者が CC BY 2.0 で公開。撮影者名は出典へのリンク]{.source}
+
+::: {.notes}
+ここからは「旧✓→新✕」。まず牛の6枚。
+左上は角の長い白い動物（題名は Addax）で、新版は鹿。ロデオは馬も写っていて、新版は馬。
+バイソンの親子と、雪の中の毛の長い子牛は羊と答えた。
+運用で入ってくる牛の写真がこの6枚に近いかどうかを、見て判断してほしい。
+:::
+
+## ヤギも6枚を新たに間違えた。そのうち5枚は、近くから撮ったヤギを「羊」と答えている
+
+```{python}
+goat_broken = pick(broken, "ヤギ", new="羊") + [r for r in pick(broken, "ヤギ") if r["new_ja"] != "羊"]
+assert len(goat_broken) == 6 and len(pick(broken, "ヤギ", new="羊")) == 5
+show('<div class="with-side">' + cards(goat_broken, 3) + """
+<div class="side"><ul>
+<li>「羊」になった5枚のうち4枚は白いヤギ</li>
+<li>直った側は山や岩場のヤギ、崩れた側は近くから撮ったヤギ</li>
+<li>右下は車のエンジンルームにヤギが見える写真。新版は「牛」と答えた</li>
+</ul></div></div>""")
+```
+
+[写真は Open Images V7 収録、各撮影者が CC BY 2.0 で公開。撮影者名は出典へのリンク]{.source}
+
+::: {.notes}
+ヤギは8枚直った一方で6枚崩れた。崩れた6枚のうち5枚は羊という答え。
+直った側と見比べると、性格の違う写真が入れ替わっている。山や岩場のヤギを得て、近くから撮ったヤギを落とした形。
+右下は車が画面の大半を占め、ヤギはエンジンルームに小さく見えるだけ（題名は「GTO: One Goatpower」）。旧版はこれをヤギと答えていた。
+:::
+
+## 残りは羊3枚と鹿1枚。羊のうち2枚は撮影者の題名が「Llama」「Mountain Goats」で、ラベルの確認が先になる
+
+```{python}
+rest_broken = pick(broken, "羊") + pick(broken, "鹿")
+assert len(rest_broken) == 4 and len(broken) == len(cattle_broken) + len(goat_broken) + len(rest_broken)
+show(cards(rest_broken, 4, title=True))
+```
+
+- 左の3枚は正解ラベルが「羊」、右端は「鹿」
+- 題名が「Llama couple」「Mountain Goats」の2枚は、ラベルが「羊」のままなら新版の誤り。ラベルを直すなら、新版が正しく旧版が誤りになる
+- 仮にこの2枚のラベルが替わると、正解数は旧版210枚・新版210枚で並ぶ
+
+[写真は Open Images V7 収録、各撮影者が CC BY 2.0 で公開。撮影者名は出典へのリンク]{.source}
+
+::: {.notes}
+新たに間違えた16枚の最後の4枚。
+題名は撮影者が付けたもので、それだけでラベルが誤りとは言えない。ただ、新版の答え（アルパカ、ヤギ）は題名と同じ側にある。
+2枚のラベルが替わった場合、旧版は212から2枚減り、新版は208から2枚増えて、どちらも210枚。
+つまり「新版が1ポイント低い」という前提そのものが、この2枚の確認で動く。
+:::
+
+## 切り替えると、山や岩場のヤギなど12枚を得て、牛や近景のヤギなど16枚を失う
+
+```{python}
+def strip(group):
+    return '<div class="strip">' + "".join(
+        f'<a href="{escape(credits[r["id"]]["source"])}"><img src="data/thumbs/{r["id"]}.jpg" '
+        f'alt="{r["true_ja"]}（撮影: {escape(credits[r["id"]]["author"])}）"></a>' for r in group
+    ) + "</div>"
+
+show(f"""
+<div class="trade">
+  <div class="col fixed">{strip(goat_fixed[:3])}
+    <p><b>得る</b>：直った12枚。うちヤギ8枚（旧版は6枚を「鹿」）</p></div>
+  <div class="col broken">{strip([cattle_broken[0], cattle_broken[4], goat_broken[0]])}
+    <p><b>失う</b>：新たに間違えた16枚。うち牛6枚、ヤギ6枚（5枚を「羊」）</p></div>
+</div>
+<div class="next"><b>決める前に、この2つを見て確かめたい</b>
+<ol>
+<li>運用で届く写真は、直った側（山や岩場のヤギ）と崩れた側（牛、近景のヤギ）のどちらに近いか</li>
+<li>羊ラベルの2枚（題名 Llama couple / Mountain Goats）は「羊」のままでよいか</li>
+</ol></div>
+""")
+```
+
+[写真は前出の6枚（CC BY 2.0、写真から出典へリンク）]{.source}
+
+::: {.notes}
+正解率の1ポイント差だけでは決められない。入れ替わった28枚の中身で決めたい。
+牛や近景のヤギが運用の中心なら、新版は今のままでは落とすものが大きい。山や岩場のヤギのような写真が多いなら新版に利がある。
+2番はアノテーターの皆さんへのお願い。結果しだいで正解数の差そのものがなくなる。
+質問用に、どちらの版も不正解の16枚を補足に置いている。
+:::
+
+## 補足：どちらも不正解の16枚のうち、6枚は答えが別の誤りに替わった
+
+```{python}
+moved = [r for r in both_ng if r["old"] != r["new"]]
+stay = [r for r in both_ng if r["old"] == r["new"]]
+assert (len(moved), len(stay)) == (6, 10)
+show('<div class="with-side">' + cards(moved, 3, truth=True) + f"""
+<div class="side"><ul>
+<li>新旧で答えが違う写真は全部で{sum(r["old"] != r["new"] for r in rows)}枚。正誤が入れ替わった28枚と、この6枚</li>
+<li>この6枚は正解数には影響しない</li>
+</ul></div></div>""")
+```
+
+[写真は Open Images V7 収録、各撮影者が CC BY 2.0 で公開。撮影者名は出典へのリンク]{.source}
+
+## 補足：残りの10枚は新旧とも同じ誤りで、6枚はヤギを「鹿」と答えている
+
+```{python}
+stay = sorted(stay, key=lambda r: (r["true_ja"] != "ヤギ", r["true_ja"]))
+assert len(pick(stay, "ヤギ", new="鹿")) == 6
+show(cards(stay, 5, truth=True))
+```
+
+[上段と下段左端がヤギ（6枚）。下段の残りは、正解ラベルが左から牛・牛・羊・鹿]{.lead}
+
+[写真は Open Images V7 収録、各撮影者が CC BY 2.0 で公開。撮影者名は出典へのリンク]{.source}

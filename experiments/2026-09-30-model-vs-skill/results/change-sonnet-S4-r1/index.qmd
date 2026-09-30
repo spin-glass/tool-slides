@@ -1,0 +1,214 @@
+---
+title: "新版で入れ替わった28枚"
+subtitle: "牧場の動物6クラスの画像分類で、旧版と新版の判定が変わった画像を見る"
+fig-format: jpeg
+fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。新旧の正解率（88%と87%）は知っているが、どの画像の判定が変わったかは見たことがない -->
+<!-- action: 新しい版に切り替えるかどうかを、判定が変わった画像を見てから決める -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-09-30。budget は 10分÷1.5 の既定値） -->
+<!-- status: approved -->
+
+```{python}
+#| include: false
+import csv
+import sys
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import imgfig
+import matplotlib.pyplot as plt
+
+items = imgfig.load_table("data/changes.csv", "data/thumbs")
+for r in csv.DictReader(open("data/audit.csv", encoding="utf-8")):
+    next(it for it in items if it.id == r["id"]).attrs.update(subject=r["subject"], label_check=r["label_check"])
+
+ok_old = lambda it: it["true"] == it["old"]
+ok_new = lambda it: it["true"] == it["new"]
+fixed = [it for it in items if not ok_old(it) and ok_new(it)]
+broke = [it for it in items if ok_old(it) and not ok_new(it)]
+both_wrong = [it for it in items if not ok_old(it) and not ok_new(it)]
+both_right = [it for it in items if ok_old(it) and ok_new(it)]
+flipped = len(fixed) + len(broke)
+
+# 新たに誤った16枚の内訳
+cattle = [it for it in broke if it["true"] == "Cattle"]
+goat_sheep = [it for it in broke if it["true"] == "Goat" and it["new"] == "Sheep"]
+rest = [it for it in broke if it not in cattle and it not in goat_sheep]
+bad_label_broke = [it for it in rest if it["label_check"] == "wrong"]
+bad_label_fixed = [it for it in fixed if it["label_check"] == "wrong"]
+fixed_real = len(fixed) - len(bad_label_fixed)
+broke_real = len(broke) - len(bad_label_broke)
+
+# 直った12枚の内訳
+goat_fixed = [it for it in fixed if it["true"] == "Goat"]
+goat_from_deer = [it for it in goat_fixed if it["old"] == "Deer"]
+n_by_class = lambda g, c: sum(it["true"] == c for it in g)
+
+# タイトルに書いた数字の検算
+n = len(items)
+assert (round(100 * len(both_right + broke) / n), round(100 * len(both_right + fixed) / n)) == (88, 87)  # 旧版, 新版
+assert (len(both_right), len(fixed), len(broke), len(both_wrong), flipped) == (196, 12, 16, 16, 28)
+assert (n_by_class(fixed, "Cattle"), n_by_class(broke, "Cattle")) == (0, 6)
+assert (n_by_class(fixed, "Goat"), n_by_class(broke, "Goat")) == (8, 6)
+assert (len(goat_from_deer), len(cattle), len(goat_sheep), len(rest)) == (6, 6, 5, 5)
+assert (len(bad_label_broke), len(bad_label_fixed), fixed_real, broke_real) == (3, 1, 11, 13)
+assert sum(it["true"] == "Goat" and it["new"] == "Deer" for it in both_wrong) == 6
+assert (sum(ok_old(it) for it in items if it["true"] == "Cattle"), sum(ok_new(it) for it in items if it["true"] == "Cattle")) == (37, 31)
+```
+
+## 正解率は88%と87%で近いが、判定が入れ替わった画像は28枚ある
+
+```{python}
+#| fig-alt: "新旧で判定が変わった28枚から、直った12枚のうち6枚（左、青枠）と、新たに誤った16枚のうち6枚（右、橙枠）。直った例は岩場のヤギ類や牧草地の羊、新たに誤った例は牛やヤギ。"
+cap_flip = lambda it: f"{it['old_ja']}→{it['new_ja']}\n正解 {it['true_ja']}"
+groups = [("直った", fixed, imgfig.NORMAL_COLOR), ("新たに誤り", broke, imgfig.OUTLIER_COLOR)]
+imgfig.panels_figure(groups, cols_each=[3, 3], k=6, how="even", caption=cap_flip);
+```
+
+- 両方正解 `{python} len(both_right)`枚、両方誤り `{python} len(both_wrong)`枚は、正誤が変わらない
+- 旧版の誤りを新版が直した画像 `{python} len(fixed)`枚、旧版の正解を新版が誤った画像 `{python} len(broke)`枚
+
+[各群から、表の順に等間隔で6枚を選んで表示。枠の下は「旧版の答え→新版の答え」と正解。写真: Open Images V7（各作者 CC BY 2.0、一覧は credits.html）]{.source}
+
+::: {.notes}
+正解率は 212/240 から 208/240 で、88%と87%。差は4枚に見えるが、中身は12枚が直り16枚が新たに間違えた入れ替えだ。
+両方正解の196枚と両方誤りの16枚は、今日は見ない。見るのは青と橙の28枚。
+評価用の写真は各クラス40枚の計240枚で、新旧とも同じ写真を判定している。
+:::
+
+## 牛は1枚も直らず6枚が新たに誤り、ヤギは8枚直り6枚が新たに誤る
+
+```{python}
+#| fig-alt: "正解クラス別の棒グラフ。左向きの橙が新たに誤った枚数、右向きの青が直った枚数。牛は直った0枚・誤り6枚、ヤギは直った8枚・誤り6枚、羊は2枚・3枚、鹿は1枚・1枚、馬は1枚・0枚、アルパカは0枚・0枚。"
+CLASSES = [("Cattle", "牛"), ("Goat", "ヤギ"), ("Sheep", "羊"), ("Deer", "鹿"), ("Horse", "馬"), ("Alpaca", "アルパカ")]
+plt.rcParams["font.family"] = imgfig.japanese_fonts()
+fig, ax = plt.subplots(figsize=(10, 4.2))
+for i, (c, ja) in enumerate(CLASSES):
+    nf, nb = n_by_class(fixed, c), n_by_class(broke, c)
+    ax.barh(i, nf, color=imgfig.NORMAL_COLOR, height=0.62)
+    ax.barh(i, -nb, color=imgfig.OUTLIER_COLOR, height=0.62)
+    ax.text(nf + 0.15, i, f"{nf}", va="center", fontsize=17, color=imgfig.NORMAL_COLOR, weight="bold")
+    ax.text(-nb - 0.15, i, f"{nb}", va="center", ha="right", fontsize=17, color=imgfig.OUTLIER_COLOR, weight="bold")
+ax.set_yticks(range(len(CLASSES)), [ja for _, ja in CLASSES], fontsize=17)
+ax.invert_yaxis()
+ax.axvline(0, color=imgfig.INK, lw=1)
+ax.set_xlim(-8, 10)
+ax.set_xticks([])
+ax.text(-8, -0.85, "← 新たに誤った枚数", color=imgfig.OUTLIER_COLOR, fontsize=15, weight="bold")
+ax.text(10, -0.85, "直った枚数 →", color=imgfig.NORMAL_COLOR, fontsize=15, weight="bold", ha="right")
+for s in ("top", "right", "bottom", "left"):
+    ax.spines[s].set_visible(False)
+ax.tick_params(left=False)
+fig.tight_layout();
+```
+
+- 直る画像はヤギに偏り、牛では1枚も直らない
+- 羊・鹿・馬・アルパカは入れ替わりが計 `{python} sum(n_by_class(fixed, c) + n_by_class(broke, c) for c in ("Sheep", "Deer", "Horse", "Alpaca"))`枚と小さい
+
+[正解クラスごとに、直った画像と新たに誤った画像の枚数（各クラス40枚中）]{.source}
+
+::: {.notes}
+クラス別の正解数は牛が37から31、ヤギが23から25。ヤギの+2は、8枚直って6枚壊れた差し引きだ。
+差し引きだけ見ると新版はヤギに強いように見えるが、どのヤギが直りどのヤギが壊れたかは次の2枚で見る。
+:::
+
+## 直った12枚の半分は、旧版が鹿と誤った岩場のヤギだ
+
+```{python}
+#| fig-alt: "新版で直った12枚。左は旧版が鹿と答えた正解ヤギの6枚で、マーコール、山の斜面、岩場の2頭、崖の上、岩の上の影、岩場のクリクリ。右はそのほかの6枚で、ビッグホーン、岩場に小さく写るヤギ、湖畔と牧草地の羊、雪原のエルク、ラバの列。"
+cap = lambda it: f"{it['true_ja']}・旧{it['old_ja']}\n{it['subject']}"
+other_fixed = [it for it in fixed if it not in goat_from_deer]
+groups = [("旧版が鹿と誤ったヤギ", goat_from_deer, imgfig.NORMAL_COLOR), ("そのほか", other_fixed, imgfig.NORMAL_COLOR)]
+imgfig.panels_figure(groups, cols_each=[3, 3], counts=True, caption=cap);
+```
+
+- 正解がヤギの `{python} len(goat_fixed)`枚のうち `{python} len(goat_from_deer)`枚は、旧版が鹿と答えていた
+- 羊 2枚は、牧草地と湖畔に小さく写る群れで、旧版は牛と答えていた
+
+[直った12枚をすべて表示。枠の下は「正解クラス・旧版の答え」と被写体（題名と目視、data/audit.csv）。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+鹿と答えられていた6枚は、マーコール、シャモア、アイベックスなど、岩場や崖にいる角のあるヤギ類だ。
+右下のビッグホーンは題名が Bighorn sheep で、羊の写真にヤギのラベルが付いている。直ったと数えているが、次の次の枚のラベル確認で扱う。
+:::
+
+## 新たに誤った16枚のうち11枚は、牛6枚と、羊と答えられたヤギ5枚だ
+
+```{python}
+#| fig-alt: "新たに誤った16枚のうち11枚。左は正解が牛の6枚で、白いレイヨウ、ロデオ会場、バイソン親子、岩場に小さく写る牛、毛の厚い牛、遠景の群れ。右は正解がヤギで新版が羊と答えた5枚で、白いヤギ、角の大きな顔、柵の中のヤギ、寝そべる2頭、近くから撮った顔。"
+cap4 = lambda it: f"旧{it['old_ja']}→新{it['new_ja']}\n{it['subject']}"
+groups = [("正解 牛", cattle, imgfig.OUTLIER_COLOR), ("正解 ヤギ", goat_sheep, imgfig.OUTLIER_COLOR)]
+imgfig.panels_figure(groups, cols_each=[3, 3], counts=True, caption=cap4);
+```
+
+- 牛は `{python} sum(ok_old(it) for it in items if it['true'] == 'Cattle')`枚から `{python} sum(ok_new(it) for it in items if it['true'] == 'Cattle')`枚へ減り、遠景・ロデオ・バイソン・冬毛の写真が落ちた
+- ヤギ5枚は、白いヤギ4枚と大きな角のヤギ1枚だ
+
+[新たに誤った16枚のうち牛6枚とヤギ5枚をすべて表示（残り5枚は次の枚）。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+牛の6枚は、旧版が0.9前後の確信度で当てていた画像が多い。新版は「各クラス10枚の見本の平均に近いクラス」を選ぶ方式で、見本と写り方が違う牛が外れたのだと思う。これは推測で、確かめてはいない。
+白いアダックスは牛のラベルだが、6クラスに入らないレイヨウだ。ここでは正解ラベルのまま数えている。
+ヤギ5枚は、旧版の確信度が0.5〜0.8と低めの際どい判定で、新版は羊を0.65〜0.89で選んでいる。
+:::
+
+## 残る5枚のうち3枚は、正解ラベルのほうが写真と合っていない
+
+```{python}
+#| fig-alt: "新たに誤った残り5枚。左の3枚は正解ラベルが写真と合わない画像で、雪の上のヤギ（ラベルは羊）、ラマの2頭（ラベルは羊）、赤い車（ラベルはヤギ）。右の2枚はラベルどおりの誤りで、展示の剥製のビッグホーン（羊を新版はヤギと答えた）とボンゴ（鹿を新版はヤギと答えた）。"
+cap3 = lambda it: f"ラベル {it['true_ja']}\n新版 {it['new_ja']}\n{it['subject']}"
+label_ok = [it for it in rest if it["label_check"] == "ok"]
+groups = [("ラベルが写真と合わない", bad_label_broke, imgfig.PURPLE), ("ラベルどおりの誤り", label_ok, imgfig.OUTLIER_COLOR)]
+imgfig.panels_figure(groups, cols_each=[3, 2], counts=True, caption=cap3);
+```
+
+- 雪の上のヤギと、ラマの2頭は、題名も写真もラベル（羊）と違う
+- 赤い車の写真にはヤギのラベルがあり、動物が写っていない
+- 直った12枚にも、題名が Bighorn sheep の1枚（ラベルはヤギ）が入っている
+
+[新たに誤った16枚のうち牛6枚とヤギ5枚を除く5枚をすべて表示。ラベルの確認は題名と目視（data/audit.csv）。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+雪の上のヤギは、新版がヤギと0.98で答えていて、写真を見るとこちらのほうが正しい。旧版は羊と答えて、ラベルと偶然合っていた。
+ボンゴとアダックスは6クラスに入らないレイヨウで、これもラベルの問題と言えるが、判断が分かれるので誤りのまま数えている。
+ラベルの判断は目視と題名で付けたものなので、アノテーターの方は異論があればここで指摘してほしい。
+:::
+
+## 牛と農場のヤギが多いなら旧版を残し、岩場のヤギなら新版に替える
+
+```{python}
+#| fig-alt: "判断の分かれ目になる3つの群から2枚ずつ。左は新版が直す岩場のヤギ、中央は新版が誤る牛、右は新版が誤る農場や動物園のヤギ。"
+def two(g):
+    return imgfig.pick(g, 2, how="even")
+groups = [("直る 岩場のヤギ", two(goat_from_deer), imgfig.NORMAL_COLOR), ("誤る 牛", two(cattle), imgfig.OUTLIER_COLOR),
+          ("誤る 農場のヤギ", two(goat_sheep), imgfig.OUTLIER_COLOR)]
+imgfig.panels_figure(groups, cols_each=[2, 2, 2], aspect=0.8);
+```
+
+- 新版が直す: 岩場のヤギ `{python} len(goat_from_deer)`枚。壊す: 牛 `{python} len(cattle)`枚と農場・動物園のヤギ `{python} len(goat_sheep)`枚
+- ラベルを直して数えると、直る `{python} fixed_real`枚に対し新たな誤りは `{python} broke_real`枚
+- 決める前に、運用中の写真で牛・農場のヤギ・岩場のヤギの枚数を数える
+
+[各群から、表の順に等間隔で2枚を選んで表示。写真: Open Images V7（各作者 CC BY 2.0、一覧は credits.html）]{.source}
+
+::: {.notes}
+評価用は240枚で、入れ替わりは28枚しかない。牛6枚・ヤギ5枚という数は小さく、傾向を示すもので確定した結論ではない。
+この判断に必要なのは、自分たちの運用画像でどの被写体が多いかだ。決める前に、運用中の写真で牛・農場のヤギ・岩場のヤギの枚数を数えてほしい。牧場の写真が中心なら牛とヤギが多く、旧版のほうが安全側になる。
+ラベルの確認結果は data/audit.csv に残してある。
+:::
+
+<!-- appendix -->
+
+## どちらの版も誤った16枚のうち6枚は、ヤギを鹿と答えたままだ
+
+```{python}
+#| fig-alt: "旧版も新版も誤った16枚。正解がヤギの9枚のうち6枚は新版も鹿と答えている。羊3枚、牛3枚、鹿1枚もある。"
+cap2 = lambda it: f"正解 {it['true_ja']}\n新版 {it['new_ja']}"
+imgfig.grid_figure(both_wrong, cols=8, caption=cap2);
+```
+
+[両方誤りの16枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}

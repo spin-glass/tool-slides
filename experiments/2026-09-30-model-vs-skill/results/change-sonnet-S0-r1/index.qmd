@@ -1,0 +1,272 @@
+---
+title: "どの画像の判定が変わったか"
+subtitle: "画像分類の旧版と新版を、牧場の動物 6 クラス・評価用 240 枚で比べる"
+format:
+  revealjs:
+    include-in-header:
+      - text: |
+          <style>
+          :root { --fix:#0b6bb5; --brk:#c4470a; --ink:#1f2933; --sub:#5b6570; --bg2:#eef1f4; }
+          .reveal h2 { margin:0 0 .35em; }
+          .reveal .subtitle { color:var(--sub); font-size:.9em; }
+          .reveal p { margin:.35em 0; }
+          .reveal ul { margin:.3em 0 .3em 1.1em; } .reveal li { margin:.28em 0; }
+          .fixc { color:var(--fix); font-weight:700; } .brkc { color:var(--brk); font-weight:700; }
+          .sub { color:var(--sub); }
+          .g { display:grid; gap:12px 14px; margin:.2em 0; }
+          .g6 { grid-template-columns:repeat(6,1fr); } .g5 { grid-template-columns:repeat(5,1fr); }
+          .g3 { grid-template-columns:repeat(3,1fr); gap:16px 22px; }
+          figure.c, figure.h { margin:0; }
+          figure img { display:block; width:100%; margin:0; border:0; box-shadow:none; background:var(--bg2); object-fit:contain; max-height:none; }
+          figure.c img { aspect-ratio:4/3; border-bottom:6px solid var(--sub); }
+          figure.c.fix img { border-bottom-color:var(--fix); } figure.c.brk img { border-bottom-color:var(--brk); }
+          figcaption { display:flex; flex-direction:column; font-size:19px; line-height:1.35; margin-top:5px; }
+          figcaption .t { font-weight:700; } figcaption .n { color:var(--sub); font-size:17px; }
+          figcaption .p { white-space:nowrap; }
+          b.o { color:var(--fix); margin-left:.15em; } b.x { color:var(--brk); margin-left:.15em; }
+          figure.h { display:grid; grid-template-columns:200px 1fr; gap:14px; align-items:start; }
+          figure.h img { aspect-ratio:4/3; border-bottom:6px solid var(--brk); }
+          figure.h figcaption { margin-top:0; font-size:21px; }
+          .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin:.7em 0; }
+          .tile { border-top:8px solid var(--sub); background:var(--bg2); padding:.5em .7em .6em; }
+          .tile .v { font-size:2.3em; font-weight:800; line-height:1.1; } .tile .l { font-size:.85em; }
+          .tile.f { border-color:var(--fix); } .tile.f .v { color:var(--fix); }
+          .tile.b { border-color:var(--brk); } .tile.b .v { color:var(--brk); }
+          .eq { font-size:1.05em; margin-top:.5em; }
+          table.cls { border-collapse:collapse; font-size:.72em; margin:.2em 0; }
+          .cols2 { display:grid; grid-template-columns:1.05fr 1fr; gap:36px; align-items:start; }
+          table.cls th, table.cls td { padding:.28em .9em; text-align:right; border-bottom:1px solid #d3d8de; }
+          table.cls th:first-child, table.cls td:first-child { text-align:left; }
+          table.cls tr.hl td { background:#fdeee6; font-weight:700; } table.cls tr.hl2 td { background:#e6f1fa; font-weight:700; }
+          .note { font-size:.72em; color:var(--sub); margin-top:.5em; }
+          .box { border-left:8px solid var(--fix); background:var(--bg2); padding:.5em .9em; margin:.4em 0 .6em; }
+          .cols { display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+          .role { display:block; width:fit-content; margin-bottom:.1em; font-size:.7em; font-weight:700; color:#fff; background:var(--sub); border-radius:4px; padding:0 .5em; }
+          table.cr { font-size:14px; border-collapse:collapse; width:100%; table-layout:fixed; }
+          table.cr th:nth-child(1) { width:52%; } table.cr th:nth-child(2) { width:32%; }
+          table.cr th, table.cr td { padding:2px 8px; text-align:left; border-bottom:1px solid #d3d8de; line-height:1.3; }
+          </style>
+---
+
+## 正解率は 88% → 87%。では、どの画像が変わったのか？
+
+**今日の問い：新しい版に切り替えるか？**
+
+- 数字だけでは分からない「**どの写真の判定が変わったか**」を、実物で見ます
+- 評価用の写真は 240 枚（6 クラス × 各 40 枚）。新旧とも同じ写真を判定
+- 見終わったら、切り替えるかどうかを一緒に決めます
+
+::: {.note}
+旧版：CLIP ViT-B/32 の zero-shot 分類（クラス名だけで判定）。新版：同じ画像特徴で、各クラス 10 枚の見本の平均に近いクラスを選ぶ分類。見本 60 枚は評価用 240 枚に含まれない。
+:::
+
+::: notes
+（1分）最初に問いを置く。正解率 88% と 87% は皆さん知っている。今日はその中身、つまり「どの写真が直り、どの写真が新しく間違えるようになったか」を見る。最後に、切り替えるかどうかを決めてもらう。
+:::
+
+## 88%→87% の裏で、28 枚の正解・不正解が入れ替わっていた
+
+<div class="tiles">
+<div class="tile"><div class="v">196</div><div class="l">どちらも正解</div></div>
+<div class="tile f"><div class="v">12</div><div class="l">旧×→新○<br>直った</div></div>
+<div class="tile b"><div class="v">16</div><div class="l">旧○→新×<br>新たに間違えた</div></div>
+<div class="tile"><div class="v">16</div><div class="l">どちらも間違い<br>（うち6枚は間違い方が変わった）</div></div>
+</div>
+
+<p class="eq">正解 212 枚（88.3%）<span class="brkc"> − 16 </span><span class="fixc"> + 12 </span>＝ 208 枚（86.7%）</p>
+
+差し引き −4 枚に見えるが、実際は **28 枚が入れ替わっている**。この 28 枚を次から見ていく。
+
+::: notes
+（1分）240枚の内訳。196枚は変わらず正解、16枚は変わらず不正解。残りの28枚が入れ替わった。直った12枚、新たに間違えた16枚。差し引きで4枚減って88%が87%。この28枚を実物で見る。
+:::
+
+## 直った 12 枚：旧版が「鹿」と見誤った角のある山の動物 6 枚が、ヤギに
+
+<div class="g g6">
+<figure class="c fix"><img src="data/thumbs/78a98dcc91cace3b.jpg" alt="写真: Markhor Capra falconeri Kingcraig 2014"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 鹿<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/41f666db2257e015.jpg" alt="写真: Camosci in Val Maira"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 鹿<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/0af497431132df18.jpg" alt="写真: * Mountain Goats *"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 鹿<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/4a51f8dd244cd303.jpg" alt="写真: Sin miedo a nada"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 鹿<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/bd871cfa3b03e1ae.jpg" alt="写真: Valais - Van d&#x27;En Haut - Chamoix"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 鹿<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/d4d91a285942921a.jpg" alt="写真: Kri-kri goat, Samaria Gorge, Crete"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 鹿<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/68d16e7efbb42509.jpg" alt="写真: Bighorn sheep"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 牛<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/f70c40ea63bec82d.jpg" alt="写真: dscn2268"><figcaption><span class="t">正解 ヤギ</span><span class="p">旧 羊<b class="x">×</b></span><span class="p">新 ヤギ<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/5c46432f977c05d6.jpg" alt="写真: Untitled"><figcaption><span class="t">正解 羊</span><span class="p">旧 牛<b class="x">×</b></span><span class="p">新 羊<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/f462a8897c96f952.jpg" alt="写真: Bucolic scene deux"><figcaption><span class="t">正解 羊</span><span class="p">旧 牛<b class="x">×</b></span><span class="p">新 羊<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/54fd0a4958cbc9f8.jpg" alt="写真: Grand Teton National Park"><figcaption><span class="t">正解 鹿</span><span class="p">旧 牛<b class="x">×</b></span><span class="p">新 鹿<b class="o">○</b></span></figcaption></figure>
+<figure class="c fix"><img src="data/thumbs/10962f6bc7c6d013.jpg" alt="写真: Mule Train Approaching Rae Lakes Ranger Station"><figcaption><span class="t">正解 馬</span><span class="p">旧 牛<b class="x">×</b></span><span class="p">新 馬<b class="o">○</b></span></figcaption></figure>
+</div>
+
+<p class="note">上の 6 枚：旧版が「鹿」と誤答 → 新版で「ヤギ」。下の 6 枚：旧版は牛（1 枚だけ羊）と誤答していたもので、羊の写真 2 枚を含む。○＝正解、×＝不正解。「Bighorn sheep」の題名の 1 枚（下段左端）は、正解ラベルが「ヤギ」で疑わしい。</p>
+<div class="source">写真：Open Images V7 / 各作者（CC BY 2.0）・縮小して掲載。出典は巻末</div>
+
+::: notes
+（1.5分）上段6枚は、旧版が鹿と答えていた山岳系の野生のヤギ類。マーコール、アイベックス、シャモアなど。新版はこれをヤギにできた。旧版はヤギクラスの40枚中12枚を鹿と誤答していたので、そこが改善している。下段は、羊の群れを牛と誤っていた2枚など。
+:::
+
+## 新たに間違えた①　ヤギ 4 枚が羊に、羊 1 枚がヤギに
+
+<div class="g g5">
+<figure class="c brk"><img src="data/thumbs/153d164e827a6716.jpg" alt="写真: San Francisco Zoo 107"><figcaption><span class="n">白いヤギが横たわる</span><span class="t">正解 ヤギ</span><span class="p">旧 ヤギ<b class="o">○</b></span><span class="p">新 羊<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/dfe574fae44eb66b.jpg" alt="写真: But it tastes so delicious..."><figcaption><span class="n">ヤギの子が哺乳瓶を飲む</span><span class="t">正解 ヤギ</span><span class="p">旧 ヤギ<b class="o">○</b></span><span class="p">新 羊<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/55311cf721c5f2e6.jpg" alt="写真: Sleepy goats"><figcaption><span class="n">白いヤギ2頭</span><span class="t">正解 ヤギ</span><span class="p">旧 ヤギ<b class="o">○</b></span><span class="p">新 羊<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/e662a562f784d93c.jpg" alt="写真: Goat"><figcaption><span class="n">ヤギの顔アップ</span><span class="t">正解 ヤギ</span><span class="p">旧 ヤギ<b class="o">○</b></span><span class="p">新 羊<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/4eb2c72a6ea1cd4f.jpg" alt="写真: Big Horn"><figcaption><span class="n">展示の野生の羊（ジオラマ）</span><span class="t">正解 羊</span><span class="p">旧 羊<b class="o">○</b></span><span class="p">新 ヤギ<b class="x">×</b></span></figcaption></figure>
+</div>
+
+旧版では正解だった**ふつうの白い家畜のヤギ**が、新版では羊になった。
+
+<div class="source">写真：Open Images V7 / 各作者（CC BY 2.0）・縮小して掲載。出典は巻末。写真の説明は筆者がサムネイルを見て付けたもの</div>
+
+::: notes
+（1.5分）ここが一番気になる変化。旧版では正解だった、見た目に何の変哲もない白いヤギが、新版では羊になる。ヤギの写真が羊と判定される4枚は、どれも旧版では確信度 0.48〜0.80 で正解できていた。右端は逆向きで、展示の羊がヤギになった。
+:::
+
+## 新たに間違えた②　牛：ふつうでない姿の牛が崩れる（5 枚）
+
+<div class="g g5">
+<figure class="c brk"><img src="data/thumbs/1ded8e6b919074f0.jpg" alt="写真: Dirty Winter Coat"><figcaption><span class="n">泥まみれの冬毛の牛</span><span class="t">正解 牛</span><span class="p">旧 牛<b class="o">○</b></span><span class="p">新 羊<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/203b7cfdabfc70f8.jpg" alt="写真: Bison calf"><figcaption><span class="n">バイソンの群れと子</span><span class="t">正解 牛</span><span class="p">旧 牛<b class="o">○</b></span><span class="p">新 羊<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/a91edddd4a19b12d.jpg" alt="写真: Cow and calf, Utsira"><figcaption><span class="n">遠景の黒い牛</span><span class="t">正解 牛</span><span class="p">旧 牛<b class="o">○</b></span><span class="p">新 ヤギ<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/4b4e13563b6e6af0.jpg" alt="写真: SDC15566"><figcaption><span class="n">雪原の遠い牛</span><span class="t">正解 牛</span><span class="p">旧 牛<b class="o">○</b></span><span class="p">新 鹿<b class="x">×</b></span></figcaption></figure>
+<figure class="c brk"><img src="data/thumbs/d6db7584e8734c0d.jpg" alt="写真: DSC_0174.jpg"><figcaption><span class="n">ロデオ会場の牛と馬</span><span class="t">正解 牛</span><span class="p">旧 牛<b class="o">○</b></span><span class="p">新 馬<b class="x">×</b></span></figcaption></figure>
+</div>
+
+牛は、**直った画像が 0 枚、新たに間違えた画像が 6 枚**（ここに 5 枚、残り 1 枚は次のスライド）。
+旧版は、この 5 枚を確信度 0.90 以上で正解していた。
+
+<div class="source">写真：Open Images V7 / 各作者（CC BY 2.0）・縮小して掲載。出典は巻末。写真の説明は筆者がサムネイルを見て付けたもの</div>
+
+::: notes
+（1.5分）牛は一つも直らず、全部悪化。泥まみれの冬毛の牛が羊に、バイソンの子が羊に、遠くの黒い牛が鹿やヤギに。ロデオの牛は近くに馬がいて馬になっている。旧版は5枚とも0.90以上の確信度で正解していた点も強調。
+:::
+
+## 新たに間違えた③　6 枚は、そもそも正解ラベルが怪しい
+
+<div class="g g3">
+<figure class="h"><img src="data/thumbs/659930c803700986.jpg" alt="写真: GTO: One Goatpower"><figcaption><span class="n">赤い車（題名に「Goat」）</span><span class="t">正解ラベル: ヤギ</span><span class="p">旧 ヤギ<b class="o">○</b>　新 牛<b class="x">×</b></span></figcaption></figure>
+<figure class="h"><img src="data/thumbs/5f8987c72f9b3b21.jpg" alt="写真: Mountain Goats"><figcaption><span class="n">白いヤギ（ロッキーヤギ）に見える</span><span class="t">正解ラベル: 羊</span><span class="p">旧 羊<b class="o">○</b>　新 ヤギ<b class="x">×</b></span></figcaption></figure>
+<figure class="h"><img src="data/thumbs/65c0b6996cd9938b.jpg" alt="写真: Llama couple"><figcaption><span class="n">リャマ（6クラスにない）</span><span class="t">正解ラベル: 羊</span><span class="p">旧 羊<b class="o">○</b>　新 アルパカ<b class="x">×</b></span></figcaption></figure>
+<figure class="h"><img src="data/thumbs/7da4e355186ce058.jpg" alt="写真: Addax"><figcaption><span class="n">アダックス（アンテロープ）</span><span class="t">正解ラベル: 牛</span><span class="p">旧 牛<b class="o">○</b>　新 鹿<b class="x">×</b></span></figcaption></figure>
+<figure class="h"><img src="data/thumbs/fa5de43462910548.jpg" alt="写真: Bongo"><figcaption><span class="n">ボンゴ（アンテロープ）</span><span class="t">正解ラベル: 鹿</span><span class="p">旧 鹿<b class="o">○</b>　新 ヤギ<b class="x">×</b></span></figcaption></figure>
+<figure class="h"><img src="data/thumbs/db8056c96b9c83a1.jpg" alt="写真: The Stare"><figcaption><span class="n">バーバリーシープに見える</span><span class="t">正解ラベル: ヤギ</span><span class="p">旧 ヤギ<b class="o">○</b>　新 羊<b class="x">×</b></span></figcaption></figure>
+</div>
+
+<p class="note">「写っているもの」は筆者がサムネイルから読んだもの（要確認）。車の写真に「ヤギ」と答えた旧版が「正解」扱いになっているのも、ラベルの誤りによる。データ作成時に目視で 6 枚を除外済みだが、なお疑わしい写真が残っている。</p>
+<div class="source">写真：Open Images V7 / 各作者（CC BY 2.0）・縮小して掲載。出典は巻末</div>
+
+::: notes
+（1分）ここはアノテーターの方に見てほしい。16枚のうち6枚は、正解ラベルそのものが怪しい。赤い車がヤギ、リャマが羊、アンテロープが牛や鹿。白いヤギがロッキーヤギに見えるのに羊ラベル。この6枚は新版が悪いのか、ラベルが悪いのか、確認が必要。私の読みなので、違っていたら教えてほしい。
+:::
+
+## クラス別：悪化は牛に集中。ヤギは直りと悪化が同時に起きた
+
+<div class="cols2">
+<div>
+<table class="cls">
+<thead><tr><th>正解クラス</th><th>旧版</th><th>新版</th><th>直った</th><th>新たに誤り</th></tr></thead>
+<tbody>
+<tr><td>羊</td><td>35</td><td>34</td><td>2</td><td>3</td></tr>
+<tr class="hl2"><td>ヤギ</td><td>23</td><td>25</td><td>8</td><td>6</td></tr>
+<tr><td>アルパカ</td><td>40</td><td>40</td><td>0</td><td>0</td></tr>
+<tr><td>鹿</td><td>38</td><td>38</td><td>1</td><td>1</td></tr>
+<tr class="hl"><td>牛</td><td>37</td><td>31</td><td>0</td><td>6</td></tr>
+<tr><td>馬</td><td>39</td><td>40</td><td>1</td><td>0</td></tr>
+</tbody></table>
+<p class="note">旧版・新版は、各クラス 40 枚中の正解数</p>
+</div>
+<div>
+
+- **牛**：正味 −6。**直った画像がなく**、悪化のみ
+- **ヤギ**：正味 +2 に見えるが、8 枚が直り 6 枚が壊れている
+- アルパカ・鹿・馬はほぼ変化なし
+
+</div>
+</div>
+
+::: {.note}
+見立て（未検証）：新版は「各クラス 10 枚の見本の平均」に近いものを選ぶ。牛のように見た目の幅が広いクラスは、10 枚では覆いきれない可能性がある。
+:::
+
+::: notes
+（1分）クラス別の表。アルパカはどちらも40枚全部正解、鹿・馬もほぼ変化なし。動いているのは牛とヤギ。牛は0対6、ヤギは8対6で、正味の+2は入れ替わりを隠している。理由の見立ては、新版が見本10枚の平均に近いものを選ぶ方式だから。ただしこれは仮説で、見本を増やして確かめていない。
+:::
+
+## 12 対 16 の差は、偶然でも出る範囲。決め手は「どんな画像で」変わるか
+
+- 入れ替わり 28 枚が本当は五分五分でも、12 対 16 以上に偏る確率は **約 57%**（符号検定）
+  → **正解率の 88% と 87% の差では、優劣は言えない**
+- 牛の **0 対 6** は目立つ偏り（約 3%）。ただし 6 クラスを見た中で最大の偏りなので、確定ではなく「要再確認」
+- 評価は 1 回・各クラス 40 枚の均等配分。運用でのクラス比率とは違う
+- 正解ラベルに疑いのある画像が、少なくとも 7 枚ある（新たに間違えた 6 枚と、直った 1 枚）
+
+::: notes
+（45秒）数字の扱い方。12対16は偶然でも出る。だから88%と87%だけでは決められない。牛の0対6は目立つが、6クラス見ているので確定とは言わない。評価は均等配分なので、運用での比率とは違う。決め手は、運用で牛やヤギがどれだけ多いかと、ラベルの確認。
+:::
+
+## 切り替えは、次の 2 つを確認するまで「見送り寄り」
+
+<div class="box"><b>私の提案：確認が済むまでは旧版のまま。</b>新版は牛で悪化のみ、改善は山の野生ヤギ類が中心だから。</div>
+
+<div class="cols">
+<div>
+
+**決める前に確認する**
+
+- <span class="role">アノテーター</span>疑わしいラベル 7 枚を見直し、正解率を再計算
+- <span class="role">エンジニア</span>運用画像の**牛・ヤギの比率**を確認
+
+</div>
+<div>
+
+**確認結果で分かれる**
+
+- 牛が多い → 旧版のまま
+- 山の野生ヤギ類が多く、牛が少ない → 新版に利点
+- 試す価値あり：牛の見本を 10 枚から増やして新版を再評価
+
+</div>
+</div>
+
+<p class="note">疑わしいラベル 7 枚＝「ラベルが怪しい 6 枚」＋直った側の Bighorn sheep 1 枚</p>
+
+::: notes
+（1分）結論。私の提案は、確認が済むまで旧版のまま。確認は二つ。アノテーターはラベルが怪しい7枚を見直す。エンジニアは運用画像の牛とヤギの比率を見る。牛が多ければ旧版のまま。見本を増やす案は仮説なので、試して確かめる。最後に、切り替える・見送るを皆さんで決めてほしい。
+:::
+
+## 付録：写真の出典（1/2）{.smaller}
+
+すべて Open Images V7 収録、各作者が CC BY 2.0 で公開（<a href="https://creativecommons.org/licenses/by/2.0/">ライセンス</a>）。長辺 256px に縮小して掲載。
+
+<table class="cr"><thead><tr><th>題名</th><th>作者</th><th>出典</th></tr></thead><tbody><tr><td>Markhor Capra falconeri Kingcraig 2014</td><td>Nick Jonsson</td><td><a href="https://www.flickr.com/photos/nickjonsson/17196395711">Flickr</a></td></tr>
+<tr><td>Camosci in Val Maira</td><td>guido612</td><td><a href="https://www.flickr.com/photos/guido61270/2695113919">Flickr</a></td></tr>
+<tr><td>&#42; Mountain Goats &#42;</td><td>Parée</td><td><a href="https://www.flickr.com/photos/pareeerica/3577226731">Flickr</a></td></tr>
+<tr><td>Sin miedo a nada</td><td>Marina Sanz Biendicho</td><td><a href="https://www.flickr.com/photos/marinasanz/9126937439">Flickr</a></td></tr>
+<tr><td>Valais - Van d&#x27;En Haut - Chamoix</td><td>Faustino Garcia</td><td><a href="https://www.flickr.com/photos/sgtgarcia/14344269491">Flickr</a></td></tr>
+<tr><td>Kri-kri goat, Samaria Gorge, Crete</td><td>GanMed64</td><td><a href="https://www.flickr.com/photos/ganmed64/4140721776">Flickr</a></td></tr>
+<tr><td>Bighorn sheep</td><td>Sarah Page</td><td><a href="https://www.flickr.com/photos/28455143@N08/4817001410">Flickr</a></td></tr>
+<tr><td>dscn2268</td><td>febs</td><td><a href="https://www.flickr.com/photos/febs/18920853">Flickr</a></td></tr>
+<tr><td>Untitled</td><td>Aaron Bateman</td><td><a href="https://www.flickr.com/photos/aaronbateman/5038896224">Flickr</a></td></tr>
+<tr><td>Bucolic scene deux</td><td>Linda N.</td><td><a href="https://www.flickr.com/photos/22748341@N00/174563785">Flickr</a></td></tr>
+<tr><td>Grand Teton National Park</td><td>Jeff Gunn</td><td><a href="https://www.flickr.com/photos/jeffgunn/8478716017">Flickr</a></td></tr>
+<tr><td>Mule Train Approaching Rae Lakes Ranger Station</td><td>fredsharples</td><td><a href="https://www.flickr.com/photos/ballena/640376039">Flickr</a></td></tr>
+<tr><td>San Francisco Zoo 107</td><td>Michael Fraley</td><td><a href="https://www.flickr.com/photos/mrfraley/7426376832">Flickr</a></td></tr>
+<tr><td>But it tastes so delicious...</td><td>Benny Mazur</td><td><a href="https://www.flickr.com/photos/benimoto/2697072798">Flickr</a></td></tr></tbody></table>
+
+## 付録：写真の出典（2/2）{.smaller}
+
+<table class="cr"><thead><tr><th>題名</th><th>作者</th><th>出典</th></tr></thead><tbody><tr><td>Sleepy goats</td><td>Neil McIntosh</td><td><a href="https://www.flickr.com/photos/harlequeen/7381584308">Flickr</a></td></tr>
+<tr><td>Goat</td><td>Sam Greenhalgh</td><td><a href="https://www.flickr.com/photos/zapthedingbat/6110256592">Flickr</a></td></tr>
+<tr><td>Big Horn</td><td>Kristine Paulus</td><td><a href="https://www.flickr.com/photos/kpaulus/4493078617">Flickr</a></td></tr>
+<tr><td>Dirty Winter Coat</td><td>Kyle MacKenzie</td><td><a href="https://www.flickr.com/photos/kylemackenzie/3303076200">Flickr</a></td></tr>
+<tr><td>Bison calf</td><td>Don DeBold</td><td><a href="https://www.flickr.com/photos/ddebold/3628060751">Flickr</a></td></tr>
+<tr><td>Cow and calf, Utsira</td><td>Eirik Newth</td><td><a href="https://www.flickr.com/photos/eiriknewth/140183167">Flickr</a></td></tr>
+<tr><td>SDC15566</td><td>Mr Thinktank</td><td><a href="https://www.flickr.com/photos/tahini/4695001339">Flickr</a></td></tr>
+<tr><td>DSC&#95;0174.jpg</td><td>Jeena Paradies</td><td><a href="https://www.flickr.com/photos/jeena/19862502762">Flickr</a></td></tr>
+<tr><td>GTO: One Goatpower</td><td>Lynn Newsome</td><td><a href="https://www.flickr.com/photos/risibility/2684407277">Flickr</a></td></tr>
+<tr><td>Mountain Goats</td><td>YoTuT</td><td><a href="https://www.flickr.com/photos/yotut/309019112">Flickr</a></td></tr>
+<tr><td>Llama couple</td><td>&#126;Sage&#126;</td><td><a href="https://www.flickr.com/photos/vickispix/149603983">Flickr</a></td></tr>
+<tr><td>Addax</td><td>Zachi Evenor</td><td><a href="https://www.flickr.com/photos/zachievenor/8258092492">Flickr</a></td></tr>
+<tr><td>Bongo</td><td>Jean</td><td><a href="https://www.flickr.com/photos/7326810@N08/1234983945">Flickr</a></td></tr>
+<tr><td>The Stare</td><td>Nicki Mannix</td><td><a href="https://www.flickr.com/photos/nickimm/12552364304">Flickr</a></td></tr></tbody></table>

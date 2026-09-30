@@ -1,0 +1,1255 @@
+{
+ "E": {
+  "claims": [
+   {
+    "text": "s3題: 「ヤギ→鹿」12枚中11枚は、牧場ではなく岩山の野生種だ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s8 ヤギ→鹿0.99: 岩場の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→鹿0.95: 草地の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→鹿0.92(d4d91a): 岩場の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s8 ヤギ→鹿0.92(a18e8e): 草地の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s8 ヤギ→鹿0.89: 岩場の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→鹿0.85: 山頂の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s8 ヤギ→鹿0.84: 逆光の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s8 ヤギ→鹿0.83: 山腹の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s8 ヤギ→鹿0.79: 岩場の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→鹿0.74: 岩場の野生種（動物園）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s8 ヤギ→鹿0.67: 崖の野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→鹿0.43: オリックス類（6クラス外）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4題: 別の9枚は、モデルではなく正解ラベルの方が疑わしい",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4/s9 牛→羊0.60: オリックス類（6クラス外）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4/s9 牛→羊0.90: オオツノヒツジの群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4/s9 牛→羊0.62: 小屋のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4/s9 ヤギ→牛0.73: オオツノヒツジの雄",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4/s8 羊→牛0.62: ヤギの群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4/s9 馬→牛0.64: 荷を積んだラバ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 ヤギ→牛0.63: シロオリックス（6クラス外）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s9 鹿→ヤギ0.43: アンテロープ類（6クラス外）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題: ラベルも範囲も妥当な誤りは6枚で、4枚は動物が小さい",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s8 羊→牛0.60: 湖を背にした羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s9 羊→牛0.56: 牧草地の羊の群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s9 ヤギ→牛0.50: 街なかのヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s9 ヤギ→羊0.59: 岩陰の白いヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s9 ヤギ→羊0.44: 小屋の前の白いヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s9 鹿→牛0.71: 雪原の鹿",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 羊→鹿0.92: 森の野生羊（ムフロン）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 羊→鹿0.56: 岩場の野生の子",
+    "verdict": "supported"
+   },
+   {
+    "text": "s11: 評価範囲の判断（ヤギ→鹿11枚＋羊→鹿2枚）はラベルは妥当だが、岩山・森の野生種で牧場の写真ではない",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 31,
+  "n_unsupported": 0,
+  "n_uncheckable": 1,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギ→鹿は牧場ではなく岩山・草地の野生種）は参照図と一致。28枚すべてに1枚ずつ説明があり、参照図と矛盾するものはない。ヤギ→牛0.63の白い動物は遠く小さく、シロオリックスかどうかは参照図では判別できない。馬→牛のラバは耳・体つきから妥当に見えるが確実ではない。s10（正解扱いの画像のラベル疑い）は誤分類画像の記述ではないので対象外。"
+ },
+ "H": {
+  "claims": [
+   {
+    "text": "s2/s6題: モデルの弱点で最も多いのは、野生のヤギ・ヒツジを高い確信度のまま「鹿」と判定するもの",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s12: 「野生のヤギ・ヒツジ」が14件（羊→鹿2・ヤギ→鹿11・ヤギ→羊0.59の岩場の1枚）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→鹿0.79: マーコール（野生ヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→鹿0.89: ヌビアアイベックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→鹿0.83: シャモアの親子",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→鹿0.92: クリクリ（クレタ島の野生ヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s2/s5/s7題: 8件は正解ラベルの方がおかしい（ヤギやビッグホーンに「牛」、オリックスに「ヤギ」）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 牛→羊0.90: ビッグホーンの群れに「牛」のラベル",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 牛→羊0.62: ヤギに「牛」のラベル",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 牛→羊0.60: ゲムズボック（レイヨウ類）に「牛」のラベル",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 馬→牛0.64: ラバに「馬」のラベル",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7: 左端のビッグホーン（野生ヒツジ）は予測の「羊」の方が妥当",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s9題: 被写体が小さく背景が広い写真が4件あり、4件とも「牛」と判定された",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 羊→牛0.60: 湖を望む斜面の羊（小さく写る）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 羊→牛0.56: 牧草地の羊の群れ（小さく写る）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 ヤギ→牛0.50: 路地の奥のヤギ（小さく写る）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 鹿→牛0.71: 雪原のエルク（小さく写る）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9: 牧草地・雪原・路地など、背景が写真の大半を占めている",
+    "verdict": "supported"
+   },
+   {
+    "text": "s10題: 確信度0.8以上の誤り10件のうち9件が野生種",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 19,
+  "n_unsupported": 0,
+  "n_uncheckable": 0,
+  "main_finding_correct": true,
+  "comment": "中心の説明（野生のヤギ・ヒツジが高い確信度で「鹿」になる）は参照図と一致。ラベル側の問題8件・小さい被写体4件の説明も参照図の画像に合う。クリクリ／ヌビアアイベックスなど細かい種名や産地は参照図では確かめられないが、野生種のヤギという要点は見て取れる。ラバかどうかは耳・体つきから妥当に見える程度。s8（正解扱いの画像に6クラス外が混じる）は誤分類画像の記述ではないので対象外。"
+ },
+ "M": {
+  "claims": [
+   {
+    "text": "s3題/s7: 鹿と答えた12枚は、岩場や山にいる茶色い野生のヤギでした",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題/s7: 動物が小さく写った写真が5枚（羊→牛の湖と牧草地、ヤギ→羊の小屋前、ヤギ→牛の街なか、鹿→牛の雪原）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6題/s7: 7枚は、正解ラベルのほうが疑わしい写真でした",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(群れ): 撮影者の題「Bighorn Sheep」（野生の羊）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(芝生の2頭): 撮影者の題「Gemsbok」（オリックス）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(小屋): 写っているのはヤギに見える",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→牛(大きな巻き角): 撮影者の題「Bighorn sheep」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→牛(柵ぎわの白い動物): 撮影者の題「Scimitar-horned Oryx」（オリックス）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s6 羊→牛(人を囲む群れ): 撮影者の題「Battaglia capre 2011」（ヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 羊→鹿(岩の上の3頭): 撮影者の題「Baby Goats」（ヤギ）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s7: その他に「野生の羊→鹿」がある",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7: その他に「荷を積んだラバ→牛」がある",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 10,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギ→鹿の12枚は岩場や山の茶色い野生のヤギ）は参照図と一致。ただし12枚目（確信度0.43）は草地に伏せたオリックスで、12枚すべてを野生のヤギとするのは1枚ぶん言い過ぎ。ラベルが疑わしい7枚のうち、柵ぎわの白い動物（オリックスか）と岩の上の3頭（ヤギか羊か）は参照図では種を判別できない。撮影者の題そのものは参照図で確かめられないので、題が示す動物が画像と合うかで判定した。s4の「正しく当てた写真は近くで撮った家畜のヤギ」は誤分類画像の記述ではないので対象外。"
+ },
+ "F": {
+  "claims": [
+   {
+    "text": "s3題: 鹿と答えた12枚のヤギは、11枚が岩場か山の斜面にいる",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3: 12枚とも屋外の写真",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3: 印のない1枚は、草の上に伏せた、長くまっすぐな角の動物",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6: ヤギを鹿と答えた12枚は野生のヤギ（「ヤギ」に含めるかを決める対象）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題: 残り16枚のうち6枚は、撮影者の題名が正解ラベルと別の動物を指す",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 羊→鹿(岩の上の3頭): 羊ラベルに題名「Baby Goats」",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s5 羊→牛(人を囲む群れ): 羊ラベルに題名「capre（ヤギ）」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→牛(柵ぎわの白い動物): ヤギラベルに題名「Oryx」",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s5 ヤギ→牛(大きな巻き角): ヤギラベルに題名「Bighorn sheep」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 牛→羊(芝生の2頭): 牛ラベルに題名「Gemsbok」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 牛→羊(群れ): 牛ラベルに題名「Bighorn Sheep」",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 9,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギ→鹿の12枚中11枚が岩場か山の斜面、残る1枚は草に伏せた長くまっすぐな角の動物）は参照図と一致。1枚ずつの「岩場・斜面」の印は題の主張と同じ内容なので1件にまとめた。題名が別の動物を指す6枚のうち、柵ぎわの白い動物と岩の上の3頭は参照図では種を判別できない。撮影者の題そのものは参照図で確かめられないので、題が示す動物が画像と合うかで判定した。s4（正しく当てたヤギ）とs8（正しく当てた鹿）の記述は誤分類画像ではないので対象外。"
+ },
+ "K": {
+  "claims": [
+   {
+    "text": "s3題/s4 ヤギ→鹿0.79: 牧場のヤギではなく、野生のマーコール",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.79: 大きくねじれた角と、たてがみのような毛を持つ野生のヤギ科",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4題: 「ヤギ→鹿」12枚のうち6枚は、どれも野生のヤギ科の動物",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→鹿0.92(草の斜面): 山の斜面に立つ、角の反った野生の動物",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→鹿0.99: 岩場の野生ヤギ(タイトル: Cabra salvatge)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→鹿0.83: シャモアの親子(タイトル: Camosci)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→鹿0.89: ヌビアアイベックス(タイトルより)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題: 残りの6枚も野生か動物園。牧場のヤギは1枚もない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→鹿0.43: オリックスに見える。動物園(タイトルより)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→鹿0.74: 動物園の岩場。タイトルは Mountain Goats",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→鹿0.85: 山の斜面に立つ、細身で角のある動物",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→鹿0.67: 断崖のアイベックス2頭(タイトルより)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→鹿0.84: 逆光のシルエット。タイトルは Chamois",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→鹿0.92(岩場の黒っぽい1頭): クレタの野生ヤギ Kri-kri(タイトルより)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7①/s12: 野生・動物園の16枚は「牧場のヤギ・羊」の外にいる動物（ヤギ→鹿の12枚を含む）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8題: 野生のオリックスやビッグホーンにも、正解ラベルは「ヤギ」「羊」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→牛0.63: 遠くに白い群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→牛0.63: タイトルは Scimitar-horned Oryx（オリックスに「ヤギ」のラベル）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s8 ヤギ→牛0.73: ビッグホーンのアップ。耳に黄色いタグ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 羊→鹿0.92: タイトルは Widder(雄羊)。野生のムフロンに見える",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 羊→鹿0.56: タイトルは Baby Goats。岩場の野生の親子",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7②/s9題/s12: ラベルに疑問の6枚は、写っているのは別の動物(ラバ・アンテロープなど)。モデルの予測のほうが近い例もある",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 牛→羊0.60: ジェムズボック(オリックス)。牛ではない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 牛→羊0.62: 柵に前足をかけるヤギの子と、羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 牛→羊0.90: ビッグホーンの群れ。羊のほうが近い",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 羊→牛0.62: 茶色いヤギの群れ(Battaglia capre)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 鹿→ヤギ0.43: 大型のアンテロープ(エランド?)に見える",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9 馬→牛0.64: 荷を背負うラバ(タイトル: Mule Train)",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7③/s10題/s12: 写真が難しい6枚は、被写体が小さい、遠い、似ている（ふつうの牧場写真での誤り）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s10 ヤギ→牛0.50: 路地の奥に小さく写る白いヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s10 ヤギ→羊0.44: 白と茶のヤギの群れ。羊にも見える",
+    "verdict": "supported"
+   },
+   {
+    "text": "s10 ヤギ→羊0.59: 岩と同じ色合いで、輪郭がつかみにくい",
+    "verdict": "supported"
+   },
+   {
+    "text": "s10 羊→牛0.60: 丘の上の小さな2頭。景色が広い",
+    "verdict": "supported"
+   },
+   {
+    "text": "s10 羊→牛0.56: 遠くで草を食べる羊の群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s10 鹿→牛0.71: 雪原の遠景にいるエルク",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 34,
+  "n_unsupported": 0,
+  "n_uncheckable": 1,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギ→鹿の12枚は野生か動物園のヤギ科で、牧場のヤギは1枚もない）は参照図と一致。28枚すべてに1枚ずつ説明があり、参照図と矛盾するものはない。柵ぎわの写真は「遠くに白い群れ」という見た目の記述は合うが、題名を根拠にオリックスとする点は参照図では判別できないので、2件に分けた。岩の上の3頭は「岩場の野生の親子」という見た目の記述で判定した（題名 Baby Goats を根拠にヤギとは述べていない）。ヤギ→鹿0.95の「撮影者のタイトルは Stag」は題名だけの記述で画像の中身の記述ではないので対象外（画像は短い角のシャモア様の動物）。③の「ふつうの牧場写真」は、街なか・岩の斜面・雪原のエルクを含むので文字どおりの牧場写真は半分ほどだが、野生種・ラベル疑いと対比した区分名として読み、「小さい・遠い・似ている」が6枚に当てはまることで判定した。小屋の写真の白い1頭が羊かどうかは参照図では判別しにくい。s6（ヤギ40枚の内訳）とs11（正解扱いの写真）は対象外。",
+  "revision": 2
+ },
+ "A": {
+  "claims": [
+   {
+    "text": "s3題: 鹿と判定されたヤギ12枚は、岩場か草地にいる",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3題/s4/s6: 鹿と判定されたヤギ12枚には、白い個体（体が白いヤギ）が1枚もない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題: 残り16枚のうち7枚は、題名が正解と別の動物を指す",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 牛→羊(群れ): 題名 Bighorn Sheep",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→牛(大きな巻き角): 題名 Bighorn Sheep",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 牛→羊(芝生の2頭): 題名 Gemsbok（オリックス）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→牛(柵ぎわの白い動物): 題名 Oryx（オリックス）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s5 羊→牛(人を囲む群れ): 題名 capre（ヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 羊→鹿(岩の上の3頭): 題名 Goats（ヤギ）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s5 馬→牛: 題名 Mule Train（ラバ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5: 左端（正解 牛、題名 Bighorn Sheep）は、予測の「羊」が題名と合う",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 9,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギ→鹿の12枚は岩場か草地にいて、体の白い個体が1枚もない）は参照図と一致（茶・黄土色の個体と逆光の影、12枚目は顔だけ白黒のオリックス）。「野生」とは述べていないが、画像の記述としては正しい。題名が別の動物を指す7枚のうち、柵ぎわの白い動物と岩の上の3頭は参照図では種を判別できない。撮影者の題そのものは参照図で確かめられないので、題が示す動物が画像と合うかで判定した。s4（正しく判定したヤギ）とs7（正しく判定した鹿）の記述は誤分類画像ではないので対象外。"
+ },
+ "J": {
+  "claims": [
+   {
+    "text": "s4題/s7: 鹿と判定された12枚は、山や岩場にいる茶色い野生種に偏っている（共通点は野生種・岩場）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6題: 「誤り」の一部は正解ラベルの側が疑わしい（6クラスのどれにも当てはまらない動物や、撮影者の題名と食い違うラベルが混じっている）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(芝生の2頭): 題名は「Gemsbok」（オリックス）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→鹿(0.43): 見た目はオリックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(群れ): 題名は「Bighorn Sheep」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 羊→鹿(岩の上の3頭): 題名は「Baby Goats」",
+    "verdict": "uncheckable"
+   }
+  ],
+  "n_supported": 5,
+  "n_unsupported": 0,
+  "n_uncheckable": 1,
+  "main_finding_correct": true,
+  "comment": "中心の説明（鹿と判定された12枚は山や岩場にいる茶色い野生種に偏る）は参照図と一致。「偏っている」という言い方で、草地に伏せたオリックスなどの例外とも矛盾しない。ラベルが疑わしい例4枚のうち、岩の上の3頭（題名 Baby Goats）がヤギか羊かは参照図では判別できない。撮影者の題そのものは参照図で確かめられないので、題が示す動物が画像と合うかで判定した。画像の中身についての記述は少なく、ヤギ→鹿以外の誤りの多くには説明がない。"
+ },
+ "D": {
+  "claims": [
+   {
+    "text": "s3題/s6/s9: 13枚は野生のヤギ・羊（ヤギ→鹿の11枚、羊→鹿0.92、ヤギ→羊0.59の岩の斜面）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6: ヤギ→鹿の12枚には、野生のヤギ11枚とラベル違い1枚が混ざる",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4題/s6/s9: 9枚は、写真の動物が正解ラベルと違う",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(群れ): 写っているのはビッグホーン",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(小屋): 写っているのはヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(芝生の2頭): 写っているのはオリックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→牛(大きな巻き角): 写っているのはビッグホーン",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→牛(柵ぎわの白い動物): 写っているのはオリックス",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s4 ヤギ→鹿(0.43): 写っているのはオリックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→牛(人を囲む群れ): 写っているのはヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→鹿(岩の上の3頭): 写っているのはヤギ",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s4 鹿→ヤギ: 写っているのはエランド",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4: 4枚は6クラスのどれでもない（オリックス・エランド）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4: 5枚は別のクラスの動物（ヤギ・野生の羊）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4: 予測が写真の動物と合うのは1枚（ビッグホーン→羊）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題/s6/s9: 5枚は、動物が遠く小さく写った写真（羊→牛の湖と牧草地、ヤギ→牛の街なか、ヤギ→羊の小屋前、鹿→牛の雪原）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5: その5枚とも正解ラベルは写真と合う",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6/s9: 馬→牛の1枚はラバ",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 16,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（最多のヤギ→鹿は野生のヤギ11枚とラベル違い1枚。野生のヤギ・羊が13枚）は参照図と一致。ラベル違い9枚のうち、柵ぎわの白い動物（オリックスか）と岩の上の3頭（ヤギか羊か）は参照図では種を判別できない。ヤギ→羊0.59の白っぽい1頭が野生かどうか、馬→牛がラバかどうかは、参照図では妥当に見える程度。s3後半とs10（ヤギ40枚の内訳の枚数）は数字中心で、正解扱いの写真も含むため対象外。"
+ },
+ "O": {
+  "claims": [
+   {
+    "text": "s3題/s5題: ヤギが鹿に見えた12枚は光の影響を受けている（逆光の写真）",
+    "verdict": "unsupported"
+   },
+   {
+    "text": "s3題/s5: ヤギが鹿に見えた12枚は撮影角度の影響を受けている（側面・背面から撮られた写真の誤分類が目立つ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4題/s5: 羊と牛の混同（3枚）は側面からの撮影で生じている（横向きで撮られた画像）",
+    "verdict": "unsupported"
+   },
+   {
+    "text": "s6題: ヤギ以外の誤分類（16枚）も同じく、撮影角度に依存している",
+    "verdict": "unsupported"
+   }
+  ],
+  "n_supported": 1,
+  "n_unsupported": 3,
+  "n_uncheckable": 0,
+  "main_finding_correct": false,
+  "comment": "中心の説明（ヤギ→鹿の12枚は撮影角度と光の影響、つまり側面撮影と逆光の写真）は参照図と合わない。参照図の12枚は岩場・山の斜面・草地にいる野生のヤギ類（1枚は草に伏せたオリックス）で、逆光は影絵の1枚だけ、強い日陰がもう1枚あるほかは普通の明るさ。「側面・背面から」は、1頭ずつ向きを数えると12枚中10枚に当てはまるので文字どおりには supported としたが（正面向きは2枚）、横や後ろからの姿は動物写真のふつうの写り方で、この12枚を特徴づけるものではない。羊→牛の3枚は、人を囲むヤギの群れ・湖の風景に小さく写る羊・牧草地の群れで、向きのそろった横向きの写真と言えるのは牧草地の1枚だけ（牛→羊も、正面向きの群れ・柵に登る後ろ姿・横向きのオリックスとばらばら）。残り16枚は、ラベルと違う動物（ビッグホーン、オリックス、ヤギ、エランド、ラバ）や小さく写る動物が中心で、逆光はなく、撮影角度に共通点は見えない。野生種・ラベルの疑い・被写体の小ささには触れていない。「体のボリュームが判定基準になる」はモデルの挙動の話なので対象外。",
+  "revision": 2
+ },
+ "C": {
+  "claims": [
+   {
+    "text": "s3題: 鹿と答えた12枚は、岩場や草地にいる茶色い野生のヤギばかりだ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題: 鹿と答えたヤギは、正解が鹿の写真と並べると背景も体つきも似ている",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s6題: 残りの誤り16枚のうち5枚は、正解ラベルのほうが写真と合わない（5枚とも、牛・ヤギ・羊のラベルと写っている動物が合わない）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(群れ): ラベル牛、題名「Bighorn Sheep」（野生の羊）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→牛(大きな巻き角): ラベルヤギ、題名「Bighorn sheep」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 羊→牛(人を囲む群れ): ラベル羊、題名「Battaglia capre 2011」（capre はヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(芝生の2頭): ラベル牛、題名「Gemsbok」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8題: 残りの誤り11枚には、動物が小さく写る写真が5枚ある（羊→牛の湖、ヤギ→牛の柵ぎわ、ヤギ→羊の小屋前、ヤギ→牛の街なか、鹿→牛の雪原）",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 7,
+  "n_unsupported": 0,
+  "n_uncheckable": 1,
+  "main_finding_correct": true,
+  "comment": "中心の説明（鹿と答えた12枚は岩場や草地にいる茶色い野生のヤギ）は参照図と一致。ただし12枚目（確信度0.43）は草に伏せたオリックスで、「ばかり」は1枚ぶん言い過ぎ。正解が鹿の写真との比較は、参照図に鹿の正解写真がないので確かめられない。ラベルが合わない5枚（ビッグホーン2枚、ヤギの群れ、ゲムズボック、小屋のヤギ）と、小さく写る5枚は参照図の画像に合う。小屋の写真は題名「ibk」だけでは動物を示さないので題名の件は拾わず、5枚全体の記述に含めた。撮影者の題そのものは参照図で確かめられないので、題が示す動物が画像と合うかで判定した。「そのほか6枚」（羊→鹿、エランド様の動物、荷を積んだ動物など）には説明がない。s4（当てたヤギ）は誤分類画像の記述ではないので対象外。"
+ },
+ "B": {
+  "claims": [
+   {
+    "text": "s3題: 鹿に間違われた12枚に、牧場で見るような白いヤギは1枚もない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7: 鹿と答えた12枚は、山や岩場にいる茶色いヤギの仲間",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題/s7: 別の8枚は、モデルより先に「正解ラベル」を確かめたい写真だった",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 牛→羊(群れ): 題 Bighorn Sheep（オオツノヒツジ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→牛(大きな巻き角): 題 Bighorn sheep（オオツノヒツジ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 牛→羊(芝生の2頭): 題 Gemsbok（オリックスの一種）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→牛(柵ぎわの白い動物): 題 Scimitar-horned Oryx（シロオリックス）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s5 馬→牛: 題 Mule Train…（ラバの隊列）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 羊→牛(人を囲む群れ): 題 Battaglia capre…（capre はヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 羊→鹿(岩の上の3頭): 題 Baby Goats（子ヤギ）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s5 牛→羊(小屋): 題 ibk（写っているのはヤギと羊）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6題/s7: さらに5枚は、動物が画面のごく一部にしか写っていない（街なかのヤギ、湖の羊、放牧地の羊、納屋の前のヤギ、雪原の鹿）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6: 街角、湖の風景、放牧地、納屋の前、雪原。写真の大半は背景である",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 11,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（鹿に間違われた12枚は山や岩場にいる茶色いヤギの仲間で、牧場で見るような白いヤギは1枚もない）は参照図と一致（12枚目は草に伏せたオリックスだが、白いヤギでない点は同じ）。ラベルを確かめたい8枚のうち、柵ぎわの白い動物（シロオリックスか）と岩の上の3頭（子ヤギか羊か）は参照図では種を判別できない。小屋の写真の右の白っぽい1頭が羊かどうかも判別しにくいが、柵に登る白黒の1頭はヤギに見える。撮影者の題そのものは参照図で確かめられないので、題が示す動物が画像と合うかで判定した。小さく写る5枚の説明は参照図に合う（納屋の前と放牧地は群れとしてはやや大きめだが、1頭ずつは小さい）。「その他3枚」（羊→鹿のムフロン様の2頭、ヤギ→羊の岩場、鹿→ヤギ）には説明がない。s4（当てたヤギ）と車の写真は誤分類画像ではないので対象外。"
+ },
+ "L": {
+  "claims": [
+   {
+    "text": "s3題: 鹿と判定した14枚（ヤギ→鹿12＋羊→鹿2）に、家畜のヤギや羊は1枚もいない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s6: 鹿と判定した14枚は野生種13・6クラス外1（オリックス）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4題: 誤りのうち8枚は、写っている動物が正解ラベルと食い違う",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(芝生の2頭): オリックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 鹿→ヤギ: エランド",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→牛(柵ぎわの白い動物): オリックス",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s4 ヤギ→鹿(0.43): オリックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(小屋): 家畜のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(群れ): ビッグホーン",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→牛(大きな巻き角): ビッグホーン",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→牛(人を囲む群れ): 家畜のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4: 6クラスのどれでもない動物4枚: オリックス3・エランド1",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4: 6クラス内の別の動物4枚: ヤギを牛・羊ラベル、野生の羊を牛・ヤギラベル",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5題: 残る7枚は、ラベルどおりの動物を牛や羊と取り違えた",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 鹿→牛: エルク",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→牛(街なか): 家畜のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 馬→牛: ラバ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 羊→牛(湖): 羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 羊→牛(牧草地): 羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→羊(小屋前): 白い家畜のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5 ヤギ→羊(岩の斜面): 白い家畜のヤギ",
+    "verdict": "uncheckable"
+   }
+  ],
+  "n_supported": 19,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（鹿と判定した14枚は野生種13枚とオリックス1枚で、家畜のヤギや羊は1枚もいない）は参照図と一致。28枚すべてに1枚ずつ動物名があり、参照図と矛盾するものはない。柵ぎわの白い動物がオリックスかどうかは参照図では判別できない。岩の斜面の白っぽい1頭は、白いヤギであることは見て取れるが、家畜か野生かは参照図では決められない（ほかのデッキには野生に数えるものがある）。「残る7枚はラベルどおりの動物」は7枚中6枚に当てはまるが、馬ラベルの1枚をこのデッキ自身がラバとしており、そこだけ題と食い違う。s8（正しくヤギと判定された写真）は誤分類画像ではないので対象外。"
+ },
+ "N": {
+  "claims": [
+   {
+    "text": "s3題: 「ヤギ→鹿」の12枚のうち11枚は岩場や草原にいる野生のヤギの仲間だった",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.99: 岩場の遠くにいるシャモア",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.95: 草原のシャモア",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.92(岩場の黒っぽい1頭): 岩場のクリクリ（クレタの野生ヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.92(草の斜面): 草の斜面に立つ野生ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.89: 岩場のヌビアアイベックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.85: 崖の上の小さなアイベックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.84: 逆光のアイベックスのシルエット",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.83: 山の斜面のシャモアの親子",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.79: マーコール（野生ヤギ）の大写し",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.74: 動物園の岩山のバーバリーシープ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.67: 岩壁のアイベックス2頭",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s6 ヤギ→鹿0.43: オリックス（レイヨウ）なのに正解が「ヤギ」。そもそもヤギではない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4題: 外れたヤギは野生種",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5: 野生のヤギ・ヒツジの仲間を、主に「鹿」と判定したものが12枚",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s6題: 9枚は正解ラベルが写真と合わない。オリックスに「ヤギ」、ヤギに「牛」",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(芝生の2頭): ゲムズボック（レイヨウ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(小屋): 小屋のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(群れ): ビッグホーン（野生ヒツジ）の群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 鹿→ヤギ: エランド（レイヨウ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 ヤギ→牛(柵ぎわの白い動物): シロオリックス（レイヨウ）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s6 ヤギ→牛(大きな巻き角): ビッグホーン（野生ヒツジ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 羊→牛(人を囲む群れ): 茶色いヤギの群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 羊→鹿(岩の上の3頭): 子どもの野生ヤギ",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s5/s7題: 4枚は動物が小さい写真。雪原・街角・湖の背景や荷物のほうが目立つ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 鹿→牛0.71: 雪原の遠くにいるワピチ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 ヤギ→牛0.50: 街角のがれきの中に小さなヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 馬→牛0.64: 荷物を積んだラバの列",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 羊→牛0.60: 湖と山の風景の隅に小さな羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s5/s8題: はっきり写った家畜の取り違えは3枚だけ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→羊0.44: 納屋の前の白いヤギの群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 羊→牛0.56: 柵のある牧草地の羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→羊0.59: 岩の上の白いヤギ",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 31,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギ→鹿の12枚のうち11枚は岩場や草原にいる野生のヤギの仲間で、残る1枚はオリックス）は参照図と一致。27枚に1枚ずつ説明があり（羊→鹿0.92の1枚は群の枚数にだけ入る）、参照図と矛盾するものはない。シャモア／アイベックス／クリクリなど細かい種名は参照図では確かめられないが、場所・写り方と野生のヤギ類という要点は見て取れる。柵ぎわの白い動物（シロオリックスか）と岩の上の3頭（ヤギか羊か）は参照図では種を判別できない。「動物が小さい4枚」のうちラバの列は動物自体は小さくないが、題が「荷物のほうが目立つ」と断っている。「はっきり写った家畜」の3枚は、納屋前と牧草地の群れは1頭ずつがやや小さく、岩の上の1頭は家畜か野生か決められないが、白いヤギ・羊であることは見て取れる。s4前半（当たったヤギは家畜）とs9（正解扱いの写真）は誤分類画像ではないので対象外。"
+ },
+ "I": {
+  "claims": [
+   {
+    "text": "s3題: 「ヤギ→鹿」の12枚に、牧場のヤギは1枚もいない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3: 11枚は岩場や高原にいる野生のヤギの仲間。残る1枚はオリックス（ヤギではない）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.79: マーコール",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.89: ヌビアアイベックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.67: ヌビアアイベックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.92(草の斜面): アイベックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.84: アイベックス（逆光）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.83: 野生ヤギの親子",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.99: 野生ヤギ（遠景）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.85: 野生ヤギ（遠景）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.92(岩場の黒っぽい1頭): クリクリ（野生ヤギ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.95: シャモア",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3 ヤギ→鹿0.74: バーバリーシープ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3/s7 ヤギ→鹿0.43: オリックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4: 「ヤギが苦手」ではなく「野生のヤギの仲間が苦手」（外れるのは野生のヤギの仲間）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6題: 同じオオツノヒツジが、正解ラベルでは「羊」「ヤギ」「牛」に分かれている",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 羊→鹿(岩の上の3頭): オオツノヒツジ（親子）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s6 ヤギ→牛(大きな巻き角): オオツノヒツジ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s6 牛→羊(群れ): オオツノヒツジの群れ。モデルの「羊」のほうが写真に合っている",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7題: 誤り28件のうち7件は、まず正解ラベルの側を確認すべき画像",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 牛→羊(芝生の2頭): ゲムズボック",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 ヤギ→牛(柵ぎわの白い動物): オリックス（遠景）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s7 牛→羊(小屋): ヤギと羊（牛はいない）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s7 羊→牛(人を囲む群れ): ヤギの群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8/s9: 動物が小さい・遠い・周りがごちゃごちゃ（3件）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→牛: 路地の奥の小さなヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 羊→牛: 湖を見下ろす丘の羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 鹿→牛: 雪原の遠くのエルク",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8/s9: 見た目が本当に似ている（5件）",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s8 ヤギ→羊: 牧場のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 ヤギ→羊: 岩場のヤギ（ぶれ）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 羊→牛: 牧草地の羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 馬→牛: 荷を運ぶラバ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s8 鹿→ヤギ: エランド（このデータでは鹿）",
+    "verdict": "supported"
+   },
+   {
+    "text": "s9: 野生のヤギ・羊の仲間が「鹿」に判定されたものが13件（ヤギ→鹿11＋羊→鹿2）",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 32,
+  "n_unsupported": 0,
+  "n_uncheckable": 3,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギ→鹿の12枚に牧場のヤギは1枚もなく、11枚は岩場や高原にいる野生のヤギの仲間、残る1枚はオリックス）は参照図と一致。27枚に1枚ずつ説明があり（羊→鹿0.92の1枚は件数にだけ入る）、参照図と矛盾するものはない。細かい種名（ヌビアアイベックス、クリクリなど）は参照図では確かめられないが、野生のヤギ類という要点は見て取れる。岩の上の3頭をオオツノヒツジとする点（ほかのデッキはヤギとする）と、柵ぎわの白い動物をオリックスとする点は、参照図では種を判別できない。「見た目が本当に似ている5件」は、白いヤギと羊の2枚には当てはまりそうだが、牧草地の羊・荷を運ぶラバ・エランドが予測クラスに似ているかは見る人の判断で、参照図からは確かめられない（画像ごとの説明そのものは合っている）。オオツノヒツジの題は「ヤギ」「牛」ラベルの2枚で確かめられ、「羊」ラベルの1枚は判別できない。s5（正解扱いの鹿のアンテロープ）、s6の正解扱いの1枚、s7の車は誤分類画像ではないので対象外。"
+ },
+ "G": {
+  "claims": [
+   {
+    "text": "s3題/s5/s6: ヤギを鹿と答えた12枚は、岩場や草地に立つ角のある野生種だ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3: 12枚とも岩場か草地の屋外で、1〜2頭が写る",
+    "verdict": "supported"
+   },
+   {
+    "text": "s3: 毛色は茶・灰・黒で、白いヤギは1枚もない",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4題/s5: ヤギ→鹿以外の誤り16枚のうち9枚は、正解と別の動物が写っている",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→牛(人を囲む群れ): ヤギの群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→牛(柵ぎわの白い動物): オリックス",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s4 ヤギ→牛(大きな巻き角): 大角の羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(芝生の2頭): オリックス",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(小屋): 子ヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 牛→羊(群れ): 角のある群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→鹿(岩の上の3頭): 子ヤギ",
+    "verdict": "uncheckable"
+   },
+   {
+    "text": "s4 鹿→ヤギ: レイヨウ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 馬→牛: ラバ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4/s5: 残る7枚は、正解の動物が写っている",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→牛(湖): 丘の羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→牛(牧草地): 羊の群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→牛(街なか): 街中のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 羊→鹿(0.92): 野生の羊",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→羊(小屋前): ヤギの群れ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 ヤギ→羊(岩の斜面): 岩場のヤギ",
+    "verdict": "supported"
+   },
+   {
+    "text": "s4 鹿→牛: 雪原の鹿",
+    "verdict": "supported"
+   }
+  ],
+  "n_supported": 19,
+  "n_unsupported": 0,
+  "n_uncheckable": 2,
+  "main_finding_correct": true,
+  "comment": "中心の説明（ヤギを鹿と答えた12枚は、岩場や草地にいる角のある野生種で、白いヤギは1枚もない）は参照図と一致。「野生種」という言い方なので、12枚目のオリックスを含めても当てはまる（伏せている個体もあるが「立つ」は言葉のあや）。残り16枚は1枚ずつ動物名があり、参照図と矛盾するものはない。柵ぎわの白い動物（オリックスか）と岩の上の3頭（子ヤギか羊か）は参照図では種を判別できない。ラバかどうかは耳・体つきから妥当に見える程度。s4の箇条書き（正解が牛の3枚・羊の5枚の内訳、ラバとレイヨウ）は1枚ずつの説明の数え直しなので別件にしていない。「題名にアイベックスなどの名があるのは7枚」は題名の枚数の話で、画像の中身の記述ではないので対象外。"
+ }
+}

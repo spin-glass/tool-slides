@@ -22,6 +22,7 @@ import csv
 import json
 import os
 import random
+import re
 import shutil
 import string
 import sys
@@ -35,17 +36,17 @@ RESULTS = HERE / "results"
 KEY_SEED = 20260930
 FACTS = ["n_slides", "n_error_images", "pick_rule", "contrast", "credit", "broken_slides"]
 SCORES = ["audience", "images", "titles", "economy", "layout", "action", "overall"]
-ROUNDS = {  # 回: (rubric, 参照図の名前)
-    "main": ("rubric.md", "truth-errors"),
-    "retest": ("rubric.md", "truth-errors"),
-    "change": ("rubric_change.md", "truth-change"),
+ROUNDS = {  # 回: (rubric, 参照図の名前, 参照図1・2の中身)
+    "main": ("rubric.md", "truth-errors", ("ヤギ→鹿の12枚", "残りの16枚")),
+    "retest": ("rubric.md", "truth-errors", ("ヤギ→鹿の12枚", "残りの16枚")),
+    "change": ("rubric_change.md", "truth-change", ("直った12枚", "新たに誤った16枚")),
 }
 
 
 class Round:
     def __init__(self, name: str = "main"):
         self.name = name
-        self.rubric, self.reference = ROUNDS[name]
+        self.rubric, self.reference, self.ref_notes = ROUNDS[name]
         tag = "" if name == "main" else f"_{name}"
         self.dir = EVAL if name == "main" else EVAL.parent / f"{EVAL.name}-{name}"
         self.decks, self.out = self.dir / "decks", self.dir / "out"
@@ -91,23 +92,39 @@ def prompt(rnd: Round, kind: str, seed: str, name: str) -> None:
     text = (HERE / f"judge/prompt_{kind}.md").read_text(encoding="utf-8")
     print(text.format(RUBRIC=rubric, DIR=rnd.decks, ORDER=" → ".join(order(rnd, seed)),
                       OUT=rnd.out / f"{kind}-{name}.json",
-                      REF1=rnd.dir / "reference-1.jpg", REF2=rnd.dir / "reference-2.jpg"))
+                      REF1=rnd.dir / "reference-1.jpg", REF2=rnd.dir / "reference-2.jpg",
+                      REF1_NOTE=rnd.ref_notes[0], REF2_NOTE=rnd.ref_notes[1]))
 
 
-def read_notes(path: Path) -> dict:
-    """評価者が1デッキごとに追記したメモを、1つの辞書にまとめる。同じ記号は後の行を採る。
+CHANGE_RE = re.compile(r"->\s*(-?\d+|true|false)")
 
-    1行は {記号: 答え} か、{"deck": 記号, ...答え} のどちらか（評価者によって書き方が違った）。
+
+def read_notes(path: Path, codes: set[str]) -> dict:
+    """評価者が1デッキごとに追記したメモを、1つの辞書にまとめる。同じ記号は後の行の値で項目ごとに上書きする。
+
+    1行の書き方は評価者によって違った:
+      {記号: 答え}                        1巡目の答え
+      {"deck": 記号, ...答え}              1巡目の答え
+      {"deck": 記号, "changes": {項目: "3->4 (理由)"}}   見直しで変えた項目だけ（新しい値を読み取る）
+    デッキの記号でないキー（見直しの基準のメモなど）は読み飛ばす。
     """
     data: dict = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         row = json.loads(line)
-        if "deck" in row:
-            data[row["deck"]] = {k: v for k, v in row.items() if k != "deck"}
-        else:
-            data.update(row)
+        items = [(row["deck"], {k: v for k, v in row.items() if k != "deck"})] if "deck" in row else list(row.items())
+        for code, answer in items:
+            if code not in codes or not isinstance(answer, dict):
+                continue
+            entry = data.setdefault(code, {})
+            for field, change in (answer.get("changes") or {}).items():
+                m = CHANGE_RE.search(str(change))
+                if m:
+                    entry[field] = {"true": True, "false": False}.get(m.group(1), None) if m.group(1) in ("true", "false") \
+                        else int(m.group(1))
+            entry.update({k: v for k, v in answer.items()
+                          if k not in ("changes", "keep", "checked", "measure", "pass", "round")})
     return data
 
 
@@ -119,7 +136,7 @@ def collect(rnd: Round, from_notes: list[str]) -> None:
         for name in names:
             final, notes = rnd.out / f"{kind}-{name}.json", rnd.out / f"{kind}-{name}.json.notes.jsonl"
             if name in from_notes:
-                data, source = read_notes(notes), "notes"
+                data, source = read_notes(notes, set(json.loads(rnd.key.read_text()))), "notes"
             elif final.exists():
                 data, source = json.loads(final.read_text(encoding="utf-8")), "final"
             else:
