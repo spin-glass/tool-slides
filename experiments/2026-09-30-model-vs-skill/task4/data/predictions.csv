@@ -1,0 +1,241 @@
+id,true,true_ja,pred,pred_ja,prob,second,second_ja,margin
+c0b17ef48b684b76,Duck,カモ,Duck,カモ,0.6367,Goose,ガン,0.3160
+01211d4bbc161694,Duck,カモ,Duck,カモ,0.6103,Goose,ガン,0.3663
+75798b9525b6d72c,Duck,カモ,Swan,ハクチョウ,0.6746,Duck,カモ,0.5066
+77342c4f2ac0f91b,Duck,カモ,Swan,ハクチョウ,0.9799,Goose,ガン,0.9629
+a292025d2530ca80,Duck,カモ,Swan,ハクチョウ,0.4905,Duck,カモ,0.2301
+4530f437df660afe,Duck,カモ,Duck,カモ,0.9582,Goose,ガン,0.9226
+a594ea8253504802,Duck,カモ,Duck,カモ,0.9790,Goose,ガン,0.9602
+7b33023972cfcd17,Duck,カモ,Duck,カモ,0.9756,Goose,ガン,0.9525
+a2e1a9d58b3e9cdd,Duck,カモ,Duck,カモ,0.9722,Goose,ガン,0.9465
+6316d3987b2b9502,Duck,カモ,Duck,カモ,0.9732,Goose,ガン,0.9529
+7893d77d259811aa,Duck,カモ,Duck,カモ,0.9701,Goose,ガン,0.9480
+c2aa20a564e20d2f,Duck,カモ,Duck,カモ,0.9119,Goose,ガン,0.8280
+64e48b07e9a2add5,Duck,カモ,Goose,ガン,0.4628,Swan,ハクチョウ,0.0515
+7a967482945e86a7,Duck,カモ,Duck,カモ,0.8891,Goose,ガン,0.7885
+80a7d9f11e4cb8d1,Duck,カモ,Duck,カモ,0.7996,Goose,ガン,0.6076
+dc70d4ba179015ea,Duck,カモ,Duck,カモ,0.9577,Goose,ガン,0.9169
+7846c34dc0564b10,Duck,カモ,Duck,カモ,0.8714,Goose,ガン,0.7485
+54b37811bb5e40ad,Duck,カモ,Goose,ガン,0.4152,Duck,カモ,0.0870
+b044581094b24173,Duck,カモ,Duck,カモ,0.9134,Goose,ガン,0.8293
+c39aedcff990f59d,Duck,カモ,Duck,カモ,0.7576,Goose,ガン,0.5267
+ea3604d122a4e6b8,Duck,カモ,Goose,ガン,0.4954,Duck,カモ,0.0161
+53710f5df081acf8,Duck,カモ,Duck,カモ,0.7559,Goose,ガン,0.5635
+c69870bff1ca1586,Duck,カモ,Duck,カモ,0.9106,Goose,ガン,0.8474
+895dbfa06f80d04b,Duck,カモ,Goose,ガン,0.8134,Duck,カモ,0.7044
+bfdd3df591001b36,Duck,カモ,Duck,カモ,0.7840,Goose,ガン,0.5828
+679a5e597d44671f,Duck,カモ,Goose,ガン,0.8710,Duck,カモ,0.7811
+e8fbe13cc8504f51,Duck,カモ,Goose,ガン,0.8769,Duck,カモ,0.7922
+034347d744d9742d,Duck,カモ,Duck,カモ,0.8706,Goose,ガン,0.7588
+33ae590a0d97b084,Duck,カモ,Goose,ガン,0.8459,Duck,カモ,0.7425
+af871960a1db0981,Duck,カモ,Duck,カモ,0.9866,Goose,ガン,0.9744
+2ad1a1f723795627,Duck,カモ,Duck,カモ,0.9907,Goose,ガン,0.9818
+b900bd4f73836167,Duck,カモ,Duck,カモ,0.7232,Goose,ガン,0.4637
+6034e211672e5380,Duck,カモ,Duck,カモ,0.9428,Goose,ガン,0.9033
+2e16ca7927b06bd4,Duck,カモ,Duck,カモ,0.9350,Goose,ガン,0.8726
+302cd87f9ddb2bfb,Duck,カモ,Duck,カモ,0.7872,Goose,ガン,0.6550
+a5536024ebd69580,Duck,カモ,Goose,ガン,0.4875,Swan,ハクチョウ,0.0443
+aca6645d590aa23f,Duck,カモ,Goose,ガン,0.5544,Duck,カモ,0.2251
+d21534a1cca6ec2d,Duck,カモ,Goose,ガン,0.4782,Duck,カモ,0.1593
+22f324973b904ee9,Duck,カモ,Duck,カモ,0.8380,Goose,ガン,0.6824
+e6f42985d808d61b,Duck,カモ,Swan,ハクチョウ,0.7438,Goose,ガン,0.5822
+8c9b3a301f8b5d42,Goose,ガン,Swan,ハクチョウ,0.4867,Goose,ガン,0.0273
+2c7cee4d9b67df03,Goose,ガン,Swan,ハクチョウ,0.5555,Goose,ガン,0.1787
+19e26aee9ea93c39,Goose,ガン,Swan,ハクチョウ,0.5305,Goose,ガン,0.1778
+a421bd70e3bc83b0,Goose,ガン,Swan,ハクチョウ,0.8472,Goose,ガン,0.7271
+becaac06da800421,Goose,ガン,Goose,ガン,0.6782,Swan,ハクチョウ,0.4144
+77978e66332508e4,Goose,ガン,Goose,ガン,0.6855,Swan,ハクチョウ,0.4778
+0e8e562e1e54f38a,Goose,ガン,Goose,ガン,0.5990,Duck,カモ,0.2988
+2dedcd08061f3061,Goose,ガン,Goose,ガン,0.9178,Swan,ハクチョウ,0.8676
+7268e678c9efab8b,Goose,ガン,Goose,ガン,0.9206,Duck,カモ,0.8774
+cfcf61cb3d9b2c50,Goose,ガン,Goose,ガン,0.6920,Duck,カモ,0.4529
+f7fe3c8c98e5770d,Goose,ガン,Goose,ガン,0.5402,Swan,ハクチョウ,0.2606
+f0b2d737d9b8525c,Goose,ガン,Goose,ガン,0.5064,Swan,ハクチョウ,0.1781
+cbe005c8b3e5730e,Goose,ガン,Swan,ハクチョウ,0.9731,Goose,ガン,0.9550
+c0e238dad14e2833,Goose,ガン,Duck,カモ,0.5613,Goose,ガン,0.1268
+ae6629049526febf,Goose,ガン,Goose,ガン,0.9690,Duck,カモ,0.9495
+8791722501d91f5f,Goose,ガン,Goose,ガン,0.9170,Duck,カモ,0.8679
+5ee61ba00cc30490,Goose,ガン,Goose,ガン,0.6859,Swan,ハクチョウ,0.4547
+fbe34f827ba64b67,Goose,ガン,Swan,ハクチョウ,0.9173,Duck,カモ,0.8761
+9856bd4e230ed3d8,Goose,ガン,Swan,ハクチョウ,0.5011,Goose,ガン,0.1087
+cb6d8783a3617620,Goose,ガン,Duck,カモ,0.8134,Goose,ガン,0.6465
+90988bc54d845592,Goose,ガン,Swan,ハクチョウ,0.5575,Goose,ガン,0.1291
+63321f1973f5cce9,Goose,ガン,Swan,ハクチョウ,0.9311,Goose,ガン,0.8938
+f26e479d2a5b34dc,Goose,ガン,Goose,ガン,0.5088,Swan,ハクチョウ,0.2311
+7c5a386015a1cf89,Goose,ガン,Duck,カモ,0.9912,Goose,ガン,0.9830
+818e6f19db055919,Goose,ガン,Duck,カモ,0.8071,Goose,ガン,0.6211
+5829834a1641c0f1,Goose,ガン,Goose,ガン,0.7275,Duck,カモ,0.5913
+6c403fe46bccb17e,Goose,ガン,Swan,ハクチョウ,0.6434,Goose,ガン,0.3807
+cfae99f4ad4dfd04,Goose,ガン,Swan,ハクチョウ,0.5216,Goose,ガン,0.0807
+ab56f23fa316ad56,Goose,ガン,Duck,カモ,0.9231,Goose,ガン,0.8468
+77bfbbef28ac344c,Goose,ガン,Duck,カモ,0.9887,Goose,ガン,0.9785
+83490e1b3f3dec09,Goose,ガン,Goose,ガン,0.5236,Swan,ハクチョウ,0.2522
+d85c7990b664f30a,Goose,ガン,Goose,ガン,0.4883,Duck,カモ,0.0587
+e9b707f0234531df,Goose,ガン,Duck,カモ,0.7506,Goose,ガン,0.5182
+cf5d6bc1ade7ff18,Goose,ガン,Duck,カモ,0.3670,Swan,ハクチョウ,0.0495
+79220d3b1f196fcd,Goose,ガン,Swan,ハクチョウ,0.9131,Goose,ガン,0.8354
+65e297831c751675,Goose,ガン,Swan,ハクチョウ,0.9140,Goose,ガン,0.8547
+905081afdc6f0682,Goose,ガン,Goose,ガン,0.5208,Duck,カモ,0.0791
+c662af303b7c0bdd,Goose,ガン,Goose,ガン,0.8920,Duck,カモ,0.8197
+dd00d4ae604259d9,Goose,ガン,Duck,カモ,0.9089,Goose,ガン,0.8224
+bfdb4c1235db8a5f,Goose,ガン,Duck,カモ,0.5925,Goose,ガン,0.2100
+c30fbf9fe5fd93df,Swan,ハクチョウ,Goose,ガン,0.4959,Swan,ハクチョウ,0.0574
+37de185fc6bdc338,Swan,ハクチョウ,Swan,ハクチョウ,0.6535,Goose,ガン,0.3806
+3eaf885ee61c3999,Swan,ハクチョウ,Duck,カモ,0.7344,Goose,ガン,0.5468
+1c3a9c074c042ba6,Swan,ハクチョウ,Swan,ハクチョウ,0.8117,Goose,ガン,0.7035
+eb1b1ae30dfe0859,Swan,ハクチョウ,Goose,ガン,0.5546,Duck,カモ,0.2586
+87680f2be10f1729,Swan,ハクチョウ,Swan,ハクチョウ,0.9363,Goose,ガン,0.8747
+62439d385f495f5f,Swan,ハクチョウ,Goose,ガン,0.5013,Swan,ハクチョウ,0.0356
+e3fd1650c64e23cb,Swan,ハクチョウ,Swan,ハクチョウ,0.5684,Goose,ガン,0.1630
+4c516d3fc321727e,Swan,ハクチョウ,Swan,ハクチョウ,0.7409,Goose,ガン,0.6108
+3da6278dd618215c,Swan,ハクチョウ,Swan,ハクチョウ,0.7848,Goose,ガン,0.6497
+1cfc18d13e57ce38,Swan,ハクチョウ,Goose,ガン,0.4256,Swan,ハクチョウ,0.0507
+14df12f60d409fab,Swan,ハクチョウ,Swan,ハクチョウ,0.4274,Goose,ガン,0.1010
+ea5eeababde5849f,Swan,ハクチョウ,Swan,ハクチョウ,0.8710,Goose,ガン,0.7584
+9e38e554494bd9a5,Swan,ハクチョウ,Swan,ハクチョウ,0.4892,Goose,ガン,0.1792
+31128c23066173b7,Swan,ハクチョウ,Swan,ハクチョウ,0.9603,Goose,ガン,0.9324
+e6b95a32413db415,Swan,ハクチョウ,Swan,ハクチョウ,0.9673,Goose,ガン,0.9408
+768b6f700c9b6f72,Swan,ハクチョウ,Duck,カモ,0.4302,Swan,ハクチョウ,0.0722
+564baccf777e1ec7,Swan,ハクチョウ,Goose,ガン,0.5586,Swan,ハクチョウ,0.2324
+a2fb635c4cc59ff2,Swan,ハクチョウ,Swan,ハクチョウ,0.6549,Goose,ガン,0.4647
+a73ecb69e9f63601,Swan,ハクチョウ,Swan,ハクチョウ,0.9956,Goose,ガン,0.9923
+19f33b3b7c4168ad,Swan,ハクチョウ,Swan,ハクチョウ,0.5858,Goose,ガン,0.2497
+1f7f90c53aa03f9f,Swan,ハクチョウ,Swan,ハクチョウ,0.6100,Goose,ガン,0.3110
+a0c526719a3f9b0f,Swan,ハクチョウ,Goose,ガン,0.5362,Swan,ハクチョウ,0.2779
+ac244a0e2332ab55,Swan,ハクチョウ,Swan,ハクチョウ,0.7487,Goose,ガン,0.5305
+0ea78a8ea4e50ab1,Swan,ハクチョウ,Goose,ガン,0.6166,Swan,ハクチョウ,0.2938
+119d707a575b7721,Swan,ハクチョウ,Swan,ハクチョウ,0.9603,Goose,ガン,0.9243
+64333d483e03c680,Swan,ハクチョウ,Duck,カモ,0.6949,Goose,ガン,0.4407
+2343212ab72aafb2,Swan,ハクチョウ,Swan,ハクチョウ,0.9836,Goose,ガン,0.9729
+b92d8d2b014f17b3,Swan,ハクチョウ,Swan,ハクチョウ,0.6047,Goose,ガン,0.3504
+2d23fba3f4a9074b,Swan,ハクチョウ,Swan,ハクチョウ,0.9231,Goose,ガン,0.8491
+8c34199588023f39,Swan,ハクチョウ,Goose,ガン,0.4223,Duck,カモ,0.1077
+498ae254e1ce2c98,Swan,ハクチョウ,Duck,カモ,0.6008,Goose,ガン,0.3024
+fc547a967d92bc53,Swan,ハクチョウ,Swan,ハクチョウ,0.9841,Goose,ガン,0.9731
+8f70ee9ebc91fad6,Swan,ハクチョウ,Goose,ガン,0.5621,Duck,カモ,0.3401
+a10b7c91b182c028,Swan,ハクチョウ,Swan,ハクチョウ,0.5866,Goose,ガン,0.3443
+ee47ee12989248d1,Swan,ハクチョウ,Swan,ハクチョウ,0.9208,Goose,ガン,0.8600
+c74d5f3dab4b8c14,Swan,ハクチョウ,Swan,ハクチョウ,0.8205,Goose,ガン,0.6431
+e514df7b32e4bedd,Swan,ハクチョウ,Swan,ハクチョウ,0.6509,Goose,ガン,0.3952
+3e88ae5c0de2872d,Swan,ハクチョウ,Swan,ハクチョウ,0.9732,Goose,ガン,0.9497
+e622d2cf834e64dd,Swan,ハクチョウ,Goose,ガン,0.5954,Duck,カモ,0.2980
+8bfc5e013fb1f963,Boat,ボート,Boat,ボート,0.8582,Swan,ハクチョウ,0.7994
+360af9711cff32b1,Boat,ボート,Boat,ボート,0.8920,Swan,ハクチョウ,0.8112
+e2beeb0b40f770d2,Boat,ボート,Boat,ボート,0.9902,Lighthouse,灯台,0.9848
+3eb564882dd566d6,Boat,ボート,Boat,ボート,0.9572,Lighthouse,灯台,0.9319
+b530b785977c7de7,Boat,ボート,Boat,ボート,0.6640,Lighthouse,灯台,0.3459
+c48af87422868754,Boat,ボート,Boat,ボート,0.8993,Duck,カモ,0.8373
+434a52f2db875a77,Boat,ボート,Boat,ボート,0.7241,Swan,ハクチョウ,0.6180
+ad60821c20341bf2,Boat,ボート,Boat,ボート,0.9654,Lighthouse,灯台,0.9490
+da2b7cb2ba402ff4,Boat,ボート,Boat,ボート,0.5174,Swan,ハクチョウ,0.3057
+a2e9f9f2322871d8,Boat,ボート,Boat,ボート,0.9941,Duck,カモ,0.9919
+3b30dceda536f012,Boat,ボート,Boat,ボート,0.8815,Duck,カモ,0.7834
+60488f95fff4a0cf,Boat,ボート,Boat,ボート,0.9777,Swan,ハクチョウ,0.9619
+ade0eec588aa7362,Boat,ボート,Boat,ボート,0.9928,Lighthouse,灯台,0.9873
+4184ad265b7cdf3c,Boat,ボート,Boat,ボート,0.9871,Lighthouse,灯台,0.9818
+77fa51cae51f6664,Boat,ボート,Boat,ボート,0.9922,Swan,ハクチョウ,0.9892
+267b146790ccf930,Boat,ボート,Boat,ボート,0.9814,Harbor seal,アザラシ,0.9741
+49e712b7361a97ff,Boat,ボート,Boat,ボート,0.9660,Harbor seal,アザラシ,0.9477
+bef87d768dac651d,Boat,ボート,Boat,ボート,0.9989,Swan,ハクチョウ,0.9985
+6ef44b1452d07d8d,Boat,ボート,Boat,ボート,0.9960,Harbor seal,アザラシ,0.9946
+f3f94c0f0ea0fa1d,Boat,ボート,Boat,ボート,0.7327,Goose,ガン,0.6187
+57ff578f78174cc2,Boat,ボート,Boat,ボート,0.9990,Swan,ハクチョウ,0.9986
+7a98c371f9d26bf2,Boat,ボート,Boat,ボート,0.9855,Swan,ハクチョウ,0.9773
+6d9f07dd5a605c76,Boat,ボート,Boat,ボート,0.9882,Harbor seal,アザラシ,0.9798
+b9ec2cb9113c2749,Boat,ボート,Boat,ボート,0.9953,Swan,ハクチョウ,0.9920
+944707c24b36589a,Boat,ボート,Boat,ボート,0.9988,Swan,ハクチョウ,0.9984
+12b3c444e125f917,Boat,ボート,Boat,ボート,0.9008,Harbor seal,アザラシ,0.8269
+71ecd7689ad8de0d,Boat,ボート,Boat,ボート,0.9977,Lighthouse,灯台,0.9969
+07ae57100f836f56,Boat,ボート,Boat,ボート,0.9962,Lighthouse,灯台,0.9952
+ece7f628beed4d42,Boat,ボート,Boat,ボート,0.9744,Lighthouse,灯台,0.9656
+b61ac78e3c78e56f,Boat,ボート,Boat,ボート,0.8997,Harbor seal,アザラシ,0.8102
+424fa792da98deb9,Boat,ボート,Boat,ボート,0.9928,Swan,ハクチョウ,0.9908
+f098ce3895e35eaa,Boat,ボート,Boat,ボート,0.9907,Lighthouse,灯台,0.9870
+1447fb6bef233a38,Boat,ボート,Boat,ボート,0.9936,Harbor seal,アザラシ,0.9909
+1db6996b94c3af8d,Boat,ボート,Boat,ボート,0.9690,Swan,ハクチョウ,0.9549
+fc5b64805320012d,Boat,ボート,Boat,ボート,0.9879,Lighthouse,灯台,0.9811
+4249ac270d072538,Boat,ボート,Boat,ボート,0.9828,Swan,ハクチョウ,0.9762
+99460a5a11b7ac90,Boat,ボート,Boat,ボート,0.9967,Goose,ガン,0.9956
+e9da9f62827fa706,Boat,ボート,Boat,ボート,0.8861,Lighthouse,灯台,0.8054
+a452701e62b164a9,Boat,ボート,Boat,ボート,0.9971,Lighthouse,灯台,0.9950
+c8b9bd3fa5785297,Boat,ボート,Boat,ボート,0.9768,Harbor seal,アザラシ,0.9629
+4615810bd256dcf3,Lighthouse,灯台,Lighthouse,灯台,0.9920,Harbor seal,アザラシ,0.9856
+9787ac9ac4f486c0,Lighthouse,灯台,Lighthouse,灯台,0.6644,Boat,ボート,0.5012
+5c1a2d0748163047,Lighthouse,灯台,Lighthouse,灯台,0.9990,Boat,ボート,0.9982
+5a4f261d16078bfb,Lighthouse,灯台,Lighthouse,灯台,0.9874,Harbor seal,アザラシ,0.9787
+90b7ac643e6f206d,Lighthouse,灯台,Lighthouse,灯台,0.9848,Harbor seal,アザラシ,0.9744
+34fea7643aeb1a1d,Lighthouse,灯台,Lighthouse,灯台,0.9854,Harbor seal,アザラシ,0.9778
+daf532b9895cdcf5,Lighthouse,灯台,Lighthouse,灯台,0.9933,Boat,ボート,0.9877
+381e9a45a6ab1043,Lighthouse,灯台,Lighthouse,灯台,0.9979,Boat,ボート,0.9967
+466f90cf5e3c4385,Lighthouse,灯台,Lighthouse,灯台,0.9869,Boat,ボート,0.9751
+703e545175b910f4,Lighthouse,灯台,Lighthouse,灯台,0.9776,Boat,ボート,0.9571
+1c63f023a27a8a05,Lighthouse,灯台,Lighthouse,灯台,0.9987,Boat,ボート,0.9980
+a6c72bb2a844c588,Lighthouse,灯台,Lighthouse,灯台,0.8656,Harbor seal,アザラシ,0.7685
+13474311f7c7018d,Lighthouse,灯台,Lighthouse,灯台,0.6401,Harbor seal,アザラシ,0.3160
+89a5e7e2b8e869f3,Lighthouse,灯台,Lighthouse,灯台,0.9845,Boat,ボート,0.9699
+3630d92f18d8a8b0,Lighthouse,灯台,Lighthouse,灯台,0.9992,Goose,ガン,0.9987
+789faaaa564c322f,Lighthouse,灯台,Lighthouse,灯台,0.9918,Boat,ボート,0.9842
+45fa92963621050e,Lighthouse,灯台,Lighthouse,灯台,0.9989,Boat,ボート,0.9979
+847c04a3820fbedf,Lighthouse,灯台,Lighthouse,灯台,0.9933,Harbor seal,アザラシ,0.9886
+a9dd422cab028dab,Lighthouse,灯台,Lighthouse,灯台,0.9924,Goose,ガン,0.9868
+507562f4ea11092c,Lighthouse,灯台,Lighthouse,灯台,0.9986,Goose,ガン,0.9978
+7c0ab29f806aed2d,Lighthouse,灯台,Lighthouse,灯台,0.9971,Boat,ボート,0.9950
+385a2569f6076bad,Lighthouse,灯台,Lighthouse,灯台,0.9996,Boat,ボート,0.9995
+88fa97be6812e95c,Lighthouse,灯台,Lighthouse,灯台,0.9990,Boat,ボート,0.9984
+67312b84a60225c8,Lighthouse,灯台,Lighthouse,灯台,0.9767,Goose,ガン,0.9582
+15c8fb0246bce893,Lighthouse,灯台,Lighthouse,灯台,0.9981,Boat,ボート,0.9965
+3d57898a9be46b98,Lighthouse,灯台,Lighthouse,灯台,0.9984,Boat,ボート,0.9975
+612b664670d57b5e,Lighthouse,灯台,Lighthouse,灯台,0.9889,Boat,ボート,0.9826
+203a8a753ce697bd,Lighthouse,灯台,Lighthouse,灯台,0.9995,Goose,ガン,0.9992
+211e5cc77da92206,Lighthouse,灯台,Lighthouse,灯台,0.9972,Boat,ボート,0.9950
+c0a078b6d3a32790,Lighthouse,灯台,Lighthouse,灯台,0.9257,Goose,ガン,0.8677
+a5cf958f4092e698,Lighthouse,灯台,Lighthouse,灯台,0.9889,Harbor seal,アザラシ,0.9801
+6d6ecdf31cf2fbe7,Lighthouse,灯台,Lighthouse,灯台,0.9997,Boat,ボート,0.9994
+473025391825b98d,Lighthouse,灯台,Lighthouse,灯台,0.9985,Goose,ガン,0.9971
+d31dfd17c2a48f1b,Lighthouse,灯台,Lighthouse,灯台,0.9976,Harbor seal,アザラシ,0.9960
+b19a0a482fb36565,Lighthouse,灯台,Lighthouse,灯台,0.9997,Boat,ボート,0.9994
+a703483f3d2f46a0,Lighthouse,灯台,Lighthouse,灯台,0.9815,Goose,ガン,0.9653
+4c3a958bfc64435d,Lighthouse,灯台,Lighthouse,灯台,0.9670,Boat,ボート,0.9470
+6f8ab265a4b83257,Lighthouse,灯台,Lighthouse,灯台,0.9993,Boat,ボート,0.9988
+69abafd1450b5203,Lighthouse,灯台,Lighthouse,灯台,0.9951,Boat,ボート,0.9910
+bf675c48dc113ce4,Lighthouse,灯台,Lighthouse,灯台,0.9988,Boat,ボート,0.9980
+3d49ba36e2c15bab,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9999,Duck,カモ,0.9999
+1f29bf6f469ac1b7,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9998,Boat,ボート,0.9997
+08f1b5efd7c6a278,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9973,Duck,カモ,0.9959
+4ec2c6e443822aa8,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9686,Boat,ボート,0.9431
+68792af7790c3a0f,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9374,Duck,カモ,0.9037
+7f9376041f1869a6,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9898,Duck,カモ,0.9825
+1f06f74cdb86124f,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9754,Duck,カモ,0.9517
+9a0c4eb8356297da,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9992,Boat,ボート,0.9989
+7aafd1b3dce59952,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9999,Goose,ガン,0.9998
+0befd778dc1ce16d,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9997,Duck,カモ,0.9996
+ad00727dba851366,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9924,Goose,ガン,0.9883
+b79d9d5456735627,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9998,Lighthouse,灯台,0.9996
+464f960f32835403,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9967,Goose,ガン,0.9954
+ee6f70ef3de63e6d,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9995,Boat,ボート,0.9993
+71e3512f1a96b81a,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9952,Goose,ガン,0.9918
+8a0037aff21a48a7,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9960,Boat,ボート,0.9932
+c2def81612c7dd02,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9989,Goose,ガン,0.9983
+9839e242e75e327e,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9824,Goose,ガン,0.9697
+42ff91bd32d50613,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9984,Duck,カモ,0.9971
+3fa5da93895d2de8,Harbor seal,アザラシ,Harbor seal,アザラシ,1.0000,Boat,ボート,1.0000
+d47653b2867e9974,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9991,Lighthouse,灯台,0.9986
+df6d8a5bb6dd31a9,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9997,Duck,カモ,0.9996
+ac34ef02e2fac9d8,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9809,Duck,カモ,0.9719
+0c51c1b3236918f7,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9999,Goose,ガン,0.9999
+b833d5239456ae81,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9998,Goose,ガン,0.9997
+792b91680b388cfb,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9984,Goose,ガン,0.9976
+e8dcd70c17308976,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9999,Duck,カモ,0.9998
+32e78de9f6b01d8e,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9993,Goose,ガン,0.9990
+a1b204b6512f9242,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9979,Boat,ボート,0.9965
+72e2ea187fe09502,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9882,Goose,ガン,0.9823
+112c58c2a4bf05c7,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9998,Goose,ガン,0.9998
+26bab478910dc7af,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9963,Boat,ボート,0.9949
+050900b32f1a84ab,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9994,Goose,ガン,0.9990
+9f1f0321de47db2e,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9993,Goose,ガン,0.9989
+643debcf3e54bc79,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9724,Goose,ガン,0.9512
+7da5debcdd086240,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9998,Duck,カモ,0.9996
+38852aa9afa89e79,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9952,Duck,カモ,0.9927
+bfbbd445c1bd7ff6,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9985,Boat,ボート,0.9978
+bc2c29dfa98ec33d,Harbor seal,アザラシ,Harbor seal,アザラシ,0.8401,Goose,ガン,0.7157
+d9036ed42d3de252,Harbor seal,アザラシ,Harbor seal,アザラシ,0.9981,Duck,カモ,0.9973

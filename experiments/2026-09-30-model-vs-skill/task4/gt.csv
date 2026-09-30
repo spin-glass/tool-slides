@@ -1,0 +1,241 @@
+id,true,pred,error,types,class_area,present,pred_present,dominant_other
+c0b17ef48b684b76,Duck,Duck,False,small,0.0494,Duck|Goose,True,
+01211d4bbc161694,Duck,Duck,False,dominant,0.0613,Duck,True,Tree:0.54
+75798b9525b6d72c,Duck,Swan,True,dominant,0.1645,Duck,False,Bird:0.99
+77342c4f2ac0f91b,Duck,Swan,True,multi,0.1999,Duck|Goose|Swan,True,
+a292025d2530ca80,Duck,Swan,True,multi,0.2871,Duck|Goose|Swan,True,
+4530f437df660afe,Duck,Duck,False,,0.1821,Duck,True,
+a594ea8253504802,Duck,Duck,False,,0.4115,Duck,True,
+7b33023972cfcd17,Duck,Duck,False,,0.4624,Duck,True,
+a2e1a9d58b3e9cdd,Duck,Duck,False,,0.4546,Duck,True,
+6316d3987b2b9502,Duck,Duck,False,,0.2447,Duck,True,
+7893d77d259811aa,Duck,Duck,False,,0.1277,Duck,True,
+c2aa20a564e20d2f,Duck,Duck,False,,0.4071,Duck|Goose,True,
+64e48b07e9a2add5,Duck,Goose,True,,0.1358,Duck|Goose,True,
+7a967482945e86a7,Duck,Duck,False,,0.11,Duck,True,
+80a7d9f11e4cb8d1,Duck,Duck,False,,0.2097,Duck|Goose,True,
+dc70d4ba179015ea,Duck,Duck,False,,0.4372,Duck|Goose,True,
+7846c34dc0564b10,Duck,Duck,False,,0.4865,Duck|Goose,True,
+54b37811bb5e40ad,Duck,Goose,True,,0.136,Duck|Goose,True,Animal:0.17
+b044581094b24173,Duck,Duck,False,,0.1148,Duck|Goose,True,Bird:0.19
+c39aedcff990f59d,Duck,Duck,False,,0.058,Duck|Goose,True,
+ea3604d122a4e6b8,Duck,Goose,True,,0.1859,Duck,False,
+53710f5df081acf8,Duck,Duck,False,,0.498,Duck|Goose,True,Mammal:0.50
+c69870bff1ca1586,Duck,Duck,False,,0.2279,Duck|Goose,True,
+895dbfa06f80d04b,Duck,Goose,True,,0.1135,Duck|Goose|Swan,True,
+bfdd3df591001b36,Duck,Duck,False,,0.1373,Duck|Goose,True,
+679a5e597d44671f,Duck,Goose,True,,0.3594,Duck|Goose,True,
+e8fbe13cc8504f51,Duck,Goose,True,,0.159,Duck|Goose,True,
+034347d744d9742d,Duck,Duck,False,,0.0732,Duck|Goose,True,
+33ae590a0d97b084,Duck,Goose,True,,0.0852,Duck|Goose|Swan,True,
+af871960a1db0981,Duck,Duck,False,,0.1599,Duck,True,
+2ad1a1f723795627,Duck,Duck,False,,0.1832,Duck,True,
+b900bd4f73836167,Duck,Duck,False,,0.4098,Duck|Goose,True,
+6034e211672e5380,Duck,Duck,False,,0.2449,Duck,True,
+2e16ca7927b06bd4,Duck,Duck,False,,0.2426,Duck,True,
+302cd87f9ddb2bfb,Duck,Duck,False,,0.5106,Duck|Goose,True,
+a5536024ebd69580,Duck,Goose,True,,0.1226,Duck|Goose|Swan,True,Mammal:0.12
+aca6645d590aa23f,Duck,Goose,True,,0.1367,Duck|Goose,True,
+d21534a1cca6ec2d,Duck,Goose,True,,0.4648,Duck|Goose,True,
+22f324973b904ee9,Duck,Duck,False,,0.1868,Duck|Goose,True,
+e6f42985d808d61b,Duck,Swan,True,,0.2749,Duck|Swan,True,
+8c9b3a301f8b5d42,Goose,Swan,True,small,0.0434,Goose,False,Bird:0.02
+2c7cee4d9b67df03,Goose,Swan,True,dominant,0.0583,Goose,False,Bird:0.87
+19e26aee9ea93c39,Goose,Swan,True,dominant,0.0865,Goose,False,Bird:0.93
+a421bd70e3bc83b0,Goose,Swan,True,dominant,0.3324,Goose,False,Plant:1.00
+becaac06da800421,Goose,Goose,False,dominant,0.1594,Goose,True,Tree:0.77
+77978e66332508e4,Goose,Goose,False,dominant|multi,0.3251,Goose|Swan,True,Plant:1.00
+0e8e562e1e54f38a,Goose,Goose,False,small,0.0329,Goose,True,Bird:0.06
+2dedcd08061f3061,Goose,Goose,False,dominant,0.1163,Goose,True,Plant:0.53
+7268e678c9efab8b,Goose,Goose,False,dominant|multi,0.0711,Duck|Goose,True,Bird:0.64
+cfcf61cb3d9b2c50,Goose,Goose,False,small,0.0408,Goose,True,
+f7fe3c8c98e5770d,Goose,Goose,False,small|dominant,0.0054,Goose,True,Bird:0.55
+f0b2d737d9b8525c,Goose,Goose,False,dominant,0.1,Goose,True,Bird:1.00
+cbe005c8b3e5730e,Goose,Swan,True,small|multi,0.0311,Duck|Goose|Swan,True,
+c0e238dad14e2833,Goose,Duck,True,small,0.0364,Goose,False,
+ae6629049526febf,Goose,Goose,False,dominant,0.0761,Duck|Goose,True,Tree:0.43
+8791722501d91f5f,Goose,Goose,False,dominant,0.1355,Duck|Goose,True,Plant:0.60
+5ee61ba00cc30490,Goose,Goose,False,,0.0786,Duck|Goose,True,
+fbe34f827ba64b67,Goose,Swan,True,,0.1479,Goose|Swan,True,
+9856bd4e230ed3d8,Goose,Swan,True,,0.2432,Goose|Swan,True,Bird:0.63
+cb6d8783a3617620,Goose,Duck,True,,0.0596,Duck|Goose,True,
+90988bc54d845592,Goose,Swan,True,,0.3813,Goose|Swan,True,
+63321f1973f5cce9,Goose,Swan,True,,0.3547,Duck|Goose|Swan,True,Bird:0.11
+f26e479d2a5b34dc,Goose,Goose,False,,0.3768,Duck|Goose|Swan,True,
+7c5a386015a1cf89,Goose,Duck,True,,0.1419,Duck|Goose,True,
+818e6f19db055919,Goose,Duck,True,,0.3187,Duck|Goose,True,Tree:0.10
+5829834a1641c0f1,Goose,Goose,False,,0.8016,Duck|Goose|Swan,True,
+6c403fe46bccb17e,Goose,Swan,True,,0.0762,Goose|Swan,True,
+cfae99f4ad4dfd04,Goose,Swan,True,,0.4898,Goose,False,
+ab56f23fa316ad56,Goose,Duck,True,,0.5778,Duck|Goose,True,
+77bfbbef28ac344c,Goose,Duck,True,,0.2124,Duck|Goose,True,
+83490e1b3f3dec09,Goose,Goose,False,,0.4275,Goose|Swan,True,
+d85c7990b664f30a,Goose,Goose,False,,0.2155,Duck|Goose,True,
+e9b707f0234531df,Goose,Duck,True,,0.0555,Goose,False,Bird:0.18
+cf5d6bc1ade7ff18,Goose,Duck,True,,0.8124,Duck|Goose,True,
+79220d3b1f196fcd,Goose,Swan,True,,0.2053,Goose,False,Plant:0.29
+65e297831c751675,Goose,Swan,True,,0.2171,Goose|Swan,True,Plant:0.43
+905081afdc6f0682,Goose,Goose,False,,0.1558,Duck|Goose|Swan,True,
+c662af303b7c0bdd,Goose,Goose,False,,0.066,Duck|Goose,True,
+dd00d4ae604259d9,Goose,Duck,True,,0.1937,Duck|Goose,True,
+bfdb4c1235db8a5f,Goose,Duck,True,,0.52,Duck|Goose,True,
+c30fbf9fe5fd93df,Swan,Goose,True,small,0.0489,Goose|Swan,True,
+37de185fc6bdc338,Swan,Swan,False,small,0.0312,Duck|Goose|Swan,True,
+3eaf885ee61c3999,Swan,Duck,True,small|dominant|multi,0.0311,Duck|Goose|Swan,True,Bird:0.97
+1c3a9c074c042ba6,Swan,Swan,False,multi,0.5392,Duck|Goose|Swan,True,Tree:0.17
+eb1b1ae30dfe0859,Swan,Goose,True,multi,0.0806,Duck|Swan,False,Tree:0.22
+87680f2be10f1729,Swan,Swan,False,multi,0.3825,Goose|Swan,True,Animal:0.02
+62439d385f495f5f,Swan,Goose,True,,0.4321,Duck|Swan,False,Mammal:0.41
+e3fd1650c64e23cb,Swan,Swan,False,,0.4334,Swan,True,
+4c516d3fc321727e,Swan,Swan,False,,0.4611,Swan,True,
+3da6278dd618215c,Swan,Swan,False,,0.4174,Duck|Swan,True,
+1cfc18d13e57ce38,Swan,Goose,True,,0.4056,Swan,False,Plant:1.00
+14df12f60d409fab,Swan,Swan,False,,0.2526,Swan,True,
+ea5eeababde5849f,Swan,Swan,False,,0.6988,Duck|Swan,True,
+9e38e554494bd9a5,Swan,Swan,False,,0.251,Duck|Swan,True,
+31128c23066173b7,Swan,Swan,False,,0.2955,Duck|Swan,True,
+e6b95a32413db415,Swan,Swan,False,,0.4404,Swan,True,
+768b6f700c9b6f72,Swan,Duck,True,,0.5233,Swan,False,
+564baccf777e1ec7,Swan,Goose,True,,0.6001,Swan,False,
+a2fb635c4cc59ff2,Swan,Swan,False,,0.1869,Duck|Swan,True,
+a73ecb69e9f63601,Swan,Swan,False,,0.7135,Swan,True,
+19f33b3b7c4168ad,Swan,Swan,False,,0.48,Swan,True,
+1f7f90c53aa03f9f,Swan,Swan,False,,0.6504,Swan,True,
+a0c526719a3f9b0f,Swan,Goose,True,,0.5214,Duck|Swan,False,
+ac244a0e2332ab55,Swan,Swan,False,,0.8821,Swan,True,
+0ea78a8ea4e50ab1,Swan,Goose,True,,0.252,Swan,False,
+119d707a575b7721,Swan,Swan,False,,0.0773,Duck|Goose|Swan,True,Plant:0.02
+64333d483e03c680,Swan,Duck,True,,0.4432,Duck|Goose|Swan,True,
+2343212ab72aafb2,Swan,Swan,False,,0.7029,Duck|Swan,True,
+b92d8d2b014f17b3,Swan,Swan,False,,0.1065,Duck|Goose|Swan,True,Mammal:0.09
+2d23fba3f4a9074b,Swan,Swan,False,,0.4725,Goose|Swan,True,
+8c34199588023f39,Swan,Goose,True,,0.6487,Goose|Swan,True,Plant:0.08
+498ae254e1ce2c98,Swan,Duck,True,,0.4751,Duck|Swan,True,
+fc547a967d92bc53,Swan,Swan,False,,0.1597,Duck|Swan,True,
+8f70ee9ebc91fad6,Swan,Goose,True,,0.6441,Goose|Swan,True,
+a10b7c91b182c028,Swan,Swan,False,,0.2155,Duck|Goose|Swan,True,
+ee47ee12989248d1,Swan,Swan,False,,0.1318,Goose|Swan,True,
+c74d5f3dab4b8c14,Swan,Swan,False,,0.2262,Goose|Swan,True,
+e514df7b32e4bedd,Swan,Swan,False,,0.1666,Duck|Swan,True,
+3e88ae5c0de2872d,Swan,Swan,False,,0.1981,Swan,True,
+e622d2cf834e64dd,Swan,Goose,True,,0.6621,Duck|Goose|Swan,True,
+8bfc5e013fb1f963,Boat,Boat,False,small|dominant,0.0048,Boat,True,House:0.27
+360af9711cff32b1,Boat,Boat,False,small,0.0478,Boat,True,Building:0.10
+e2beeb0b40f770d2,Boat,Boat,False,small,0.0376,Boat,True,
+3eb564882dd566d6,Boat,Boat,False,small|dominant,0.0198,Boat,True,Tree:0.30
+b530b785977c7de7,Boat,Boat,False,small,0.0478,Boat,True,Vehicle:0.00
+c48af87422868754,Boat,Boat,False,small|dominant,0.0033,Boat,True,Building:0.72
+434a52f2db875a77,Boat,Boat,False,small|dominant,0.0332,Boat,True,Tree:0.48
+ad60821c20341bf2,Boat,Boat,False,small,0.0091,Boat,True,
+da2b7cb2ba402ff4,Boat,Boat,False,dominant,0.0538,Boat,True,Skyscraper:0.80
+a2e9f9f2322871d8,Boat,Boat,False,small,0.0036,Boat,True,Tree:0.06
+3b30dceda536f012,Boat,Boat,False,small|dominant,0.0043,Boat,True,Building:1.00
+60488f95fff4a0cf,Boat,Boat,False,dominant,0.1183,Boat,True,Tree:0.43
+ade0eec588aa7362,Boat,Boat,False,small|dominant,0.0349,Boat,True,Palm tree:0.26
+4184ad265b7cdf3c,Boat,Boat,False,,1.0,Boat,True,Ladder:0.42
+77fa51cae51f6664,Boat,Boat,False,,0.5858,Boat,True,Mammal:0.01
+267b146790ccf930,Boat,Boat,False,,0.442,Boat,True,
+49e712b7361a97ff,Boat,Boat,False,,0.4057,Boat,True,
+bef87d768dac651d,Boat,Boat,False,,0.7204,Boat,True,
+6ef44b1452d07d8d,Boat,Boat,False,,0.453,Boat,True,
+f3f94c0f0ea0fa1d,Boat,Boat,False,,0.0668,Boat,True,Land vehicle:0.00
+57ff578f78174cc2,Boat,Boat,False,,0.3343,Boat,True,Plant:1.00
+7a98c371f9d26bf2,Boat,Boat,False,,0.3858,Boat,True,Watercraft:0.01
+6d9f07dd5a605c76,Boat,Boat,False,,0.501,Boat,True,
+b9ec2cb9113c2749,Boat,Boat,False,,0.5668,Boat,True,Vehicle:0.01
+944707c24b36589a,Boat,Boat,False,,0.7322,Boat,True,
+12b3c444e125f917,Boat,Boat,False,,0.5144,Boat,True,Vehicle:0.31
+71ecd7689ad8de0d,Boat,Boat,False,,0.8616,Boat,True,
+07ae57100f836f56,Boat,Boat,False,,0.1461,Boat,True,
+ece7f628beed4d42,Boat,Boat,False,,0.794,Boat,True,
+b61ac78e3c78e56f,Boat,Boat,False,,0.9964,Boat,True,
+424fa792da98deb9,Boat,Boat,False,,0.4473,Boat,True,
+f098ce3895e35eaa,Boat,Boat,False,,0.4974,Boat,True,
+1447fb6bef233a38,Boat,Boat,False,,0.2555,Boat,True,
+1db6996b94c3af8d,Boat,Boat,False,,0.13,Boat,True,Land vehicle:0.00
+fc5b64805320012d,Boat,Boat,False,,0.5873,Boat,True,
+4249ac270d072538,Boat,Boat,False,,0.0586,Boat,True,House:0.11
+99460a5a11b7ac90,Boat,Boat,False,,0.5511,Boat,True,
+e9da9f62827fa706,Boat,Boat,False,,0.602,Boat,True,Vehicle:0.24
+a452701e62b164a9,Boat,Boat,False,,0.4677,Boat,True,
+c8b9bd3fa5785297,Boat,Boat,False,,1.0,Boat,True,
+4615810bd256dcf3,Lighthouse,Lighthouse,False,small|dominant,0.0049,Lighthouse,True,Plant:0.49
+9787ac9ac4f486c0,Lighthouse,Lighthouse,False,small,0.0341,Lighthouse,True,
+5c1a2d0748163047,Lighthouse,Lighthouse,False,small,0.004,Lighthouse,True,
+5a4f261d16078bfb,Lighthouse,Lighthouse,False,small,0.0038,Lighthouse,True,Tower:0.00
+90b7ac643e6f206d,Lighthouse,Lighthouse,False,small,0.0087,Lighthouse,True,Tower:0.01
+34fea7643aeb1a1d,Lighthouse,Lighthouse,False,small,0.007,Lighthouse,True,Tower:0.01
+daf532b9895cdcf5,Lighthouse,Lighthouse,False,small,0.0132,Lighthouse,True,Tower:0.01
+381e9a45a6ab1043,Lighthouse,Lighthouse,False,small,0.0031,Lighthouse,True,Tower:0.00
+466f90cf5e3c4385,Lighthouse,Lighthouse,False,small|multi,0.0067,Boat|Lighthouse,True,Tower:0.01
+703e545175b910f4,Lighthouse,Lighthouse,False,small,0.0142,Lighthouse,True,Tower:0.01
+1c63f023a27a8a05,Lighthouse,Lighthouse,False,small,0.0057,Lighthouse,True,Tower:0.01
+a6c72bb2a844c588,Lighthouse,Lighthouse,False,small,0.0149,Lighthouse,True,Tower:0.01
+13474311f7c7018d,Lighthouse,Lighthouse,False,small,0.025,Lighthouse,True,Building:0.02
+89a5e7e2b8e869f3,Lighthouse,Lighthouse,False,multi,0.2525,Boat|Lighthouse,True,
+3630d92f18d8a8b0,Lighthouse,Lighthouse,False,,0.347,Lighthouse,True,Tower:0.34
+789faaaa564c322f,Lighthouse,Lighthouse,False,,0.2868,Lighthouse,True,Tower:0.29
+45fa92963621050e,Lighthouse,Lighthouse,False,,0.5405,Lighthouse,True,Building:0.80
+847c04a3820fbedf,Lighthouse,Lighthouse,False,,0.2942,Lighthouse,True,Tower:0.29
+a9dd422cab028dab,Lighthouse,Lighthouse,False,,0.9693,Lighthouse,True,Tower:0.98
+507562f4ea11092c,Lighthouse,Lighthouse,False,,0.1685,Lighthouse,True,Tree:0.49
+7c0ab29f806aed2d,Lighthouse,Lighthouse,False,,0.4124,Lighthouse,True,Tower:0.45
+385a2569f6076bad,Lighthouse,Lighthouse,False,,0.2686,Lighthouse,True,Tower:0.27
+88fa97be6812e95c,Lighthouse,Lighthouse,False,,0.8733,Lighthouse,True,Tower:0.87
+67312b84a60225c8,Lighthouse,Lighthouse,False,,0.5344,Lighthouse,True,Tower:0.53
+15c8fb0246bce893,Lighthouse,Lighthouse,False,,0.5728,Lighthouse,True,Tower:0.58
+3d57898a9be46b98,Lighthouse,Lighthouse,False,,0.3338,Lighthouse,True,Tower:0.32
+612b664670d57b5e,Lighthouse,Lighthouse,False,,0.1568,Lighthouse,True,
+203a8a753ce697bd,Lighthouse,Lighthouse,False,,0.2749,Lighthouse,True,Tower:0.28
+211e5cc77da92206,Lighthouse,Lighthouse,False,,0.3683,Lighthouse,True,Tower:0.37
+c0a078b6d3a32790,Lighthouse,Lighthouse,False,,0.5422,Lighthouse,True,Tower:0.53
+a5cf958f4092e698,Lighthouse,Lighthouse,False,,0.3434,Lighthouse,True,
+6d6ecdf31cf2fbe7,Lighthouse,Lighthouse,False,,0.3445,Lighthouse,True,Building:0.65
+473025391825b98d,Lighthouse,Lighthouse,False,,0.2437,Lighthouse,True,Tree:0.32
+d31dfd17c2a48f1b,Lighthouse,Lighthouse,False,,0.7498,Lighthouse,True,Tower:0.75
+b19a0a482fb36565,Lighthouse,Lighthouse,False,,0.726,Lighthouse,True,Tower:0.72
+a703483f3d2f46a0,Lighthouse,Lighthouse,False,,0.2432,Lighthouse,True,Tower:0.23
+4c3a958bfc64435d,Lighthouse,Lighthouse,False,,0.5209,Lighthouse,True,Tower:0.52
+6f8ab265a4b83257,Lighthouse,Lighthouse,False,,0.5677,Lighthouse,True,Tower:0.56
+69abafd1450b5203,Lighthouse,Lighthouse,False,,0.4899,Lighthouse,True,Tower:0.46
+bf675c48dc113ce4,Lighthouse,Lighthouse,False,,0.2816,Lighthouse,True,Tree:0.31
+3d49ba36e2c15bab,Harbor seal,Harbor seal,False,small,0.0153,Harbor seal,True,Otter:0.02
+1f29bf6f469ac1b7,Harbor seal,Harbor seal,False,small,0.0333,Harbor seal,True,Sea lion:0.03
+08f1b5efd7c6a278,Harbor seal,Harbor seal,False,dominant,0.0678,Harbor seal,True,Animal:0.66
+4ec2c6e443822aa8,Harbor seal,Harbor seal,False,dominant,0.2155,Harbor seal,True,Sea lion:0.72
+68792af7790c3a0f,Harbor seal,Harbor seal,False,small,0.0304,Harbor seal,True,Carnivore:0.05
+7f9376041f1869a6,Harbor seal,Harbor seal,False,small,0.0499,Harbor seal,True,Sea lion:0.05
+1f06f74cdb86124f,Harbor seal,Harbor seal,False,dominant,0.0836,Harbor seal,True,Sea lion:0.31
+9a0c4eb8356297da,Harbor seal,Harbor seal,False,small,0.0178,Harbor seal,True,Otter:0.02
+7aafd1b3dce59952,Harbor seal,Harbor seal,False,small,0.0461,Harbor seal,True,Sea lion:0.04
+0befd778dc1ce16d,Harbor seal,Harbor seal,False,small,0.0208,Harbor seal,True,Otter:0.02
+ad00727dba851366,Harbor seal,Harbor seal,False,,0.2268,Harbor seal,True,Sea lion:0.24
+b79d9d5456735627,Harbor seal,Harbor seal,False,,0.1126,Harbor seal,True,Sea lion:0.11
+464f960f32835403,Harbor seal,Harbor seal,False,,0.5063,Harbor seal,True,Sea lion:0.50
+ee6f70ef3de63e6d,Harbor seal,Harbor seal,False,,1.0,Harbor seal,True,Sea lion:1.00
+71e3512f1a96b81a,Harbor seal,Harbor seal,False,,0.2572,Harbor seal,True,Sea lion:0.21
+8a0037aff21a48a7,Harbor seal,Harbor seal,False,,0.4794,Harbor seal,True,Otter:0.48
+c2def81612c7dd02,Harbor seal,Harbor seal,False,,0.9552,Harbor seal,True,Sea lion:0.96
+9839e242e75e327e,Harbor seal,Harbor seal,False,,0.3788,Harbor seal,True,Mammal:0.85
+42ff91bd32d50613,Harbor seal,Harbor seal,False,,0.635,Harbor seal,True,Sea lion:0.67
+3fa5da93895d2de8,Harbor seal,Harbor seal,False,,0.5861,Harbor seal,True,Sea lion:0.58
+d47653b2867e9974,Harbor seal,Harbor seal,False,,0.8843,Harbor seal,True,Sea lion:0.89
+df6d8a5bb6dd31a9,Harbor seal,Harbor seal,False,,0.0607,Harbor seal,True,Mammal:0.08
+ac34ef02e2fac9d8,Harbor seal,Harbor seal,False,,0.9155,Harbor seal,True,Otter:0.95
+0c51c1b3236918f7,Harbor seal,Harbor seal,False,,0.1031,Harbor seal,True,Carnivore:0.19
+b833d5239456ae81,Harbor seal,Harbor seal,False,,0.7857,Harbor seal,True,Sea lion:0.78
+792b91680b388cfb,Harbor seal,Harbor seal,False,,0.8234,Harbor seal,True,Sea lion:0.81
+e8dcd70c17308976,Harbor seal,Harbor seal,False,,0.3073,Harbor seal,True,Sea lion:0.27
+32e78de9f6b01d8e,Harbor seal,Harbor seal,False,,0.3149,Harbor seal,True,Carnivore:0.32
+a1b204b6512f9242,Harbor seal,Harbor seal,False,,0.3274,Harbor seal,True,Otter:0.33
+72e2ea187fe09502,Harbor seal,Harbor seal,False,,0.2742,Harbor seal,True,Sea lion:0.28
+112c58c2a4bf05c7,Harbor seal,Harbor seal,False,,0.381,Harbor seal,True,Otter:0.47
+26bab478910dc7af,Harbor seal,Harbor seal,False,,0.3602,Harbor seal,True,Sea lion:0.36
+050900b32f1a84ab,Harbor seal,Harbor seal,False,,0.321,Harbor seal,True,
+9f1f0321de47db2e,Harbor seal,Harbor seal,False,,0.2918,Harbor seal,True,Otter:0.30
+643debcf3e54bc79,Harbor seal,Harbor seal,False,,0.6012,Harbor seal,True,Sea lion:0.60
+7da5debcdd086240,Harbor seal,Harbor seal,False,,0.2723,Harbor seal,True,Sea lion:0.28
+38852aa9afa89e79,Harbor seal,Harbor seal,False,,0.4887,Harbor seal,True,Otter:0.47
+bfbbd445c1bd7ff6,Harbor seal,Harbor seal,False,,0.1784,Harbor seal,True,Sea lion:0.18
+bc2c29dfa98ec33d,Harbor seal,Harbor seal,False,,0.2794,Harbor seal,True,Otter:0.28
+d9036ed42d3de252,Harbor seal,Harbor seal,False,,0.3575,Harbor seal,True,Sea lion:0.87
