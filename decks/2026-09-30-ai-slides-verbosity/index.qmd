@@ -1,0 +1,184 @@
+---
+title: "AI資料を読める長さにする"
+subtitle: "書く前に決める3点と、タイトルだけの確認"
+---
+
+<!-- audience: 上司・意思決定者（AI資料の読みにくさに困っているが、技術的な仕組みには関心が薄い） -->
+<!-- action: 次の資料1本で、書く前の3点とタイトル確認の型を試す -->
+<!-- minutes: 15 -->
+<!-- budget: 8 -->
+<!-- status: approved -->
+
+## AI資料が長く読みにくいのは偶然ではなく学習の癖だ
+
+<!-- evidence: 長さだけの報酬で RLHF 改善の大半が再現される（Singhal 2024） -->
+
+```{python}
+#| include: false
+import json
+from pathlib import Path
+E = {k: v["value"] for k, v in json.loads(Path("evidence.json").read_text()).items()}
+```
+
+- AIは「人が良いと判断した回答」に寄せて訓練される
+- その判断は長い回答に甘く、AIは長さそのものを覚える
+- 長さだけを褒めて訓練しても、勝率は通常の訓練とほぼ同じ（`{python} f"{E['lppo_winrate']}%"` 対 `{python} f"{E['ppo_winrate']}%"`）
+
+[出典: Singhal et al., COLM 2024]{.source}
+
+::: {.notes}
+RLHF（人の好みによる追加学習）の報酬モデルが長さに引きずられる。論文では、応答の長さだけを報酬にした学習でも、通常の報酬で学習した場合とほぼ同じ勝率になった（元のモデルとの比較、WebGPT データ）。つまり長さはAIの初期設定で、指示しなくても出る。
+:::
+
+## 自信のない箇所ほど、AIは前置きと言い訳で文章を水増しする
+
+<!-- evidence: verbosity compensation：GPT-4 の応答の50.40%、冗長な応答ほど精度が低い（Zhang 2024） -->
+
+- GPT-4 の応答の`{python} f"{E['vc_gpt4']:.1f}%"`に、答えに要らない水増しが出た
+- 水増しした応答は、簡潔な応答より正答率が平均`{python} f"{E['vc_gap_qasper']:.0f}"`ポイント低い
+- 資料では「〜と考えられます」「様々な要因」の形で現れる
+
+[出典: Zhang et al., 2024]{.source}
+
+::: {.notes}
+研究ではこれを verbosity compensation（冗長さによる埋め合わせ）と呼ぶ。分からないところを、言い換え・保険・一般論で埋める。読み手にとっては、長いのに情報がない段落になる。正答率の差は、14モデル平均・文書QA（Qasper）の再現率で測ったもの。
+:::
+
+## 「簡潔に」と指示しても長さは安定して縮まない
+
+<!-- evidence: 長さ指示の違反率 GPT-4 Turbo 49.3%・GPT-4o 39.0%（Yuan 2024） -->
+
+- 「◯語以内で」と長さを指示しても、GPT-4 Turbo は`{python} f"{E['li_violation_gpt4turbo']}%"`で守れなかった
+- 新しい GPT-4o でも`{python} f"{E['li_violation_gpt4o']}%"`で守れなかった
+- 効くのは指示ではなく、上限を先に決めて機械で確かめること
+
+[出典: Yuan et al., 2024]{.source}
+
+::: {.notes}
+長さの指示は、守られる回もあれば守られない回もある。毎回守らせたいなら、上限を数値で決めて、超えたら機械的に止めるしかない。
+:::
+
+## 理解を最も上げる手段は、足すことでなく削ることだ
+
+<!-- evidence: 効果量の図：coherence d=0.86、redundancy d=0.86、signaling d=0.41（Mayer & Fiorella 2014） -->
+
+```{python}
+import matplotlib.pyplot as plt
+plt.rcParams["font.family"] = ["Hiragino Sans", "sans-serif"]
+effects = [
+    ("本題と関係ない素材を削る", E["coherence_d"]),
+    ("話す文をスライドから外す", E["redundancy_d"]),
+    ("見出しや強調を足す", E["signaling_d"]),
+]
+fig, ax = plt.subplots()
+names, vals = [n for n, _ in effects], [v for _, v in effects]
+ax.barh(names, vals, color=["#0b5cad", "#0b5cad", "#9aa4ae"])
+for y, v in enumerate(vals):
+    ax.text(v + 0.02, y, f"{v:.2f}", va="center", fontsize=15)
+ax.set_xlim(0, 1.0)
+ax.set_xlabel("理解テストの改善（効果量の中央値。0.8以上は大きい）", fontsize=13)
+ax.tick_params(labelsize=14)
+ax.invert_yaxis()
+for s in ("top", "right"):
+    ax.spines[s].set_visible(False)
+plt.tight_layout()
+```
+
+[出典: Mayer & Fiorella, 2014（削る: 23件中23件、外す: 16件中16件、足す: 28件中24件の実験）]{.source}
+
+::: {.notes}
+教育研究では、学習内容と関係の薄い素材を削ると理解テストの成績が大きく上がる。スライドと同じ文を読み上げるのをやめても同じだけ上がる。見出しや強調を足す効果はその半分以下。長い資料に見出しを足すより、削る方が効く。
+:::
+
+## 成果を出す現場は、書く前に「誰に・何を・何分で」を決めている
+
+<!-- evidence: McKinsey ghost deck・Amazon 6-pager・段階生成（DocPres 読みやすさ3.90対2.30） -->
+
+- McKinsey：本文の前に、タイトルだけの下書きで合意する
+- Amazon：幹部会議の資料を文章にし、論旨を先に固める
+- AIでも骨子から段階的に作ると、読みやすさが5点満点で`{python} f"{E['docpres_readability']:.1f}"`対`{python} f"{E['gpt_readability']:.1f}"`になった
+
+[出典: McKinsey ghost deck; Bezos 2004 社内メール; DocPres, INLG 2024]{.source}
+
+::: {.notes}
+DocPres は論文5本・評価者2人の小規模な評価で、比較相手は GPT に一括で作らせた3方式。数字は目安として扱う。
+:::
+
+## 型は3段階：書く前に3点を決め、タイトルで合意し、機械で検査する
+
+<!-- evidence: 3段階の流れ図（本人がやることは「3点を答える」「タイトルを見る」の2つ） -->
+
+```{python}
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+plt.rcParams["font.family"] = ["Hiragino Sans", "sans-serif"]
+steps = [
+    ("1. 書く前に3点", "誰に\n何をしてほしいか\n何分で", "あなたが答える", "#0b5cad"),
+    ("2. タイトルで合意", "各ページの結論を\n1行ずつ並べて\n縦に読む", "あなたが見る", "#0b5cad"),
+    ("3. 機械で検査", "枚数・文字量・\n言い訳語の超過を\n自動で止める", "AIと仕組みが行う", "#9aa4ae"),
+]
+fig, ax = plt.subplots(figsize=(11, 4.6))
+ax.set_xlim(0, 3); ax.set_ylim(0, 1); ax.axis("off")
+for i, (head, body, who, color) in enumerate(steps):
+    x = i + 0.05
+    ax.add_patch(FancyBboxPatch((x, 0.3), 0.85, 0.55, boxstyle="round,pad=0.02",
+                                fc="white", ec=color, lw=2.5))
+    ax.text(x + 0.425, 0.72, head, ha="center", fontsize=17, weight="bold", color=color)
+    ax.text(x + 0.425, 0.49, body, ha="center", va="center", fontsize=14, linespacing=1.6)
+    ax.text(x + 0.425, 0.15, who, ha="center", fontsize=13, color=color)
+    if i < 2:
+        ax.annotate("", xy=(x + 0.97, 0.575), xytext=(x + 0.88, 0.575),
+                    arrowprops=dict(arrowstyle="->", lw=2, color="#6e7781"))
+plt.tight_layout()
+```
+
+::: {.notes}
+あなたの手間は2回だけ。最初に3点を答えることと、タイトル一覧を見てOKか直しを返すこと。文字量や枚数の上限は仕組みが自動で止めるので、読む前に長さで疲れることがなくなる。
+:::
+
+## タイトルだけを縦に読めば、論旨は1分で確かめられる
+
+<!-- evidence: この資料自身のタイトル8本の連読（lint_slides.py --titles の出力） -->
+
+```{python}
+import sys
+sys.path.insert(0, str(Path("../../.claude/skills/slides/scripts").resolve()))
+from lint_slides import parse_deck, zen_len
+from IPython.display import Markdown
+titles = [s.title for s in parse_deck(Path("index.qmd")).slides if not s.appendix]
+chars = sum(zen_len(t) for t in titles)
+Markdown("\n".join(f"{i}. {t}" for i, t in enumerate(titles, 1))
+         + f"\n\n[この資料の本編{len(titles)}枚のタイトル。合計{chars:.0f}字]{{.source}}")
+```
+
+## 次の資料1本で、書く前の3点とタイトル確認だけを試してほしい
+
+<!-- evidence: 依頼内容・追加の手間・終わった後に見る点 -->
+
+- 書かせる前に「誰に・何をしてほしいか・何分で」をAIに伝える
+- タイトルだけの一覧が出たら、縦に読んでOKか直しを返す
+- 終わったら、読み終えるまでの時間と差し戻しの回数を比べる
+
+::: {.notes}
+依頼は1本だけでよい。仕組み（tool-slides）はこちらで用意済みで、あなたの追加の手間は3点の回答とタイトル確認の2回。比べる指標は2つで十分。
+:::
+
+<!-- appendix -->
+
+## 根拠ごとに確からしさは異なり、最も強いのは削る効果だ {.smaller}
+
+| 主張 | 根拠 | 確からしさ |
+|---|---|---|
+| AIは長さを好むよう学習する | Singhal et al. 2024 | LLM研究 |
+| 不確実なほど水増しする | Zhang et al. 2024 | LLM研究（QA形式） |
+| 長さの指示は守られない | Yuan et al. 2024 | LLM研究 |
+| 削ると理解が上がる | Mayer & Fiorella 2014 | 教育研究（最も強い） |
+| 先に骨子で合意する | McKinsey; Amazon; DocPres 2024 | 実務＋小規模評価 |
+| 完全文のタイトル | Garner & Alley 2016 | 教育研究（単一ラボ中心） |
+
+## この調査には4つの限界がある
+
+- 教育研究の結果を会議資料に当てはめたもので、直接の測定はない
+- 「1枚1.5分」などの枚数ルールには実証がない
+- 完全文タイトルの効果（d=0.49）は作成者自身を測ったもので、聴衆への効果ではない
+- この型そのものの効果は、まだ測っていない

@@ -61,6 +61,7 @@ BULLET_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+\S")
 META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status)\s*:\s*(.*?)\s*-->")
 APPENDIX_RE = re.compile(r"<!--\s*appendix\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+QUOTE_RE = re.compile(r"「[^」]*」")
 
 
 # ---- 文字幅 ---------------------------------------------------------------
@@ -369,14 +370,16 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
 
         visible = [(ln, strip_md(t)) for ln, t in s.body]
         visible = [(ln, t) for ln, t in visible if t]
-        for ln, t in visible + [(s.line, strip_md(s.title))]:
+        # 「」内は語の引用（例示）なので NG 語検査から外す
+        unquoted = [(ln, QUOTE_RE.sub("", t)) for ln, t in visible + [(s.line, strip_md(s.title))]]
+        for ln, t in unquoted:
             for p in ng.get("buzzword", []):
                 m = p.search(t)
                 if m:
                     issues.append(Issue("warning", ln, s, "buzzword",
                                         f"`{m.group(0)}`。具体的な対象・数値に置き換える"))
         hedges = []
-        for ln, t in visible + [(s.line, s.title)]:
+        for ln, t in unquoted:
             for p in ng.get("hedge", []):
                 for m in p.finditer(t):
                     hedges.append((ln, m.group(0)))

@@ -1,0 +1,13 @@
+{
+  "lppo_winrate": {"value": 56, "source": "https://arxiv.org/html/2310.03716", "note": "Singhal et al. COLM 2024, Table 2, WebGPT: length-only PPO win rate vs SFT (simulated preference)"},
+  "ppo_winrate": {"value": 58, "source": "https://arxiv.org/html/2310.03716", "note": "同上、通常の報酬モデルでの PPO"},
+  "vc_gpt4": {"value": 50.40, "source": "https://arxiv.org/abs/2411.07858", "note": "Zhang et al. 2024 abstract: GPT-4 exhibits a VC frequency of 50.40%"},
+  "vc_gap_qasper": {"value": 20.34, "source": "https://arxiv.org/html/2411.07858", "note": "Table 2: 14モデル平均、Qasper の再現率で簡潔な応答が冗長な応答を上回る差（ポイント）"},
+  "li_violation_gpt4turbo": {"value": 49.3, "source": "https://arxiv.org/html/2406.17744", "note": "Yuan et al. 2024, Table 2, AlpacaEval-LI の長さ制約違反率"},
+  "li_violation_gpt4o": {"value": 39.0, "source": "https://arxiv.org/html/2406.17744", "note": "同上、GPT-4o"},
+  "coherence_d": {"value": 0.86, "source": "Mayer & Fiorella 2014, Cambridge Handbook of Multimedia Learning ch.12", "note": "coherence principle: 23/23 tests, median d = 0.86"},
+  "redundancy_d": {"value": 0.86, "source": "Mayer & Fiorella 2014", "note": "redundancy principle: 16/16 tests, median d = 0.86"},
+  "signaling_d": {"value": 0.41, "source": "Mayer & Fiorella 2014", "note": "signaling principle: 24/28 tests, median d = 0.41"},
+  "docpres_readability": {"value": 3.90, "source": "https://aclanthology.org/2024.inlg-main.18.pdf", "note": "Table 2, Readability (1-5)、論文5本・評価者2人の小規模評価"},
+  "gpt_readability": {"value": 2.30, "source": "https://aclanthology.org/2024.inlg-main.18.pdf", "note": "同上、GPT 一括生成3方式すべて 2.30"}
+}
