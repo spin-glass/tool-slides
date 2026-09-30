@@ -21,6 +21,17 @@ claude   # 「/slides 〜の発表資料を作って」
 
 出力先は `_output/decks/<name>/`。新しいデッキは `decks/_template/` をコピーする。
 
+## 公開（Cloudflare）
+
+```sh
+npx wrangler login        # 初回のみ
+scripts/publish.sh        # 全デッキを revealjs・PDF・pptx で出力し、一覧ページを付けて公開
+```
+
+公開先は https://tool-slides.toshihiro-engineer.workers.dev （Workers の静的アセット、設定は `wrangler.jsonc`）。
+URL を知っていれば誰でも閲覧できる。検索避けに `noindex` と `robots.txt` を付けている。
+Cloudflare Pages は Workers に統合されたため、`wrangler pages` ではなく `wrangler deploy` を使う。
+
 ## 構成
 
 ```

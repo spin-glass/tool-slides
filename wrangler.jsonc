@@ -1,0 +1,9 @@
+// Cloudflare Workers の静的アセットとして _output/（scripts/publish.sh の出力）を配信する
+{
+  "name": "tool-slides",
+  "compatibility_date": "2026-09-26",
+  "assets": {
+    "directory": "./_output",
+    "not_found_handling": "404-page"
+  }
+}
