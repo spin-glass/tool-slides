@@ -113,7 +113,7 @@ imgfig.moved_figure(ev, T[1], T[5], cols_each=[10, 2], caption=cap,
                     outlier_title="外れ値に移る 犬以外", normal_title="失う犬", max_height_in=5.3);
 ```
 
-[線の間にいた46枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+[線の間にいた`{python} sum(moved_counts(1, 5))`枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
 
 ::: {.notes}
 除ける40枚は、キツネ・ライオン・ハイエナ・ウサギ・アライグマなど、見れば犬でないと分かる動物が中心。失う6枚は、白黒写真、ヘッドホンを着けた犬、子犬の群れ、檻の奥の犬で、犬ではあるが写り方が典型的でない。
@@ -137,7 +137,7 @@ imgfig.moved_figure(ev, T[5], T[10], cols_each=[6, 4], caption=cap,
 - 犬1枚と引き換えに除ける犬以外は、`{python} f"{o1 / d1:.1f}"`枚から`{python} f"{o2 / d2:.1f}"`枚に減る
 - 新しく除けるのは猫とオオカミが中心で、失う犬には子犬の群れや服を着た犬が入る
 
-[線の間にいた20枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+[線の間にいた`{python} sum(moved_counts(5, 10))`枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
 
 ::: {.notes}
 同じ「厳しくする」でも中身が変わる。1%から5%では、犬を1枚失うごとに犬以外を6.7枚除けた。5%から10%では1.5枚に落ちる。新しく除ける12枚のうち9枚は猫とオオカミで、失う犬は子犬の群れ、服を着た犬、人の手で洗われている犬など。この8枚を失ってよいかは、枚数ではなく写真を見て決めることになる。
@@ -163,7 +163,7 @@ d3, o3 = moved_counts(10, 20)
 - 20%まで厳しくしても、犬`{python} d3`枚を失って除けるのは`{python} o3`枚にとどまる
 - 残りは閾値ではなく、猫の判定を足すなど別の手段で防ぐ
 
-[残った11枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+[残った`{python} len(remain)`枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
 
 ::: {.notes}
 ここから先は、線を動かしても割に合わない。残る写真を見ると、閾値の調整ではなく別の対策が要ると分かる。これも枚数の表からは読み取れない。猫が残る理由は、犬の写真と撮られ方が似ているためと考えられるが、これは推測で、確かめてはいない。
@@ -175,7 +175,7 @@ d3, o3 = moved_counts(10, 20)
 
 - 候補の線を2本選び、その間で判定が変わる画像を全部並べる
 - 見る点は2つ：失う正常画像は許せるか、残る外れ値は別の手段で防げるか
-- 並べた1枚は、スコアの一覧と画像フォルダから1コマンドで作れる
+- 並べた図は、スコアの一覧と画像フォルダから1コマンドで作れる
 
 ```{python}
 #| fig-alt: "並べた1枚の見本。5%の線と10%の線の間で判定が変わる20枚を、犬以外と犬に分けて並べたもの。"
@@ -183,7 +183,7 @@ imgfig.moved_figure(ev, T[5], T[10], cols_each=[6, 4], caption=cap,
                     outlier_title="見本：5%→10%で外れ値に移る 犬以外", normal_title="失う犬", max_height_in=2.9);
 ```
 
-[見本は4枚目と同じ図で、線の間の20枚をすべて表示]{.source}
+[見本は4枚目と同じ図で、線の間の`{python} sum(moved_counts(5, 10))`枚をすべて表示]{.source}
 
 ::: {.notes}
 コマンドは `python .claude/skills/slides/scripts/imgfig.py moved --scores scores.csv --thumbs thumbs/ --normal-group dog --from-loss 0.01 --to-loss 0.05 --out moved.png`。今日の3枚目と4枚目の図は、この関数で描いている。

@@ -32,8 +32,14 @@ class Fixtures(unittest.TestCase):
         self.assertEqual(rules("ghost_with_body.qmd", "block"), ["ghost-body"])
 
     def test_images(self):
-        self.assertEqual(rules("image_checks.qmd", "block"), ["image-missing"])
+        self.assertEqual(sorted(rules("image_checks.qmd", "block")), ["hand-count", "image-missing"])
         self.assertEqual(sorted(rules("image_checks.qmd", "warning")), ["fig-alt", "image-absolute", "image-alt", "pick-rule"])
+
+    def test_hand_counts_in_image_decks(self):
+        deck = lint.parse_deck(ROOT / "tests/fixtures/hand_counts.qmd")
+        found = [i for i in lint.check_deck(deck, NG) if i.rule == "hand-count"]
+        self.assertEqual(len(found), 1)                      # インライン式・「1枚ずつ」「1枚目」・タイトルは見ない
+        self.assertIn("10枚", found[0].message)
 
     def test_decided_by_is_optional_meta(self):
         deck = lint.parse_deck(ROOT / "tests/fixtures/image_checks.qmd")

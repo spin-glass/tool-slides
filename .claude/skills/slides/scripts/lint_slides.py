@@ -70,6 +70,10 @@ PICK_RE = re.compile(r"すべて|全数|全部|全\d+枚|等間隔|上位|下位
 # 画像の中身についての言い切り。縮小した画像では見落としやすい（小さく写るもの、よく似た種）ので、元の大きさで確かめさせる
 ABSOLUTE_RE = re.compile(r"ばかり|[1一]枚も|写っていない|写らない|だけが写|しか写|例外なく|全員|全頭|どれでもない|"
                          r"だけの写真|ラベルの誤り|ラベルが誤")
+# 手で書いた枚数（写真の図を使うデッキで）。数え直した後に古い値が残るので、コードで数えた値を埋める
+INLINE_CODE_RE = re.compile(r"`\{(?:python|r)\}[^`]*`")
+COUNT_IDIOM_RE = re.compile(r"\d+枚目|[1１一]枚(?:ずつ|[1１一]枚|あたり|につき|と引き換え)")   # 順番・1枚ずつ などは枚数でない
+HAND_COUNT_RE = re.compile(r"(?<![\d.,])\d+\s*枚")
 APPENDIX_RE = re.compile(r"<!--\s*appendix\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 QUOTE_RE = re.compile(r"「[^」]*」")
@@ -333,6 +337,9 @@ def check_title(s: Slide) -> list[Issue]:
 
 def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
     issues: list[Issue] = []
+    uses_imgfig = any("imgfig" in line for line in deck.all_lines)    # 写真の図を使うデッキ（枚数を手で書かせない）
+    asserted = {int(n) for line in deck.all_lines if re.match(r"\s*assert\b", line)
+                for n in re.findall(r"(?<![\w.])\d+(?![\w.])", line)}   # 描画のコードで検算した数（手で書いてもよい）
 
     # 生成前ゲートの記録
     for key in REQUIRED_META:
@@ -430,6 +437,17 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
                 issues.append(Issue("warning", hits[0][0], s, "image-absolute",
                                     f"画像について言い切っている（{words}）。`imgfig.py sheet` で該当する画像を元の写真で"
                                     "全枚見て（端・奥・物の陰まで）、1枚も外れないことを確かめる"))
+
+        if uses_imgfig:                # 手で書いた枚数（タイトルは見ない。appendix も対象）
+            hand = [(ln, m.group(0)) for ln, t in s.body
+                    for m in HAND_COUNT_RE.finditer(COUNT_IDIOM_RE.sub("", strip_md(INLINE_CODE_RE.sub("〇", t))))
+                    if int(re.match(r"\d+", m.group(0)).group(0)) not in asserted]
+            if hand:
+                words = "、".join(dict.fromkeys(w for _, w in hand))
+                issues.append(Issue("block", hand[0][0], s, "hand-count",
+                                    f"枚数を手で書いている（{words}）。コードで数えた値を `{{python}} len(...)` で埋めるか、"
+                                    "描画のコードに assert で検算を書く（分け直した後に古い数が残るのを防ぐ）。"
+                                    "選び方の注記は `imgfig.pick_note` で書く"))
 
         if s.appendix:
             continue   # appendix は密度制限を免除
