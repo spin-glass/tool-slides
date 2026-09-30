@@ -27,6 +27,8 @@ TITLE = "検証: 出来はモデルによるのか、スキルによるのか"
 LEAD = """同じ依頼を、モデル（Fable 5.1・Opus 5.5・Sonnet 5.5）と slides スキルの有無・版を変えて作らせたデッキです。
 依頼はどれも「画像分類の誤り（または新旧の版の違い）を、実際の画像で説明する10分の発表」。スキルの版は、なし・初版（画像の仕組みが無い版）・
 検証時の版（具体例の画像の作り方を一般化した版）・改訂版（検証の指摘を受けて直した版）の4つです。
+独立した検証では、改訂版と、規則を足した版（画像について書く前に元の大きさで1枚ずつ見る、データのラベルも写真と照らして疑う）を、
+鳥6種の別の課題で比べました（Opus・Sonnet。データのラベルのうち6枚は、わざと別の種に変えてあります）。
 「総合」は、条件を伏せた評価者（Claude のモデル）による5段階の評価の平均で、括弧内は評価者の人数です。
 「型」は、事前に決めた合否（本編7枚以下・言い切りタイトル80%以上・本文250字以下・数値の誤り0・画像20枚以上）です。"""
 
@@ -44,6 +46,48 @@ def image_checks() -> dict[str, list[dict]]:
         out.setdefault(r["deck"], [])
         if r["final"] in ("ng", "partial"):
             out[r["deck"]].append(r)
+    return out
+
+
+BIRD_TASKS = {"birds": "独立した検証：鳥6種（仕込んだ6枚は、写真の題名にも種が書かれていた）",
+              "birds2": "独立した検証の追加：鳥6種（仕込んだ6枚は、題名から種が分からない写真）"}
+
+
+def bird_sections() -> list[str]:
+    """鳥の課題（独立した検証とその追加）のデッキ。指標1（主張と画像の食い違い）と指標2（仕込んだ6枚）を添える。"""
+    metrics = [m for m in csv.DictReader(open(report.RESULTS / "metrics.csv", encoding="utf-8")) if m["task"] in BIRD_TASKS]
+    rates: dict[str, list[float]] = {}
+    for r in report.read_csv(report.RESULTS / "imagecheck_birds_rates.csv"):
+        if r["rate"] != "":
+            rates.setdefault(r["deck"], []).append(float(r["rate"]))
+    out = []
+    for task, title in BIRD_TASKS.items():
+        planted: dict[str, list[dict]] = {}
+        for r in report.read_csv(report.RESULTS / f"{task}_planted.csv"):
+            planted.setdefault(r["run_id"], []).append(r)
+        shown = {(r["run_id"], r["id"]): r["shown"] == "True" for r in report.read_csv(report.RESULTS / f"{task}_shown.csv")}
+        shown |= {(r["run_id"], r["id"]): r["shown"] == "True"
+                  for r in report.read_csv(report.RESULTS / f"{task}_shown_checked.csv")}
+        rows = []
+        for m in sorted((m for m in metrics if m["task"] == task), key=lambda m: (m["model"], m["skill"], m["rep"])):
+            src = WORK / "runs" / m["run_id"] / "ws/_output/decks/bird-errors"
+            if not (src / "index.html").exists():
+                continue
+            shutil.copytree(src, SITE / m["run_id"])
+            title_ = html.escape(deck_title(report.RESULTS / m["run_id"] / "index.qmd"))
+            v = rates.get(m["run_id"], [])
+            m1 = f"{100 * sum(v) / len(v):.0f}%（{len(v)}名）" if v else "—"
+            p = planted.get(m["run_id"], [])
+            caught = sum(r["caught"] == "yes" for r in p)
+            misled = sum(r["caught"] != "yes" and shown.get((m["run_id"], r["id"]), False) for r in p)
+            m2 = f"{caught}/6・{misled}" if p else ""
+            rows.append(f"<tr><td>{report.MODEL_JA[m['model']]}</td><td>{report.SKILL_JA[m['skill']]}</td>"
+                        f"<td>{m['rep'].lstrip('r')}</td><td><a href=\"{m['run_id']}/index.html\">{title_ or m['run_id']}</a></td>"
+                        f"<td>{m['n_main']}枚</td><td>{m1}</td><td>{m2}</td></tr>")
+        if rows:
+            out.append(f"<h2>{html.escape(title)}</h2><table><tr><th>モデル</th><th>スキル</th><th>回</th><th>デッキ</th>"
+                       f"<th>本編</th><th>主張と画像の食い違い</th><th>仕込んだ6枚（見抜いた・誤ったまま見せた）</th></tr>"
+                       f"{''.join(rows)}</table>")
     return out
 
 
@@ -81,6 +125,7 @@ def build() -> None:
             continue
         body.append(f"<h2>{html.escape(title)}</h2><table><tr><th>モデル</th><th>スキル</th><th>回</th><th>デッキ</th>"
                     f"<th>本編</th><th>型</th><th>総合</th><th>画像</th><th>画像と主張</th></tr>{''.join(sections[task])}</table>")
+    body += bird_sections()
     notes = ("<p class=\"n\">「画像と主張」は、スライドの主張（タイトル・箇条書き・図の見出し・画像ごとの説明）を、載っている画像と"
              "1件ずつ照らした結果（確認者は Claude のモデル。一部は元画像を拡大して確かめ直した）。件数を押すと中身を見られる。</p>"
              "<p class=\"n\">3点を与えない依頼の Fable は、ゲート課題（8ターンまで）でそのまま作り切ったデッキ。"
@@ -121,9 +166,12 @@ h2{{font-size:1.05em;margin-top:2em}} li{{margin:8px 0;line-height:1.6}} .d{{col
 {"".join(blocks)}<p><a href="index.html">検証のデッキ一覧へ</a></p></body></html>'''
     (SITE / "imagecheck.html").write_text(detail, encoding="utf-8")
 
-    rows = list(csv.DictReader(open(HERE / "task/data/credits.csv", encoding="utf-8")))
-    items = "".join(f'<li>{html.escape(r["title"] or "（無題）")} — {html.escape(r["author"])} '
-                    f'（<a href="{html.escape(r["source"])}">元の写真</a>）</li>' for r in rows)
+    def credit_items(path: Path) -> str:
+        return "".join(f'<li>{html.escape(r["title"] or "（無題）")} — {html.escape(r["author"])} '
+                       f'（<a href="{html.escape(r["source"])}">元の写真</a>）</li>'
+                       for r in csv.DictReader(open(path, encoding="utf-8")))
+    items = (credit_items(HERE / "task/data/credits.csv") + "</ol><h2>鳥6種の課題（独立した検証）</h2><ol>"
+             + credit_items(HERE / "task3/data/credits.csv"))
     credits = f'''<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>写真の出典</title><meta name="robots" content="noindex">
 <style>body{{font-family:"Hiragino Sans","Noto Sans JP",sans-serif;max-width:960px;margin:40px auto;padding:0 16px;color:#1f2328;background:#fff}}

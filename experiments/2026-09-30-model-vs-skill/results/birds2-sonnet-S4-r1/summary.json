@@ -1,0 +1,48 @@
+{
+  "run_id": "birds2-sonnet-S4-r1",
+  "task": "birds2",
+  "model": "sonnet",
+  "skill": "S4",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 485,
+  "num_turns": 43,
+  "cost_usd": 1.677,
+  "output_tokens": 61767,
+  "models_used": {
+    "claude-sonnet-5-5": 1.677
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/eye_review.csv",
+    "decks/bird-errors/data/eye_review.md",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 20,
+    "Read": 21,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.11,
+    "seven_day": 0.73,
+    "status": "allowed"
+  },
+  "final_message": "`decks/bird-errors/index.qmd` を作り、`quarto render decks/bird-errors/index.qmd` で HTML が出ることまで確認しました（出力先は `_output/decks/bird-errors/index.html`）。lint は block 0・warning 0 で、全枚を目視して重なりと折り返しは直しました。commit・push・公開はしていません。Notion にも保存していません。\n\n## 決めた前提（任された分）\n- **聴衆**: 画像分類を運用するチーム。正解率と混同行列は毎回見ているが、間違えた画像は見たことがない。\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間**: 10分。本編は6枚（10÷1.5）で、付録が1枚あります。\n\n## タイトル一覧\n1. 誤りは240枚中29枚で、ハクチョウ・カモ・ワシの3組が20枚を占める\n2. ハクチョウをカモと誤った8枚のうち、4枚は黒いハクチョウだ\n3. カモをハクチョウと誤った6枚は、5枚がカモ以外の鳥で1枚がガンだ\n4. ワシをフクロウと誤った6枚は、タカ・ハヤブサ5枚とフクロウ1枚だ\n5. 残り9枚のうち6枚は、ラベルと違う鳥が写っている\n6. 対策の前に間違えた画像を見よう。29枚中16枚は鳥がラベルと違った\n\n誤り29枚は、誤りの組が多い順に3組（20枚）、次に残りの9枚と、全数を見せています。ワシの誤りには、正解になったワシ6枚（34枚から等間隔）を並べて対比しました。\n\n## 画像を見て分かったこと\n- **ラベルの側の問題が多い。** 誤り29枚のうち、ペリカン・フラミンゴ・オンドリなど写っている鳥がラベルと違うものが16枚、モデルの誤りが12枚、ガン1枚が判断が分かれるでした。\n- **「飛んでいるからワシを誤る」とは言えない。** 正解のワシにも青空を飛ぶ猛禽が多く、この説は取りませんでした。\n- **ガンの扱いを変えた。** 正解のカモの写真にもガンが混じっていたため、ガンは「ラベルと違う鳥」に入れませんでした。\n\n## 確認してほしい点\n- **目視判定は私1人の判断です。** アノテーターの確認は済んでいません。表は `data/eye_review.csv`、作り方は `data/eye_review.md` に残しました。スライドの出典行とノートにも書いてあります。\n- **正解211枚のラベルは数えていません。** 見た範囲では、カモにカモメやウミスズメも混じっていました。\n- **`credits.html`** は `prepare.py` で作りました。`resources:` に指定してあります。240枚全部の作者・出典の一覧です。\n- **`.gitignore`** に `/.quarto/` などの2行が入っていますが、Quarto が自動で追記したものです。\n\n## 追加・変更したファイル\n- `decks/bird-errors/index.qmd`\n- `decks/bird-errors/prepare.py`\n- `decks/bird-errors/credits.html`\n- `decks/bird-errors/data/eye_review.csv`\n- `decks/bird-errors/data/eye_review.md`\n\n`CLAUDE.md` にある個人 Notion の共通ルール取得は、Notion を使わない指示だったので行っていません。"
+}

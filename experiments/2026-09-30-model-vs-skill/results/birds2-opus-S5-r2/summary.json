@@ -1,0 +1,52 @@
+{
+  "run_id": "birds2-opus-S5-r2",
+  "task": "birds2",
+  "model": "opus",
+  "skill": "S5",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 613,
+  "num_turns": 64,
+  "cost_usd": 3.144,
+  "output_tokens": 57243,
+  "models_used": {
+    "claude-opus-5-5": 3.144
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/eye_check_correct.csv",
+    "decks/bird-errors/data/label_fix.csv",
+    "decks/bird-errors/data/review_errors.csv",
+    "decks/bird-errors/data/sheets/errors-2.jpg",
+    "decks/bird-errors/data/sheets/errors.jpg",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 26,
+    "Read": 29,
+    "Write": 2,
+    "Edit": 6
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.17,
+    "seven_day": 0.74,
+    "status": "allowed"
+  },
+  "final_message": "I made the deck, and `quarto render decks/bird-errors/index.qmd` produces `_output/decks/bird-errors/index.html`. Lint shows 0 blocks and 0 warnings, and I checked a screenshot of every slide. Nothing was committed, pushed, published or saved to Notion.\n\n**What I decided, as you asked:**\n- **Audience, action and time:** as you specified. That gives a budget of 10 min ÷ 1.5 = 6 main slides.\n- **Titles of the main slides:**\n  1. 誤り29枚を1枚ずつ見ると、モデルの誤りは12枚だけだ\n  2. カモ→ハクチョウの6枚は、6枚ともカモの写真ではない\n  3. ハクチョウ→カモ8枚のうち、モデルの誤りは黒いハクチョウ4枚だ\n  4. ワシ→フクロウ6枚のうち5枚は、空を飛ぶタカ・ハヤブサだ\n  5. 残る小さな組の9枚でも、モデルの誤りは3枚だけだ\n  6. 次の対策を決める前に、誤った画像を1枚ずつ見てほしい\n- **Appendix (4 slides):** the 20 black swans that were classified correctly, 5 non-swans among the images correctly classified as swans, a table of the 17 images whose label doesn't match the photo, and how I judged the images.\n\n**What the images showed:** I looked at all 29 errors at their original size and compared each with the photographer's title.\n- Only 12 are model errors. Of the other 17, 11 have a label that doesn't match the photo, and in all 11 the model's prediction does match it. The other 6 are birds outside the six classes (pelican, flamingo, gannets, Canada goose, coot).\n- All 6 カモ→ハクチョウ errors come from the labels or the evaluation data. None is a model error.\n- All 29 errors appear in the main slides, grouped by (true label → prediction). For contrast I also say that 20 of the 24 black swans were classified correctly, and that 30 of the 34 correctly classified ワシ are in flight. The point is that \"black\" or \"flying\" alone doesn't explain the errors.\n\n**Things to check before you present:**\n- **Only I judged the images.** No annotator has checked them. The results are in `data/review_errors.csv` and `data/label_fix.csv`, and appendix slide 10 shows them as a table for the annotators to review.\n- **ワシ includes hawks.** The correctly classified ワシ include ノスリ, ミサゴ and トビ, so I counted hawks and falcons as ワシ too. If the team defines ワシ more narrowly, the counts change for 3 images (#16, #17, #19 in the error list). The titles of slides 1 and 5 would change with them.\n- **Correct predictions were only partly checked.** I checked only the correctly classified ハクチョウ (31) and ワシ (34) images. The other 146 correct predictions weren't reviewed and may also contain wrong labels.\n- **Numbers are checked in code.** Every number in the titles is verified with an `assert` in the setup cell, so if the data changes the render will stop.\n\n**Other files:**\n- **Added:** `prepare.py` creates `credits.html` (author, source and licence for all 240 photos) and the two review sheets shown on slide 6. My visual judgments are in three CSVs under `data/`.\n- **Changed by Quarto:** the render added two lines to `.gitignore` (`/.quarto/` and `**/*.quarto_ipynb`). I didn't revert them."
+}

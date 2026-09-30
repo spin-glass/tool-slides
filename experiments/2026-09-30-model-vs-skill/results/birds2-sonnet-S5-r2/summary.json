@@ -1,0 +1,49 @@
+{
+  "run_id": "birds2-sonnet-S5-r2",
+  "task": "birds2",
+  "model": "sonnet",
+  "skill": "S5",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 514,
+  "num_turns": 44,
+  "cost_usd": 1.792,
+  "output_tokens": 65834,
+  "models_used": {
+    "claude-sonnet-5-5": 1.792
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/label_fix.csv",
+    "decks/bird-errors/data/review.csv",
+    "decks/bird-errors/data/swan_black.csv",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 22,
+    "Read": 19,
+    "Write": 2
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.17,
+    "seven_day": 0.74,
+    "status": "allowed"
+  },
+  "final_message": "`decks/bird-errors/index.qmd` を作り、`quarto render` で `_output/decks/bird-errors/index.html` が出ることを確認しました。lint は block 0・warning 0 です。全9枚を PNG にして目視し、折り返し・はみ出し・図の二重表示を直しました。ただし、スライド4の画像は139pxで、目安の150pxに届いていません（見た目は読めます）。\n\n**決めた前提**（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らない」による。差し戻しはここから）\n- 聴衆・行動・持ち時間は、ご指定どおりです。\n- 本編の枚数は6枚にしました（10分÷1.5 を切り捨て）。付録は2枚です。\n- 骨子の承認は省きました。タイトルの連読は自分で確認しています。\n\n**タイトル一覧**\n1. 正解率88%の誤り29枚のうち、20枚は3つの組に集中している\n2. カモ→ハクチョウの6枚は、6枚ともラベルが写真と合わない\n3. ハクチョウ→カモの8枚は、黒いハクチョウ4枚と、他の鳥4枚だ\n4. ワシ→フクロウの6枚は、飛ぶ猛禽5枚と、フクロウ1枚だ\n5. 残る9枚のうち6枚も、ラベルが写真と合わない\n6. 対策を決める前に、間違えた画像を見よう。29枚中17枚はラベルの誤りだ\n\n**見つかったこと**\n- 誤り29枚は元の大きさで1枚ずつ見ました。そのうち17枚は、正解ラベルのほうが写真と合いませんでした。ペリカン、フラミンゴ、雄鶏、インコなどが写っています。\n- 本当にモデルが間違えたのは12枚です。黒いハクチョウ4枚、飛ぶ猛禽5枚、ほか3枚です。\n- 確信度0.9以上の誤り10枚は、すべてラベルの誤りでした。モデルの誤りは、どれも確信度0.87以下です。\n- 黒いハクチョウが写るのは24枚で、うち4枚がカモと判定されました。この24枚は目視で数えました。\n\n**判定の根拠と限界**\n- 判定は1人（私）の目視で、第2の確認者はいません。\n- 根拠は `data/review.csv`、ラベルの誤り17枚の直しは `data/label_fix.csv` にあります。表は `prepare.py` で作っています。\n- 題名がタカ・ハヤブサの4枚は、ワシのラベルが合うか微妙です。ラベルの誤りに数えると、17枚が21枚になります。付録に書きました。\n- 誤り以外の211枚は、ハクチョウ40枚だけを全部見ました。そこにも、フラミンゴ・ガン・ツルが写る4枚がありました。ほかの5種は見ていません。\n- 誤りに出た29枚には、顔の分かる人物や読めるナンバープレートは写っていません。第三者の写真なので、作者・出典・ライセンスは `credits.html` に一覧しています。\n\n**補足**\n- スライド6は、図の説明文だけ小さくするため、`imgfig.Canvas` を一時的に差し替えています。スキルの共有スクリプトは変更していません。\n- Notion への保存、git の commit・push、公開はしていません。\n- `.gitignore` に `/.quarto/` と `**/*.quarto_ipynb` が追加されています。私が編集した覚えはなく、render が自動で追記したと思われます。"
+}

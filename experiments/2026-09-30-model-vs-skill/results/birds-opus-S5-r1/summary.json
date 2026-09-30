@@ -1,0 +1,53 @@
+{
+  "run_id": "birds-opus-S5-r1",
+  "task": "birds",
+  "model": "opus",
+  "skill": "S5",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 555,
+  "num_turns": 70,
+  "cost_usd": 2.959,
+  "output_tokens": 52724,
+  "models_used": {
+    "claude-opus-5-5": 2.959
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/eye_check.csv",
+    "decks/bird-errors/data/eye_ok.csv",
+    "decks/bird-errors/data/label_fix.csv",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 22,
+    "Read": 34,
+    "Write": 5,
+    "Skill": 1,
+    "Edit": 1
+  },
+  "skill_calls": [
+    "dataviz"
+  ],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.04,
+    "seven_day": 0.72,
+    "status": "allowed"
+  },
+  "final_message": "I've built the 10-minute deck. `quarto render decks/bird-errors/index.qmd` produces `_output/decks/bird-errors/index.html`. The slide lint reports 0 blocking issues and 0 warnings, and I checked a screenshot of every slide by eye.\n\n**What I decided for you**\n\n- **Audience:** your team of engineers and annotators, as you described.\n- **Action:** look at the misclassified images before choosing the next fix.\n- **Length:** 10 minutes, so 6 main slides plus 3 in the appendix.\n\nMain slide titles, in order:\n\n1. 誤った29枚を1枚ずつ見ると、モデルの誤りは12枚だけだ\n2. カモをハクチョウと誤った6枚に、カモは1枚も写っていない\n3. ハクチョウをカモと誤った8枚で、本物のハクチョウは黒鳥4枚だ\n4. ワシをフクロウと誤った6枚のうち5枚は、飛んでいるタカ類だ\n5. 残りの誤り9枚のうち、モデルの誤りは3枚だ\n6. 次の改善の対策は、誤った画像を見て3つに分けてから決める\n\nAppendix: the full confusion matrix, the table of 17 corrected labels, and non-target birds found among the correctly classified images.\n\n**What the images showed**\n\nI looked at all 29 misclassified images at full size and compared each with the photographer's title:\n\n| Group | Count | What's in the photos |\n|---|---|---|\n| Model errors | 12 | The labelled bird really is in the photo and the model got it wrong. Includes 4 black swans and 5 flying hawks/falcons. |\n| Label errors | 11 | The photo shows a different one of the 6 birds, and the model's answer matches it. |\n| Birds outside the 6 classes | 6 | Pelican, flamingo and others. No answer can be counted correct. |\n\nThe biggest cell in the confusion matrix is ducks and swans mixed up (14 images), but only 4 of those are real model errors. None of the \"duck → swan\" images contains a duck.\n\n**Things to check**\n\n- **Labels are my judgement.** I sorted these 29 by eye and from the photographers' titles; it isn't a verified annotation. The results are in `data/eye_check.csv` and `data/label_fix.csv`. Please have your annotators confirm them.\n- **Only some correct images were checked.** On the correct side I only looked at the 65 swans and eagles. Six of them are birds outside the 6 classes (geese, a crane, a crow, and others). The other 146 correct images are unchecked, so the error counts above are for the 29 misclassified images only.\n- **\"Eagle\" (ワシ) in this data also covers hawks and falcons.** I judged that from the 34 correctly classified eagles, so I counted the flying hawks as model errors, not label errors.\n- **Explanations are only in the speaker notes.** Any \"why the model got it wrong\" is in the notes and marked as a guess. Nothing on the slides claims a cause.\n\n**Files**\n\n- Created in `decks/bird-errors/`: `index.qmd`, `prepare.py` (builds `credits.html`, the author and source list), and three by-eye tables in `data/`.\n- Quarto added two lines to `.gitignore` on its own during rendering.\n- As you asked, nothing was committed, pushed, published or saved to Notion."
+}

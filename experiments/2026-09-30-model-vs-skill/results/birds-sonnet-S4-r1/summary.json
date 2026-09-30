@@ -1,0 +1,47 @@
+{
+  "run_id": "birds-sonnet-S4-r1",
+  "task": "birds",
+  "model": "sonnet",
+  "skill": "S4",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 536,
+  "num_turns": 50,
+  "cost_usd": 1.829,
+  "output_tokens": 65482,
+  "models_used": {
+    "claude-sonnet-5-5": 1.829
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/eye_review.csv",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 22,
+    "Read": 26,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.04,
+    "seven_day": 0.72,
+    "status": "allowed"
+  },
+  "final_message": "`decks/bird-errors/index.qmd` が完成し、`quarto render` で `_output/decks/bird-errors/index.html` が出ることを確認しました。lint は block 0・warning 0 で、全7枚（表紙＋本編6枚）を画像で目視しました。Notion への保存、commit、push、公開はしていません。\n\n## 決めた前提（差し戻す場合はここ）\n\n- **聴衆**: 画像分類を運用するチーム。正解率と混同行列は見慣れているが、間違えた画像は見たことがない。\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間**: 口頭10分。本編は 10÷1.5 で6枚（表紙は別）。\n\n## タイトル一覧\n\n1. 誤り29枚のうち17枚は、写っている鳥がラベルと違っていた\n2. 正解が「カモ」の誤り9枚のうち8枚は、写っているのがカモではない\n3. 正解「ハクチョウ」の誤り9枚のうち、本物のハクチョウは黒い4枚だ\n4. ワシとフクロウの誤り8枚は、ラベルの違う3枚と空を飛ぶタカ類5枚だ\n5. ニワトリとオウムの誤り3枚は、ラベルの違う1枚とモデルの誤り2枚だ\n6. 次の改善を決める前に、間違えた画像を実際に見よう\n\n## 分かったこと\n\n正解率は88%（240枚中211枚）で、誤りは29枚でした。29枚をすべて目視して分けると次のとおりです。\n\n- **ラベルの誤り17枚**: ペリカン、フラミンゴ、ニワトリの顔などが「カモ」になっていました。\n- **モデルの誤り12枚**: 内訳は、黒いハクチョウ4枚、空を飛ぶタカ類5枚、単発3枚です。\n\n2〜5枚目では、29枚を正解クラス別に全数で見せています。枠の色は、橙がラベルの誤り、青がモデルの誤りです。\n\n## 確認してください\n\n- **判定は私の目視です。** 根拠は `data/eye_review.csv` に残しました。作者の題名も手がかりにしています。\n- **ワシのラベルにタカ・ハヤブサが含まれる前提を置きました。** 飛ぶタカ類5枚はモデルの誤りに数えています。含まれない場合、ラベルの誤りは17枚から22枚に増えます。データ側では確認できていません。\n- **判定の付いていない写真にもラベルの誤りがあります。** 正解に数えられたハクチョウ31枚の中にも、フラミンゴ、カモメらしき鳥、ガンが混じっていました。ノートに注記しました。\n- **モデルが誤った理由は書いていません。** 「なぜ」は推測なので、ノートに推測と断って書いてあります。\n\n## 補足\n\n- **画像の大きさ**: 1枚が約139〜149pxの図が2枚あります。目安の150pxを少し下回りますが、スクリーンショットでは読めました。\n- **`.gitignore`**: 私が編集していないのに `/.quarto/` などが追記されていました。`quarto render` が足したものと思われます。\n- **`credits.html`**: 使用した29枚の作者・出典を一覧にしました。`make_credits.py` で作り直せます。\n\n## ファイル\n\nすべて `decks/bird-errors/` の下です。\n\n- `index.qmd`\n- `data/eye_review.csv`\n- `make_credits.py`\n- `credits.html`"
+}

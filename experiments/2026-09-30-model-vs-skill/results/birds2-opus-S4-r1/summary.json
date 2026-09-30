@@ -1,0 +1,52 @@
+{
+  "run_id": "birds2-opus-S4-r1",
+  "task": "birds2",
+  "model": "opus",
+  "skill": "S4",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 478,
+  "num_turns": 47,
+  "cost_usd": 2.303,
+  "output_tokens": 45398,
+  "models_used": {
+    "claude-opus-5-5": 2.303
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/review.csv",
+    "decks/bird-errors/data/swan_color.csv",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 19,
+    "Read": 19,
+    "Skill": 1,
+    "Write": 5,
+    "Edit": 1
+  },
+  "skill_calls": [
+    "dataviz"
+  ],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.11,
+    "seven_day": 0.73,
+    "status": "allowed"
+  },
+  "final_message": "I made the deck at `decks/bird-errors/index.qmd`. `quarto render decks/bird-errors/index.qmd` writes `_output/decks/bird-errors/index.html`. Lint shows no problems (0 block, 0 warning), and I looked at a screenshot of every slide and fixed what was off.\n\n**What I decided on your behalf** (聴衆・行動・持ち時間は指定どおり)\n- Main slides: 6 (10 minutes ÷ 1.5), plus 2 appendix slides.\n- Slide titles, in order:\n  1. 誤り29枚を画像で見ると、モデルが間違えたのは7枚だけだ\n  2. カモ→ハクチョウの6枚に、カモは1枚も写っていない\n  3. ハクチョウ→カモ8枚のうち、モデルの誤りは黒いハクチョウ4枚だ\n  4. ワシ→フクロウ6枚のうち5枚は、飛んでいるタカとハヤブサだ\n  5. 残る7組9枚のうち、モデルの誤りは3枚だけだ\n  6. 対策を決める前に、間違えた画像を見て3種類に分けよう\n  - 付録: 黒いハクチョウ23枚のうち19枚は、正しくハクチョウと判定された\n  - 付録: 分類は CLIP の zero-shot で、正解は Open Images の人手ラベルだ\n\n**What the images showed**\nI looked at all 29 misclassified images and sorted each into one of three kinds:\n\n| Kind | Count |\n|---|---|\n| Model error (the labeled bird is in the photo, but the model missed it) | 7 |\n| Label error (the prediction is actually right) | 9 |\n| A bird that isn't any of the 6 classes (pelican, flamingo, hawk, etc.) | 13 |\n\nSo the confusion matrix alone makes duck ↔ swan (14 images) look like the top problem, but only 4 of those are model errors, and all 4 are black swans. Slides 2–5 show every image, with the frame color marking which kind it is.\n\n**Please check**\n- **The sorting is my own judgment.** I used the photographers' titles where they helped and my eye otherwise. It's recorded one row per image, with the basis for each, in `data/review.csv`; the black swans are in `data/swan_color.csv`. The weakest call is on slide 4: whether hawks and falcons count under ワシ changes whether those 5 images are model errors or label errors. The speaker notes say so.\n- **I only checked the 29 errors.** I didn't look at the 211 images the model got right, so label mistakes may be hiding there too. The notes on slide 6 mention this.\n- **Slide 5 uses a figure I built in the deck, not the stock function.** `imgfig.flow_figure` can only give a whole group one frame color, and I needed a color per image. Its thumbnails come out at about 130px, below the 150px target.\n\n**Other files**\n- `prepare.py` generates `credits.html`, the author and source list for the 48 photos shown (CC BY 2.0). It's included when the deck is rendered.\n- Quarto added two lines to `.gitignore` on its own (`/.quarto/` and `**/*.quarto_ipynb`). I left them in.\n\nAs you asked, I didn't save anything to Notion, commit, push, or publish."
+}

@@ -1,0 +1,49 @@
+{
+  "run_id": "birds-sonnet-S5-r2",
+  "task": "birds",
+  "model": "sonnet",
+  "skill": "S5",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 502,
+  "num_turns": 47,
+  "cost_usd": 1.717,
+  "output_tokens": 63495,
+  "models_used": {
+    "claude-sonnet-5-5": 1.717
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/label_fix.csv",
+    "decks/bird-errors/data/label_review.csv",
+    "decks/bird-errors/data/review_notes.md",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 18,
+    "Read": 24,
+    "Edit": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.07,
+    "seven_day": 0.72,
+    "status": "allowed"
+  },
+  "final_message": "`decks/bird-errors/index.qmd` を作り、`quarto render` で `_output/decks/bird-errors/index.html` が出ることを確かめました。本編6枚と付録3枚で、lint は block 0・warning 0 です。全10枚を目で確認しました。Notion への保存、git の commit・push、公開はしていません。\n\n## 最初に決めたこと（差し戻し用）\n- **聴衆:** 画像分類を運用するチーム（エンジニアとアノテーター）。\n- **行動:** 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間:** 10分。本編は 10÷1.5 で6枚にした。\n- **骨子:** 承認待ちは省いた。タイトルを上から連読して、論旨が一本で通ることは確かめた。\n\n## タイトル一覧\n1. 誤り29枚のうち17枚は写真とラベルが合わず、モデルの誤りは12枚だ\n2. ハクチョウ→カモ 8枚のうち、モデルの誤りは黒いハクチョウ4枚だ\n3. カモ→ハクチョウ 6枚は、6枚とも写真がラベルの「カモ」と合わない\n4. ワシ→フクロウ 6枚のうち5枚は、空や葉の前を飛ぶ猛禽の写真だ\n5. 残る9枚は6組に散り、モデルの誤りは3枚だけだ\n6. 次の改善を決める前に、間違えた画像29枚を自分の目で見よう\n\n付録は次の3枚です。\n- ラベルの誤り17枚の修正案\n- 判定に迷った2組\n- 出典（`credits.html`）\n\n## 見えたこと\n- 誤り29枚のうち、17枚は写真がラベルの種と合っていませんでした。ペリカン、フラミンゴ、雄鶏の頭を「カモ」とするような例です。\n- モデルの誤りは12枚でした。\n- 確信度0.9以上で誤った10枚は、すべてラベルの誤りでした。モデルの誤りの確信度は最大0.87です。\n- 黒いハクチョウは、正解した31枚にも20枚います。飛ぶ猛禽も、正解した34枚の大半です。そのため、色や飛び姿を誤りの理由にしていません。\n\n## 確認してほしい点\n- **判定は目視です。** 誤り29枚を元の大きさで1枚ずつ見て、撮影者の題名と照らして分けました。判定は `data/label_review.csv`、修正案は `data/label_fix.csv`、記録は `data/review_notes.md` にあります。\n- **判定に迷った2組:**\n  - ワシ→フクロウの5枚は、題名が Peregrine や hawk でした。\n  - ニワトリ→オウムの1枚は、青みがかった鳥で、題名は Poultry でした。\n  - どちらもラベルどおりモデルの誤りに数えたので、ラベルの誤りは最大23枚まで増えます。付録に書きました。\n- **図の大きさ:** 3枚目と6枚目の1枚の大きさは約109〜133pxで、目安の150pxに届きません。読める大きさではあります。\n- **他に作ったもの:**\n  - `prepare.py` は、判定表に図用の短い説明を足し、`credits.html` を作ります。\n  - `.gitignore` に `.quarto/` などが自動で足されていました。"
+}

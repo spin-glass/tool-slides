@@ -1,0 +1,48 @@
+{
+  "run_id": "birds2-opus-S4-r2",
+  "task": "birds2",
+  "model": "opus",
+  "skill": "S4",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 420,
+  "num_turns": 43,
+  "cost_usd": 2.177,
+  "output_tokens": 41542,
+  "models_used": {
+    "claude-opus-5-5": 2.177
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/bird-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/bird-errors/credits.html",
+    "decks/bird-errors/data/error_review.csv",
+    "decks/bird-errors/index.qmd",
+    "decks/bird-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 21,
+    "Read": 15,
+    "Write": 4,
+    "Edit": 2
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.16,
+    "seven_day": 0.74,
+    "status": "allowed"
+  },
+  "final_message": "`decks/bird-errors/index.qmd` is done, and `quarto render decks/bird-errors/index.qmd` writes the HTML to `_output/decks/bird-errors/index.html`. The lint reports 0 block and 0 warning, and I looked at a screenshot of every slide (6 main slides, 2 appendix slides). Nothing was saved to Notion, committed, pushed or published.\n\n**Choices I made (you left these to me)**\n- **Audience**: the team that runs the classifier (engineers and annotators), who see accuracy and the confusion matrix but have never looked at the wrong images.\n- **Action**: before choosing the next improvement, look at the images the model got wrong.\n- **Time**: 10 minutes spoken, so 6 main slides.\n\n**Slide titles**\n1. 誤った29枚のうち17枚は、正解ラベルのほうが写真と合わない\n2. カモ→ハクチョウの6枚には、カモが1枚も写っていない\n3. ハクチョウ→カモの8枚のうち、モデルの誤りは黒鳥の4枚だけだ\n4. ワシ→フクロウの6枚のうち5枚は、飛んでいるタカとハヤブサだ\n5. 残る9枚のうち6枚も、ラベルのほうが写真と合わない\n6. 次の対策を決める前に、間違えた画像を実際に見て分ける\n- Appendix: the confusion matrix, and how I decided whether each photo matched its label\n\n**What the images showed**\n- I looked at all 29 misclassified images; every one appears on slides 2–5.\n- In 17 of them, the photo doesn't match its correct-answer label. In 11 of those, the model's prediction fits the photo better. The other 6 show birds outside the six classes, such as a pelican, flamingos and gannets.\n- 12 are genuine model errors. Two groups make up 9 of them: black swans (4) and hawks or falcons photographed in flight (5).\n\n**Judgement calls to check**\nThese only matter if you'll present the deck as-is:\n- **Raptors**: I counted hawks, falcons and kites as ワシ, because there is no hawk class and the existing labels already treat them that way. The deck puts this question to the annotators.\n- **Canada goose and coot**: I counted these as outside the six classes, not as カモ.\n- **Source of each decision**: whether a photo matches its label is my own call, based on the photographer's title where it names the bird and my own inspection otherwise. The table is in `data/error_review.csv`; please check it.\n- **Correct predictions**: I didn't check the labels of the 211 correctly classified images. The appendix says so.\n- **Speaker notes**: guesses about why the model fails (for example, that it may rely on \"swans are white\") are in the notes and marked as guesses.\n\n**Other results**\n- **Image size**: on slides 3 and 5, thumbnails are about 140px on screen, a little under the 150px target. Every image stays readable.\n- **Credits**: `prepare.py` builds `credits.html`, which lists the author and source of all 29 photos, and it is output alongside the deck.\n- **Files outside the deck folder**: Quarto added `.quarto/` entries to `.gitignore` on its own. I left that change as it is."
+}

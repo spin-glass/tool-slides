@@ -1,0 +1,3 @@
+run_id,id,shown,reason
+birds-sonnet-S5-r2,131358d138ec97ef,True,照合 0.881（しきい値未満）。切り出して目で確かめ、6枚目の図の「ハクチョウ→オウム」の群に載っていた
+birds-opus-S5-r2,368ee2d0f494078f,False,照合 0.721。切り出した位置は別の写真。デッキはラベルをフクロウに直した（label_fix.csv）ので、誤りの図には入らない

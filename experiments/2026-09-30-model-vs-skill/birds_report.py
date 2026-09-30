@@ -56,6 +56,10 @@ def main() -> None:
     metrics = {m["run_id"]: m for m in read("metrics.csv") if m["task"] == task}
     runs = sorted(metrics)
     shown = read(f"{task}_shown.csv")
+    checked = {(r["run_id"], r["id"]): r["shown"] for r in read(f"{task}_shown_checked.csv")}   # 照合の値が0.75〜0.9の位置を目で確かめた結果
+    for s in shown:
+        if (s["run_id"], s["id"]) in checked:
+            s["shown"] = checked[(s["run_id"], s["id"])]
     planted = {(r["run_id"], r["id"]): r for r in read(f"{task}_planted.csv")}
     rates: dict[str, list[float]] = {}
     for r in read("imagecheck_birds_rates.csv") if task == "birds" else []:

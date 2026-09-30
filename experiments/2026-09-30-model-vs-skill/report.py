@@ -30,7 +30,8 @@ def read_csv(path: Path) -> list[dict]:
 
 
 def order(m: dict) -> tuple:
-    return (list(TASK_JA).index(m["task"]), list(MODEL_JA).index(m["model"]), m["skill"], m["rep"])
+    task = list(TASK_JA).index(m["task"]) if m["task"] in TASK_JA else len(TASK_JA)     # 鳥の課題などは最後
+    return (task, list(MODEL_JA).index(m["model"]), m["skill"], m["rep"])
 
 
 def fmt(v, spec=".1f") -> str:
@@ -135,7 +136,7 @@ def records() -> list[dict]:
     """盲検評価をした課題の実行。鳥の課題（独立した検証）は、指標が違うので birds_report.py がまとめる。"""
     number_errors = {r["run_id"]: int(r["errors"]) for r in read_csv(RESULTS / "number_errors.csv")}
     return [record(m, round_of(m), number_errors) for m in sorted(read_csv(RESULTS / "metrics.csv"), key=order)
-            if m["task"] != "birds"]
+            if m["task"] not in ("birds", "birds2")]
 
 
 def label(r: dict) -> str:

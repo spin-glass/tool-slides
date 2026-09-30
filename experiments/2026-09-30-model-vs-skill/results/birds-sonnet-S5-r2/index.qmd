@@ -1,0 +1,234 @@
+---
+title: "鳥6種の誤り29枚を画像で見る"
+subtitle: "画像分類を運用するチーム向け・10分"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列は毎回見ているが、間違えた画像そのものは見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-09-30。聴衆・行動・持ち時間は本人の指定どおり、budget は 10÷1.5=6。骨子は自分でタイトルを連読して確認し、承認待ちは省いた） -->
+
+```{python}
+#| include: false
+import csv
+import dataclasses
+import sys
+from collections import Counter
+
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import imgfig
+import matplotlib.pyplot as plt
+
+BLUE, ORANGE = imgfig.BLUE, imgfig.ORANGE          # 青 = ラベルの誤り、橙 = モデルの誤り
+
+# 誤り29枚を目視で分けた表。normal=True をラベルの誤り（青枠）、False をモデルの誤り（橙枠）にする
+rev = [dataclasses.replace(it, normal=(it["kind"] == "label"))
+       for it in imgfig.load_table("data/label_review.csv", "data/thumbs")]
+pred = imgfig.load_table("data/predictions.csv", "data/thumbs")
+wrong = [it for it in pred if it["true"] != it["pred"]]
+lab = [it for it in rev if it.normal]
+mod = [it for it in rev if not it.normal]
+pairs = dict(imgfig.split_by(rev, lambda it: (it["true_ja"], it["pred_ja"])))
+prob = lambda it: it.num("prob")
+kind_of = lambda g: (sum(not it.normal for it in g), sum(it.normal for it in g))   # (モデルの誤り, ラベルの誤り)
+
+BIG = [("ハクチョウ", "カモ"), ("カモ", "ハクチョウ"), ("ワシ", "フクロウ")]
+swan_duck, duck_swan, eagle_owl = (pairs[k] for k in BIG)
+rest = [(k, g) for k, g in pairs.items() if k not in BIG]
+rest_items = [it for _, g in rest for it in g]
+hi = [it for it in rev if prob(it) >= 0.9]
+
+# タイトルの数字の検算（データが変わったら描画が止まる）
+assert len(pred) == 240 and len(wrong) == len(rev) == 29
+assert (len(lab), len(mod)) == (17, 12)
+assert {it.id for it in wrong} == {it.id for it in rev}
+assert kind_of(swan_duck) == (4, 4) and len(swan_duck) == 8
+assert kind_of(duck_swan) == (0, 6)
+assert kind_of(eagle_owl) == (5, 1)
+assert len(rest) == 6 and len(rest_items) == 9 and kind_of(rest_items) == (3, 6)
+assert len(hi) == 10 and all(it.normal for it in hi)
+assert round(max(prob(it) for it in mod), 2) == 0.87
+assert all(not it.normal for it in eagle_owl if it["kind"] == "model")
+
+CAP = lambda it: f"確信度{prob(it):.2f}\n{it['short']}"
+KIND = lambda it: f"{'ラベル' if it.normal else 'モデル'}の誤り\n{it['short']}"
+lo = lambda g: min(prob(it) for it in g)
+hi_ = lambda g: max(prob(it) for it in g)
+SRC = "青枠 = ラベルの誤り、橙枠 = モデルの誤り（目視で判定）。写真: Open Images V7（CC BY 2.0）、出典は credits.html"
+assert imgfig.pick_note(8, 8, "all") == "8枚をすべて表示"
+```
+
+## 誤り29枚のうち17枚は写真とラベルが合わず、モデルの誤りは12枚だ
+
+```{python}
+#| fig-alt: "誤りの組ごとの枚数の横棒グラフ。ハクチョウ→カモ8枚はモデルの誤り4・ラベルの誤り4、カモ→ハクチョウ6枚はすべてラベルの誤り、ワシ→フクロウ6枚はモデルの誤り5・ラベルの誤り1。残る6組は計9枚で、モデルの誤り3・ラベルの誤り6。"
+plt.rcParams["font.family"] = imgfig.japanese_fonts()
+order = list(pairs.items())[::-1]
+fig, ax = plt.subplots(figsize=(10, 3.7))
+ys = range(len(order))
+m = [kind_of(g)[0] for _, g in order]
+l = [kind_of(g)[1] for _, g in order]
+ax.barh(ys, m, color=ORANGE, label="モデルの誤り", height=0.7)
+ax.barh(ys, l, left=m, color=BLUE, label="ラベルの誤り", height=0.7)
+for y, a, b in zip(ys, m, l):
+    if a: ax.text(a / 2, y, a, ha="center", va="center", color="white", fontsize=12, weight="bold")
+    if b: ax.text(a + b / 2, y, b, ha="center", va="center", color="white", fontsize=12, weight="bold")
+ax.set_yticks(list(ys), [f"{t}→{p}" for (t, p), _ in order], fontsize=12)
+ax.set_xticks([])
+for s in ax.spines.values(): s.set_visible(False)
+ax.tick_params(length=0)
+ax.legend(loc="lower right", frameon=False, fontsize=12)
+fig.tight_layout();
+```
+
+- ラベルの誤り `{python} len(lab)`枚: 写真が別の種、または6種以外の鳥
+- モデルの誤り `{python} len(mod)`枚: 写真はラベルどおりで、モデルが別の種と判定
+
+[誤り29枚をすべて分類（240枚中）。`{python} SRC`]{.source}
+
+::: {.notes}
+正解率は88%、誤りは240枚中29枚。混同行列では、ハクチョウ→カモ8、カモ→ハクチョウ6、ワシ→フクロウ6が目立つ。今日は、この29枚を1枚ずつ見た結果を話す。
+見て分けた基準は2つ。写真がラベルの種でなければラベルの誤り、写真がラベルどおりならモデルの誤り。
+結果は17枚がラベル側、12枚がモデル側。混同行列の数字だけでは、この2つは区別できない。
+判定は私が元の大きさで見て、撮影者の題名も参照した。判定に迷った2組は付録に書いた。
+:::
+
+## ハクチョウ→カモ 8枚のうち、モデルの誤りは黒いハクチョウ4枚だ
+
+```{python}
+#| fig-alt: "ハクチョウをカモと判定した8枚。上段の橙枠は黒いハクチョウ4枚（水上に2羽、水辺に2羽、芝生に2羽、1羽のアップ）。下段の青枠はラベルの誤り4枚（メスのカモ、ホオジロガモ、オオバン、飛ぶカモ2羽）。"
+imgfig.rows_figure([("モデルの誤り", [it for it in swan_duck if not it.normal], ORANGE),
+                    ("ラベルの誤り", [it for it in swan_duck if it.normal], BLUE)], caption=CAP);
+```
+
+- モデルの誤り: 黒いハクチョウが、水辺や芝生にいる（確信度 `{python} f"{lo([i for i in swan_duck if not i.normal]):.2f}"`〜`{python} f"{hi_([i for i in swan_duck if not i.normal]):.2f}"`）
+- 正解した31枚にも、黒いハクチョウが写る画像が20枚ある（目視）
+
+[8枚をすべて表示。確信度は予測クラスの値。`{python} SRC`]{.source}
+
+::: {.notes}
+橙枠の4枚は、写真もラベルもハクチョウで、モデルだけがカモと答えた。黒いハクチョウが池や芝生にいる写真。確信度は0.5前後で、迷っている。
+ただし、黒いハクチョウを一律に誤るわけではない。正解した31枚にも黒いハクチョウが20枚ある。だから「黒いから」は理由にならない。
+青枠の4枚はラベルの誤り。メスのカモ、ホオジロガモ、飛ぶカモ2羽は写真がカモで、オオバンはカモでもハクチョウでもない。
+ここはアノテーターの確認で直せる。
+推測だが、黒いハクチョウが4枚とも誤るのではなく、姿勢や距離など別の条件が効いていそうだ。これは今日の範囲では確かめていない。
+:::
+
+## カモ→ハクチョウ 6枚は、6枚とも写真がラベルの「カモ」と合わない
+
+```{python}
+#| fig-alt: "カモと表示されたがハクチョウと判定された6枚。左の4枚はカモではない鳥（ペリカン、カツオドリの群れ、フラミンゴ、カナダガン）。右の2枚はハクチョウの写真（ヒナ3羽、白い成鳥2羽）。すべて青枠でラベルの誤り。"
+imgfig.panels_figure([("カモではない鳥", [it for it in duck_swan if it["photo_class_ja"] == "6種以外"], BLUE),
+                      ("ハクチョウの写真", [it for it in duck_swan if it["photo_class_ja"] == "ハクチョウ"], BLUE)],
+                     cols_each=[4, 2], caption=CAP, counts=True);
+```
+
+- 写真がハクチョウの2枚は、モデルの「ハクチョウ」が正しい
+- ペリカン・カツオドリ・フラミンゴ・カナダガンは、6種のどれの正解にもならない
+- 確信度は6枚とも `{python} f"{lo(duck_swan):.2f}"` 以上で、0.9以上が `{python} sum(prob(i) >= 0.9 for i in duck_swan)`枚
+
+[6枚をすべて表示。確信度は予測クラスの値。`{python} SRC`]{.source}
+
+::: {.notes}
+混同行列ではカモ→ハクチョウが6件で、「モデルはカモを見分けられない」と読みたくなる。
+実際に見ると、6枚とも写真がカモではない。ハクチョウのヒナと成鳥は、モデルのほうが正しい。残る4枚はペリカン、カツオドリの群れ、フラミンゴ、カナダガンで、6種のどれでもない。
+確信度は0.99近い枚数が多い。モデルを直す前に、まずラベルを直す対象だと分かる。
+ペリカンなどが「カモ」とされた理由は分からない。水鳥として一括りに付けられた可能性はあるが、これは推測。
+:::
+
+## ワシ→フクロウ 6枚のうち5枚は、空や葉の前を飛ぶ猛禽の写真だ
+
+```{python}
+#| fig-alt: "ワシをフクロウと判定した6枚。橙枠は空や葉の前を飛ぶ猛禽5枚（ハヤブサ、ホバリング、空を舞う、空を飛ぶ、葉の前を飛ぶ）。右の青枠1枚は、ラベルがワシだが写っているのはフクロウ。"
+imgfig.panels_figure([("モデルの誤り 飛ぶ猛禽", [it for it in eagle_owl if not it.normal], ORANGE),
+                      ("ラベルの誤り", [it for it in eagle_owl if it.normal], BLUE)],
+                     cols_each=[5, 2], caption=CAP, counts=True);
+```
+
+- 正解した34枚の大半も、空を飛ぶ猛禽の写真だ（題名は Osprey・Kite・hawk など。目視）
+- 誤った5枚の確信度は `{python} f"{lo([i for i in eagle_owl if not i.normal]):.2f}"`〜`{python} f"{hi_([i for i in eagle_owl if not i.normal]):.2f}"`（フクロウ側）
+- 1枚は題名 Owl のフクロウで、ラベルの誤り
+
+[6枚をすべて表示。確信度は予測クラスの値。`{python} SRC`]{.source}
+
+::: {.notes}
+橙枠の5枚は、題名がPeregrine、Hawk hoveringなど。空や葉の前を飛ぶ猛禽で、ラベルはワシ。
+ただ、正解した34枚のワシも大半が空を飛ぶ猛禽の写真だ。飛んでいるから誤る、とも言えない。
+青枠の1枚は、題名もOwlで写っているのもフクロウ。モデルの答えのほうが合っている。
+正解した写真の題名にはOsprey、Kite、Vultureも混じる。このデータでは「ワシ」のクラスがタカ類まで広い。ワシの定義を決めていないなら、アノテーターと確認したい。
+これは判定に迷った点なので、付録に書いた。
+:::
+
+## 残る9枚は6組に散り、モデルの誤りは3枚だけだ
+
+```{python}
+#| fig-alt: "残る誤り9枚を、モデルの誤りとラベルの誤りに分けて並べた図。橙枠のモデルの誤り3枚は、カモ→ニワトリの吊るした肉、ニワトリ→オウムの青い羽の鳥、オウム→ハクチョウの白いオウム2羽。青枠のラベルの誤り6枚は、カモ→ニワトリの雄鶏の頭、ニワトリ→オウムのオウム、フクロウ→ワシの猛禽2枚、ハクチョウ→オウムのフラミンゴ、カモ→ワシの飛ぶワシ。"
+PAIR = lambda it: f"{it['true_ja']}→\n{it['pred_ja']}\n{it['short']}"      # 組名は2行に割り、1枚の幅に収める
+imgfig.panels_figure([("モデルの誤り", [it for it in rest_items if not it.normal], ORANGE),
+                      ("ラベルの誤り", [it for it in rest_items if it.normal], BLUE)],
+                     cols_each=[3, 3], caption=PAIR, counts=True);
+```
+
+[9枚をすべて表示。1〜2行目は「正解ラベル→予測」。`{python} SRC`]{.source}
+
+::: {.notes}
+残りは1〜2枚ずつの6組で、9枚。ラベルの誤りが6枚、モデルの誤りが3枚。
+モデルの誤りは、羽をむしって吊るした鳥の肉（カモ→ニワトリ）、青い羽の鳥（ニワトリ→オウム）、芝生の白いオウム（オウム→ハクチョウ）。
+ラベルの誤りは、雄鶏の頭がカモ、オウムがニワトリ、猛禽の顔や立つ猛禽がフクロウ、フラミンゴがハクチョウ、飛ぶワシがカモになっているもの。
+青い羽の鳥は、題名がPoultryで種の判断に迷った。ラベルどおりとして数えた。
+:::
+
+## 次の改善を決める前に、間違えた画像29枚を自分の目で見よう
+
+- 確信度0.9以上で誤った `{python} len(hi)`枚は、`{python} len(hi)`枚ともラベルの誤り
+- モデルの誤り `{python} len(mod)`枚の確信度は、最大でも `{python} f"{max(prob(i) for i in mod):.2f}"`
+- 見る枚数は `{python} len(wrong)`枚（全 `{python} len(pred)`枚の `{python} f"{len(wrong) / len(pred):.0%}"`）。確信度の高い順に照合する
+
+```{python}
+#| fig-alt: "確信度0.9以上で誤った10枚を、確信度の高い順に2段で並べた図。すべて青枠のラベルの誤りで、雄鶏の頭、ペリカン、飛ぶワシ、白いハクチョウ2羽、フラミンゴ、オウム、フクロウ、ハクチョウのヒナ、メスのカモ、猛禽の顔。写真がラベルの種と合わない。"
+imgfig.grid_figure(sorted(hi, key=prob, reverse=True), cols=5, caption=CAP);
+```
+
+[確信度0.9以上の誤り10枚をすべて、確信度の高い順に表示。`{python} SRC`]{.source}
+
+::: {.notes}
+今日のお願いは1つ。次の改善で対策を決める前に、間違えた画像を実際に見てほしい。
+確信度0.9以上で誤った10枚は、全部ラベルの誤りだった。確信度の高い誤りを上から見ると、まずラベル確認の対象が見つかる。モデルの誤りは確信度が最大でも0.87で、迷っている。
+29枚は全体の12%。1枚のシートに並べれば、見るのに長くはかからない。
+混同行列に戻って対策を決める前に、この29枚から見てほしい。
+:::
+
+<!-- appendix -->
+
+## ラベルの誤り17枚の修正案を label_fix.csv に残した
+
+```{python}
+#| include: false
+fix = list(csv.DictReader(open("data/label_fix.csv", encoding="utf-8")))
+fc = Counter(r["直したラベル"] for r in fix)
+assert len(fix) == 17 and fc["6種以外"] == 7
+```
+
+- 写真が6種以外の鳥: `{python} fc["6種以外"]`枚（ペリカン・カツオドリ・フラミンゴ2枚・カナダガン・オオバン・猛禽の顔）
+- 写真が別の種: カモ `{python} fc["カモ"]`・ハクチョウ `{python} fc["ハクチョウ"]`・ワシ `{python} fc["ワシ"]`・フクロウ `{python} fc["フクロウ"]`・ニワトリ `{python} fc["ニワトリ"]`・オウム `{python} fc["オウム"]`枚
+- 本編の図は元のラベルのまま表示し、直したラベルは data/label_fix.csv にだけ残した
+
+## 判定に迷った2組は、ラベルどおりモデルの誤りに数えた
+
+- ワシ→フクロウの5枚: 題名は Peregrine・hawk で、ワシの種かは疑わしい。正解した写真にも同種が多いので、モデルの誤りに数えた
+- ニワトリ→オウムの1枚: 青みがかった羽の鳥で、題名は Poultry。ラベルどおりとして数えた
+- 2組をラベルの誤りに数えると、ラベルの誤りは17枚から最大23枚になる
+
+## 掲載した29枚の作者と出典は credits.html にまとめた
+
+- 写真は Open Images V7 に収録された、各作者が CC BY 2.0 で公開したもの
+- 一覧: [credits.html](credits.html)（題名・作者・出典・ライセンス）
+- 顔の分かる人物・読めるナンバープレートが写る画像は、29枚の中にない（目視）

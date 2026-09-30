@@ -1,0 +1,212 @@
+---
+title: "正解率88%の中身を、間違えた画像29枚で見る"
+subtitle: "鳥6種の画像分類（評価240枚）の誤りを、実際の画像で確かめる"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列は毎回見ているが、間違えた画像は見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-09-30。budget は 10分÷1.5 の切り捨て） -->
+
+## 誤り29枚のうち17枚は写真とラベルが合わず、モデルの誤りは12枚だ
+
+```{python}
+#| include: false
+import sys
+from collections import Counter
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import csv
+import imgfig
+import matplotlib.pyplot as plt
+
+items = imgfig.load_table("data/predictions.csv", "data/thumbs")
+with open("data/eye_review.csv", newline="", encoding="utf-8") as f:
+    review = list(csv.DictReader(f))
+by_id = {r["id"]: r for r in review if r["group"] == "error"}
+n_black_correct = sum(r["group"] == "correct_swan" for r in review)
+
+CAUSES = [("model", "モデルの誤り（写真はラベルどおり）", imgfig.ORANGE),
+          ("label", "写真が別のクラス（ラベルが違う）", imgfig.BLUE),
+          ("outside", "写真が6種にない鳥", imgfig.PURPLE)]
+NAME = {k: n for k, n, _ in CAUSES}
+COLOR = {k: c for k, _, c in CAUSES}
+SHORT = {"model": "モデルの誤り", "label": "写真が別のクラス", "outside": "6種にない鳥"}
+
+wrong = [it for it in items if it["true"] != it["pred"]]
+assert len(wrong) == len(by_id)
+for it in wrong:
+    it.attrs["cause"], it.attrs["what"] = by_id[it.id]["cause"], by_id[it.id]["what"]
+cause = Counter(it["cause"] for it in wrong)
+pair = lambda it: (it["true"], it["pred"])
+label_pair = lambda it: f"{it['true_ja']}→{it['pred_ja']}"
+
+def of_pairs(*pairs):
+    return [it for it in wrong if pair(it) in pairs]
+
+def by_cause(group):
+    return [(SHORT[k], [it for it in group if it["cause"] == k], COLOR[k]) for k, _, _ in CAUSES
+            if any(it["cause"] == k for it in group)]
+
+swan_duck = of_pairs(("Swan", "Duck"))
+duck_swan = of_pairs(("Duck", "Swan"))
+raptor = of_pairs(("Eagle", "Owl"), ("Owl", "Eagle"))
+rest = [it for it in wrong if it not in swan_duck + duck_swan + raptor]
+cnt = lambda g, k: sum(it["cause"] == k for it in g)
+caption = lambda it: f"→{it['pred_ja']}\n{it['what']}"      # 1行目は予測、2行目は写っているもの
+
+# タイトルと本文に書いた数字の検算（データが変わったら描画が止まる）
+assert len(items) == 240 and len(wrong) == 29
+assert round(100 * (1 - len(wrong) / len(items))) == 88
+assert (cause["model"], cause["label"], cause["outside"]) == (12, 11, 6)
+assert cause["label"] + cause["outside"] == 17
+assert len(swan_duck) == 8 and cnt(swan_duck, "model") == 4 and cnt(swan_duck, "label") == 3 and cnt(swan_duck, "outside") == 1
+assert len(duck_swan) == 6 and cnt(duck_swan, "model") == 0 and cnt(duck_swan, "label") == 2 and cnt(duck_swan, "outside") == 4
+assert len(raptor) == 8 and cnt(raptor, "model") == 5 and cnt(raptor, "label") == 3
+assert len(rest) == 7 and cnt(rest, "model") == 3 and cnt(rest, "label") == 3 and cnt(rest, "outside") == 1
+assert sum(it["true"] == it["pred"] == "Swan" for it in items) == 31 and n_black_correct == 20
+assert sum(it["true"] == it["pred"] == "Eagle" for it in items) == 34
+```
+
+```{python}
+#| fig-alt: "誤りの組ごとの横棒グラフ。ハクチョウ→カモ8枚はモデルの誤り4枚・写真が別のクラス3枚・6種にない鳥1枚。カモ→ハクチョウ6枚はモデルの誤り0枚・別のクラス2枚・6種にない鳥4枚。ワシ→フクロウ6枚はモデルの誤り5枚・別のクラス1枚。残りの組は各1〜2枚。"
+plt.rcParams["font.family"] = imgfig.japanese_fonts()
+groups = imgfig.split_by(wrong, pair)
+groups = groups[::-1]                       # 棒グラフは下から描くので、多い組が上に来る
+fig, ax = plt.subplots(figsize=(10, 4.3))
+left = [0] * len(groups)
+for k, name, color in CAUSES:
+    vals = [sum(it["cause"] == k for it in g) for _, g in groups]
+    ax.barh(range(len(groups)), vals, left=left, color=color, label=f"{name} {cause[k]}枚", height=0.72)
+    for i, (v, l) in enumerate(zip(vals, left)):
+        if v:
+            ax.text(l + v / 2, i, str(v), ha="center", va="center", color="white", fontsize=13, weight="bold")
+    left = [l + v for l, v in zip(left, vals)]
+ax.set_yticks(range(len(groups)), [label_pair(g[0]) + f"（{len(g)}枚）" for _, g in groups], fontsize=13)
+ax.set_xticks([])
+for s in ("top", "right", "bottom"):
+    ax.spines[s].set_visible(False)
+ax.legend(loc="lower right", fontsize=12, frameon=False)
+fig.tight_layout()
+plt.show()
+```
+
+[分類は目視（data/eye_review.csv）。誤り29枚は評価240枚の12%。写真: Open Images V7（各作者 CC BY 2.0、作者一覧は credits.html）]{.source}
+
+::: {.notes}
+正解率88%、誤りは29枚という数字は毎回見ている。今日は、その29枚を全部見た結果を話す。
+29枚を目視で3つに分けた。1つ目は、写真がラベルどおりなのにモデルが違う答えを出した「モデルの誤り」で12枚。2つ目は、写真が別の5種のどれかで、ラベルのほうが違う11枚。3つ目は、写真が6種のどれでもない鳥（ペリカン、フラミンゴなど）の6枚。
+分類は発表者が目視で付けたもので、鳥の種類は作者の題名も参考にした。判断に迷う写真があるので、分類表は data/eye_review.csv に残してある。
+混同行列の「ハクチョウ→カモ8」のような1マスの中に、原因の違う画像が混ざっている。次の4枚で、大きい組から順に中身を見る。
+:::
+
+## ハクチョウをカモと誤った8枚のうち、4枚は黒いハクチョウだ
+
+```{python}
+#| fig-alt: "ハクチョウをカモと誤った8枚を原因別に並べた図。モデルの誤りは黒いハクチョウの4枚。写真が別のクラスは雌のカモ、ホオジロガモ、飛び立つアイサの3枚。6種にない鳥はオオバンの1枚。"
+imgfig.panels_figure(by_cause(swan_duck), caption=caption, counts=True);
+```
+
+- 正解になったハクチョウ31枚にも、黒いハクチョウが`{python} n_black_correct`枚ある
+- 写真がカモの3枚は、モデルの答えのほうが合っている
+
+[8枚をすべて表示。分類は目視（data/eye_review.csv）。写真: Open Images V7（各作者 CC BY 2.0、作者一覧は credits.html）]{.source}
+
+::: {.notes}
+最も多い組。ハクチョウをカモと答えた8枚のうち、4枚が黒いハクチョウ（コクチョウ）。赤いくちばしの黒い鳥で、ハクチョウの正解ラベルどおり。ここはモデルの誤り。
+残り4枚は、写真のほうがラベルと違う。雌のカモ、ホオジロガモ、飛び立つアイサはどれもカモの仲間で、モデルの答えのほうが合っている。オオバンは6種にない鳥。
+ただし、黒いハクチョウが弱点だと結論できない。正解になった31枚のハクチョウにも、黒いハクチョウが20枚写っている。誤った4枚と正解の20枚の違いは、目視では分からなかった。推測になるが、体の向きや水面の写り方など、別の要因があるかもしれない。
+:::
+
+## カモをハクチョウと誤った6枚に、モデルの誤りは1枚もない
+
+```{python}
+#| fig-alt: "カモをハクチョウと誤った6枚を原因別に並べた図。写真が6種にない鳥は、ペリカン、カツオドリの群れ、フラミンゴ、カナダガンの4枚。写真が別のクラスは、ハクチョウの幼鳥とハクチョウ2羽の2枚。"
+imgfig.panels_figure(by_cause(duck_swan), caption=caption, counts=True);
+```
+
+- ラベルがカモの2枚は、写真がハクチョウの幼鳥と成鳥だ
+- 直すのはモデルではなく、評価データのラベルだ
+
+[6枚をすべて表示。分類は目視（data/eye_review.csv）。写真: Open Images V7（各作者 CC BY 2.0、作者一覧は credits.html）]{.source}
+
+::: {.notes}
+ワシ→フクロウと並ぶ6枚の組。カモをハクチョウと答えた6枚に、写真がカモだったものは1枚もない。
+4枚は6種にない鳥で、白い体や長い首を持つペリカン、カツオドリ、フラミンゴ、カナダガン。6種から選ぶしかないので、どれを答えても誤りになる。残る2枚はハクチョウの写真で、ラベルが違う。
+この6枚を「モデルがカモとハクチョウを取り違える」と読むと、対策の向きを誤る。アノテーターがラベルを見直す枚数として数えるべき。
+:::
+
+## ワシとフクロウの誤り8枚は、飛ぶ猛禽5枚と、ラベルが違う3枚だ
+
+```{python}
+#| fig-alt: "ワシとフクロウの誤り8枚を原因別に並べた図。モデルの誤りは、飛ぶハヤブサ、ホバリングする猛禽、上空のタカ2枚、飛ぶタカの5枚で、正解はワシ、予測はフクロウ。写真が別のクラスは、フクロウ、ハヤブサ類の顔、トビの3枚。"
+imgfig.panels_figure(by_cause(raptor), caption=caption, counts=True);
+```
+
+- 正解になったワシ34枚も、大半は空を飛ぶ猛禽の写真だ
+- ラベルがフクロウの2枚は、写真がハヤブサ類とトビだ
+- ラベルがワシの1枚は、写真がフクロウだ
+
+[8枚をすべて表示。分類は目視（data/eye_review.csv）。写真: Open Images V7（各作者 CC BY 2.0、作者一覧は credits.html）]{.source}
+
+::: {.notes}
+ワシをフクロウと誤った6枚と、フクロウをワシと誤った2枚を合わせた8枚。
+モデルの誤りは5枚で、いずれも空を飛ぶ猛禽の写真。題名はハヤブサ、タカなど。正解になった34枚も大半は空を飛ぶ猛禽なので、飛ぶ姿が原因とは言えない。なぜフクロウと答えたかは分からない。推測だが、翼を広げた黒っぽいシルエットや、逆光の暗い写りが影響している可能性はある。
+ラベルが違う3枚は、フクロウの写真をワシと表示していた1枚（カラフトフクロウ）と、フクロウのラベルなのに写っているのはハヤブサ類とトビの2枚。この3枚はモデルの答えのほうが合っている。
+「ワシ」のクラスにタカやハヤブサが含まれている点は、クラスの定義としてチームで決める必要がある。
+:::
+
+## 残る7枚のうちモデルの誤りは3枚で、どれも別の被写体だ
+
+```{python}
+#| fig-alt: "残る7枚の誤りを原因別に並べた図。モデルの誤りは、吊るしたカモ、下を向くニワトリ、草地の白いオウムの3枚。写真が別のクラスは、ニワトリの頭のアップ、ハクトウワシ、ヤシオウムの3枚。6種にない鳥はフラミンゴの1枚。"
+imgfig.panels_figure(by_cause(rest), caption=caption, counts=True);
+```
+
+- 写真が別のクラスの3枚は、ラベルがカモ2枚とニワトリ1枚だ
+- 組はどれも1〜2枚で、1枚ずつ見る対象だ
+
+[7枚をすべて表示。分類は目視（data/eye_review.csv）。写真: Open Images V7（各作者 CC BY 2.0、作者一覧は credits.html）]{.source}
+
+::: {.notes}
+ここまでの3組で22枚。残りは7枚で、組の数は5つ、どれも1〜2枚。
+モデルの誤りは3枚。吊るされた食用のカモをニワトリ、うつむくニワトリをオウム、草地の白いオウムをハクチョウと答えている。白いオウムが草地でハクチョウに見えるのは、推測だが、白い体と緑の背景の組み合わせかもしれない。
+ラベルが違う3枚は、ニワトリの頭のアップ、ハクトウワシ、ヤシオウム。どれもモデルの答えが合っている。フラミンゴは6種にない鳥。
+この7枚は、数字の上では小さい誤りだが、画像を見ると原因は1枚ずつ違う。
+:::
+
+## 対策を決める前に、誤った画像を見て、ラベルかモデルかを分ける
+
+- アノテーターへ 写真とラベルが合わない`{python} cause["label"] + cause["outside"]`枚の見直し
+- エンジニアへ モデルの誤り`{python} cause["model"]`枚（黒いハクチョウ4枚、飛ぶ猛禽5枚ほか）
+- 全員で 次の改善の前に、誤り`{python} len(wrong)`枚（評価`{python} len(items)`枚の12%）を実際に見る
+
+[誤り29枚の全画像は data/thumbs/、分類表は data/eye_review.csv、作者一覧は credits.html]{.source}
+
+::: {.notes}
+正解率88%は、誤りが29枚あるという数字。その29枚のうち、モデルが原因の誤りは12枚で、残り17枚は写真とラベルが合っていなかった。
+次の改善を決める前に、誤った画像を実際に見てほしい。アノテーターは17枚のラベルの見直し、エンジニアは12枚の中身の確認から始められる。
+ここでの分類は発表者の目視で、間違いがありうる。自分の目で見て、分類を直してほしい。
+補足: 今回はハクチョウとワシの正解画像だけを見て比べた。ほかのクラスの正解画像は見ていない。
+:::
+
+<!-- appendix -->
+
+## 分類の基準と、写真の出典を示す
+
+- モデルの誤り 写真の被写体が正解ラベルのクラスと一致する
+- 写真が別のクラス 被写体が6種のうち別のクラスで、モデルの答えのほうが合う
+- 6種にない鳥 被写体が6種のどれでもない
+- 出典 Open Images V7（各作者 CC BY 2.0）。一覧は credits.html
+- モデル CLIP ViT-B/32 の zero-shot 分類（data/meta.json）
+
+::: {.notes}
+被写体の判定は、写真の目視と、作者が付けた題名（ハヤブサ、Aguia など）による。分類表は data/eye_review.csv。
+:::
