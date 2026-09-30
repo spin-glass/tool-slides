@@ -141,7 +141,7 @@ def load_look(items, look_csv, id_col: str = "id") -> list[Item]:
 
 def seen(it: Item, sep: str = "＋", note: bool = True) -> str:
     """確認の表から、説明に使う文字列を作る: classes（写っている分類の対象すべて）をつなぎ、note があれば括弧で添える。
-    例: 「ハクチョウ＋カモ（ハトも）」「カモ（主役はサギ）」。classes が空なら note だけ。"""
+    例: 「犬＋猫（奥にオウムも）」「猫（主役はオウム）」。classes が空なら note だけ。"""
     classes = sep.join(c.strip() for c in str(it.get("classes", "")).split(";") if c.strip())
     extra = str(it.get("note", "") or "").strip() if note else ""
     if not extra:
