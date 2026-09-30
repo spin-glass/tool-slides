@@ -1,0 +1,13 @@
+.venv/
+_output/
+_freeze/
+.quarto/
+decks/**/*_files/
+decks/**/*.html
+decks/**/_check/
+__pycache__/
+.DS_Store
+.claude/settings.local.json
+
+/.quarto/
+**/*.quarto_ipynb

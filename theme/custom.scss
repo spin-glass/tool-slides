@@ -1,0 +1,47 @@
+/*-- scss:defaults --*/
+// 日本語本文は Noto Sans JP。オフライン時は OS の日本語フォントへ落とす
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap");
+
+$font-family-sans-serif: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+$presentation-heading-font: $font-family-sans-serif;
+$presentation-heading-font-weight: 700;
+$presentation-heading-text-transform: none;
+$presentation-heading-line-height: 1.35;
+$presentation-font-size-root: 32px;
+$presentation-line-height: 1.6;
+$presentation-h2-font-size: 1.25em;   // アクションタイトル（完全文）が2行に収まる大きさ
+
+$body-color: #1f2328;
+$link-color: #0b5cad;
+$presentation-heading-color: #111418;
+
+/*-- scss:rules --*/
+.reveal {
+  // 日本語の禁則と折り返し。単語途中で切れない欧文も長すぎる場合は折る
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  font-feature-settings: "palt";
+}
+
+.reveal h2 {
+  text-align: left;
+  letter-spacing: 0.01em;
+}
+
+.reveal .slides section {
+  text-align: left;
+}
+
+.reveal ul li {
+  margin-bottom: 0.35em;
+}
+
+// 出典・注記は小さく下寄せ
+.reveal .source {
+  position: absolute;
+  bottom: 0;
+  left: 1.8em;   // 左下のメニューアイコンと重ねない
+  font-size: 0.5em;
+  color: #6e7781;
+}

@@ -1,0 +1,89 @@
+---
+title: "tool-slides で読み手のためのスライドを作る"
+subtitle: "2026-09-30"
+---
+
+<!-- audience: 本人（Claude Codeは日常利用、スライドの冗長さに不満がある） -->
+<!-- action: 次のデッキを tool-slides で作り、lint 閾値を較正する -->
+<!-- minutes: 6 -->
+<!-- budget: 4 -->
+<!-- status: approved -->
+
+## 生成AIは長い回答を良いと学習しており「簡潔に」では縮まない
+
+<!-- evidence: Singhal 2024 の長さのみ報酬、verbosity compensation 50.40% -->
+
+```{python}
+#| include: false
+minutes = 6
+budget = int(minutes / 1.5)
+effects = {"不要な素材の削除\n(coherence)": 0.86,
+           "話す文をスライドから外す\n(redundancy)": 0.86,
+           "削除のメタ分析\n(181研究)": 1.00}
+```
+
+- 長さだけを報酬にしても RLHF の改善の大半が再現される
+- GPT-4 の応答の50.40%に不確実さの水増しが出る
+- 対策は指示ではなく数値上限と機械検査
+
+[出典: Singhal et al. COLM 2024 / Zhang et al. 2024]{.source}
+
+::: {.notes}
+長さバイアスは報酬モデルの段階で入る。プロンプトで「簡潔に」と書いても圧縮可能な冗長が残る、というのが複数の研究の結論。
+:::
+
+## 聴衆・行動・時間を先に決めると枚数は budget 内に収まる
+
+<!-- evidence: 持ち時間→budget の計算、lint の budget block -->
+
+- 持ち時間`{python} minutes`分 → 本編`{python} budget`枚（1.5分/枚）
+- タイトルだけの骨子を承認してから本文を書く
+- budget を超えると Stop hook が止める
+
+## 本文を削ることが理解を最も大きく改善する
+
+<!-- evidence: coherence / redundancy の効果量の図 -->
+
+```{python}
+import matplotlib.pyplot as plt
+plt.rcParams["font.family"] = ["Hiragino Sans", "sans-serif"]
+fig, ax = plt.subplots()
+names, vals = list(effects), list(effects.values())
+ax.barh(names, vals, color=["#9aa4ae", "#9aa4ae", "#0b5cad"])
+for y, v in enumerate(vals):
+    ax.text(v + 0.02, y, f"{v:.2f}", va="center", fontsize=14)
+ax.set_xlim(0, 1.2)
+ax.set_xlabel("効果量（d / g）", fontsize=13)
+ax.tick_params(labelsize=13)
+ax.invert_yaxis()
+for s in ("top", "right"):
+    ax.spines[s].set_visible(False)
+plt.tight_layout()
+```
+
+[出典: Mayer & Fiorella 2014; Cromley & Chen 2025]{.source}
+
+## 次のデッキを tool-slides で作り閾値を2〜3本で較正する
+
+<!-- evidence: 手順と較正対象の閾値 -->
+
+- `/slides` で聴衆・行動・時間を答える
+- 骨子を承認し、lint と全枚スクショで検収する
+- 本文250字・タイトル40字の妥当性を記録する
+
+<!-- appendix -->
+
+## lint が block する条件は10種類ある {.smaller}
+
+| 条件 | 上限 |
+|---|---|
+| 本編枚数 | budget |
+| bullets | 5 |
+| 行数 | 15 |
+| 本文 | 全角250字 |
+| タイトル | 全角40字・述語で終える |
+| 表示コード | 10行 |
+| placeholder | 0 |
+| 生成前ゲートの記録 | 5項目 |
+| ゴースト段階の本文 | 0 |
+| 最初の見出しより前の本文 | 0 |

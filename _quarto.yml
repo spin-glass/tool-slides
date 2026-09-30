@@ -1,0 +1,42 @@
+project:
+  type: default
+  render:
+    - "decks/**/index.qmd"
+  output-dir: _output
+
+lang: ja
+
+# lint 用の HTML コメント（budget 等）が空スライドを作らないよう除く
+filters:
+  - filters/strip-comments.lua
+
+# コードセル（数値・図の計算）は .venv の Jupyter で実行する。環境変数 QUARTO_PYTHON=.venv/bin/python
+execute:
+  echo: false
+  warning: false
+  freeze: auto
+
+format:
+  revealjs:
+    theme: [default, theme/custom.scss]
+    slide-number: true
+    hash-type: number
+    transition: none
+    width: 1280
+    height: 720
+    margin: 0.06
+    fig-width: 10
+    fig-height: 4.2
+    embed-resources: false
+  pptx:
+    slide-level: 2
+  beamer:
+    pdf-engine: lualatex
+    aspectratio: 169
+    fig-width: 5.6
+    fig-height: 2.5
+    include-in-header:
+      text: |
+        \usepackage{luatexja-fontspec}
+        \setmainjfont{Hiragino Sans}
+        \setsansjfont{Hiragino Sans}

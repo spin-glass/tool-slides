@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 .claude/skills/slides/scripts/lint_slides.py:*)",
+      "Bash(.claude/skills/slides/scripts/render_check.sh:*)",
+      "Bash(quarto render:*)"
+    ]
+  }
+}
