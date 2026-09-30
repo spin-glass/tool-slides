@@ -222,7 +222,7 @@ def coverage(rnds: list[str], errors_only: bool = False) -> None:
             if want and not any(want <= got for got in figs.values()):
                 best = max(figs.values(), key=lambda got: len(want & got), default=set())
                 missing.append((k + 1, sorted(want - best)))
-        print(f"{run}: 図の記録 {len(lines)}、記録にある誤りの写真 {len({i for ln in lines for i in ln if i in errs})} 枚、"
+        print(f"{run}: 図の記録 {len(lines)}、記録にある{'誤りの' if errors_only else ''}写真 {len({i for ln in lines for i in ln if i in errs})} 枚、"
               f"資料に入れた（スライド・図・写真）{len(runs[run])}、渡っていない記録の図 {len(missing)}")
         for k, ids in missing:
             print(f"   記録の図 {k}: 資料に無い {ids}")
