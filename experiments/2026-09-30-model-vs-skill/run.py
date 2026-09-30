@@ -34,10 +34,11 @@ BASE = "769927d"             # それ以外の条件で使う、共通のテー�
 # change は追試の課題（同じ240枚を新旧2つの版で判定した結果。切り口は「変更の前後」）
 TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0), "under": ("prompt_gate.md", 60, 12.0),
          "change": ("prompt_change.md", 60, 12.0), "birds": ("prompt_birds.md", 60, 12.0),
-         "birds2": ("prompt_birds.md", 60, 12.0), "water": ("prompt_water.md", 60, 12.0)}
+         "birds2": ("prompt_birds.md", 60, 12.0), "water": ("prompt_water.md", 60, 12.0),
+         "farmh": ("prompt_farm.md", 60, 12.0)}
 DECK = "decks/farm-errors"
 DECKS = {"change": "decks/farm-change", "birds": "decks/bird-errors", "birds2": "decks/bird-errors",
-         "water": "decks/water-errors"}     # 課題ごとの保存先（無い課題は DECK）
+         "water": "decks/water-errors", "farmh": "decks/farm-hidden-errors"}     # 課題ごとの保存先（無い課題は DECK）
 APPROVE = "承認します。このまま最後まで作ってください。"
 # under で質問が返ってきたときの答え（image の依頼文と同じ内容）
 ANSWER = (HERE / "task/prompt_image.md").read_text().split("\n\n", 1)[1].strip()
@@ -126,6 +127,8 @@ def build_workspace(ws: Path, skill: str, task: str = "image") -> None:
         shutil.copytree(HERE / "task3/data/thumbs", data / "thumbs")
     elif task == "water":                    # 画像の難しい課題（水辺の6種。元の大きさの images/ つき。採点用の正解 task4/gt.csv は渡さない）
         shutil.copytree(HERE / "task4/data", data)
+    elif task == "farmh":                    # 最終確認の課題（牧場の6種、目立たない対象を多く含む。正解 task5/gt.csv は渡さない）
+        shutil.copytree(HERE / "task5/data", data)
     else:
         shutil.copytree(HERE / "task/data", data)
     if commit:
@@ -242,7 +245,7 @@ def run(task: str, model: str, skill: str, rep: str, natural: bool = False) -> N
         prompt = "/slides " + prompt
     calls = [call_claude(ws, run_dir / "turn1.jsonl", prompt, model, max_turns, budget, None)]
     followups = 0
-    while task in ("image", "under", "change", "birds", "birds2", "water") and followups < MAX_FOLLOWUPS and needs_followup(ws):
+    while task in ("image", "under", "change", "birds", "birds2", "water", "farmh") and followups < MAX_FOLLOWUPS and needs_followup(ws):
         session = calls[-1]["result"].get("session_id")
         if not session:
             break

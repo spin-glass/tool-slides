@@ -49,6 +49,8 @@ SMALL, DOMINANT, DOMINANT_RATIO, IOU_DISTINCT = 0.05, 0.20, 3.0, 0.3
 PRIVACY = ["Person", "Human face", "Man", "Woman", "Girl", "Boy", "Human body", "Human head", "Child",
            "Vehicle registration plate"]
 BOX_FILES = {"val": "validation-bbox.csv", "test": "test-bbox.csv"}
+SUPER: set[str] = set()           # 「別の物が主役」から外す上位の分類（同じ動物に付く Animal など）。水辺の課題では空
+USED: set[str] = set()            # 選ばない写真（ほかの課題で使ったもの）
 FIELDS = ["id", "true", "true_ja", "pred", "pred_ja", "prob", "second", "second_ja", "margin"]
 
 
@@ -96,7 +98,8 @@ def hard_types(i: str, cls: str, boxes: dict) -> list[str]:
     types = []
     if big < SMALL:
         types.append("small")
-    other = max((area(b) for n, bs in boxes[i].items() if n not in targets for b in bs), default=0.0)
+    other = max((area(b) for n, bs in boxes[i].items() if n not in targets and n not in SUPER for b in bs),
+                default=0.0)
     if other >= DOMINANT and other >= DOMINANT_RATIO * big:
         types.append("dominant")
     for n, bs in boxes[i].items():
@@ -128,7 +131,7 @@ def select() -> None:
     allpos = set().union(*pos.values())
     boxes, private_boxes = read_boxes(allpos, names)
     private |= private_boxes
-    rows, assigned, gt = [], set(), {}
+    rows, assigned, gt = [], set(USED), {}
     for en, ja in pd.CLASSES:
         cands = sorted((i for i in pos[en] - private - assigned if boxes[i].get(en)), key=pd.order_key)
         typed = [(i, hard_types(i, en, boxes)) for i in cands]
@@ -211,7 +214,8 @@ def gt() -> None:
         g = cand[r["id"]]
         bx = {n: [tuple(b) for b in bs] for n, bs in g["boxes"].items()}
         present = sorted(n for n in bx if n in targets)
-        others = sorted(((max(area(b) for b in bs), n) for n, bs in bx.items() if n not in targets), reverse=True)
+        others = sorted(((max(area(b) for b in bs), n) for n, bs in bx.items() if n not in targets and n not in SUPER),
+                        reverse=True)
         out.append({"id": r["id"], "true": r["true"], "pred": r["pred"], "error": r["true"] != r["pred"],
                     "types": "|".join(g["types"]), "class_area": round(max(area(b) for b in bx[r["true"]]), 4),
                     "present": "|".join(present), "pred_present": r["pred"] in present,
