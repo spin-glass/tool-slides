@@ -27,15 +27,15 @@ WORK = Path(os.environ.get("MVS_WORK", Path(tempfile.gettempdir()) / "tool-slide
 
 MODELS = {"fable": "claude-fable-5-1", "opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5",
           "haiku": "claude-haiku-4-5-20251001"}
-SKILLS = {"S0": None, "S1": "7b4428f", "S3": "769927d", "S4": "4bf36be"}       # スキルを取り出すコミット
-REPO_THEME = {"S4"}          # テーマとフィルタもそのコミットから取る版（付録の印はテーマとフィルタで出すため）
+SKILLS = {"S0": None, "S1": "7b4428f", "S3": "769927d", "S4": "4bf36be", "S5": "bb40768"}       # スキルを取り出すコミット
+REPO_THEME = {"S4", "S5"}          # テーマとフィルタもそのコミットから取る版（付録の印はテーマとフィルタで出すため）
 BASE = "769927d"             # それ以外の条件で使う、共通のテーマの版
 # (依頼文, 最大ターン, 予算USD)。under は gate と同じ依頼文（聴衆・行動・時間なし）で、最後まで作らせる。
 # change は追試の課題（同じ240枚を新旧2つの版で判定した結果。切り口は「変更の前後」）
 TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0), "under": ("prompt_gate.md", 60, 12.0),
-         "change": ("prompt_change.md", 60, 12.0)}
+         "change": ("prompt_change.md", 60, 12.0), "birds": ("prompt_birds.md", 60, 12.0)}
 DECK = "decks/farm-errors"
-DECKS = {"change": "decks/farm-change"}     # 課題ごとの保存先（無い課題は DECK）
+DECKS = {"change": "decks/farm-change", "birds": "decks/bird-errors"}     # 課題ごとの保存先（無い課題は DECK）
 APPROVE = "承認します。このまま最後まで作ってください。"
 # under で質問が返ってきたときの答え（image の依頼文と同じ内容）
 ANSWER = (HERE / "task/prompt_image.md").read_text().split("\n\n", 1)[1].strip()
@@ -117,6 +117,8 @@ def build_workspace(ws: Path, skill: str, task: str = "image") -> None:
             shutil.copy(HERE / "task2" / name, data / name)
         shutil.copy(HERE / "task/data/credits.csv", data / "credits.csv")
         shutil.copytree(HERE / "task/data/thumbs", data / "thumbs")
+    elif task == "birds":                    # 独立した検証の課題（鳥6種）。ラベルを変えた6枚の控え（task3/planted.csv）は渡さない
+        shutil.copytree(HERE / "task3/data", data)
     else:
         shutil.copytree(HERE / "task/data", data)
     if commit:
@@ -233,7 +235,7 @@ def run(task: str, model: str, skill: str, rep: str, natural: bool = False) -> N
         prompt = "/slides " + prompt
     calls = [call_claude(ws, run_dir / "turn1.jsonl", prompt, model, max_turns, budget, None)]
     followups = 0
-    while task in ("image", "under", "change") and followups < MAX_FOLLOWUPS and needs_followup(ws):
+    while task in ("image", "under", "change", "birds") and followups < MAX_FOLLOWUPS and needs_followup(ws):
         session = calls[-1]["result"].get("session_id")
         if not session:
             break

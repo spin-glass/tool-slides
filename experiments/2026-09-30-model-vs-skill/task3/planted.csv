@@ -1,0 +1,7 @@
+id,content,content_ja,planted,planted_ja,prob
+2d04149c7868f90f,Duck,カモ,Swan,ハクチョウ,0.9244
+08be9f62482fa5cf,Swan,ハクチョウ,Duck,カモ,0.9861
+2d7984e98028c7a4,Chicken,ニワトリ,Duck,カモ,0.9943
+d1e3ae6f91bdeada,Eagle,ワシ,Duck,カモ,0.9917
+368ee2d0f494078f,Owl,フクロウ,Eagle,ワシ,0.9772
+b5abdef3d9746d2c,Parrot,オウム,Chicken,ニワトリ,0.9795

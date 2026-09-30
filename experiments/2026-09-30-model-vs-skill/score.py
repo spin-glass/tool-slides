@@ -313,25 +313,38 @@ def truth_change() -> dict:
     return {"counts": counts, "pct": pct, "n": n, "wrong": n - sum(ok_new)}
 
 
-def truth(task: str = "image") -> dict:
-    if task == "change":
-        return truth_change()
-    rows = list(csv.DictReader(open(HERE / "task/data/predictions.csv", encoding="utf-8")))
+def truth_rows(rows: list[dict]) -> dict:
+    """1行＝1画像の表（true_ja・pred_ja）から、スライドに出てよい枚数と割合を出す。クラスの枚数は表から数える。"""
     classes = sorted({r["true_ja"] for r in rows})
+    size = {t: sum(r["true_ja"] == t for r in rows) for t in classes}
     cell = {(t, p): sum(r["true_ja"] == t and r["pred_ja"] == p for r in rows) for t in classes for p in classes}
     wrong = sum(v for (t, p), v in cell.items() if t != p)
-    counts = {len(rows), wrong, len(rows) - wrong, 40}
+    counts = {len(rows), wrong, len(rows) - wrong} | set(size.values())
     counts |= set(cell.values())
     counts |= {sum(cell[(t, p)] for p in classes if p != t) for t in classes}          # クラスごとの誤り
     counts |= {sum(cell[(t, p)] for t in classes if t != p) for p in classes}          # クラスごとの誤って入った数
-    counts |= {40 - sum(cell[(t, p)] for p in classes if p != t) for t in classes}     # クラスごとの正解
+    counts |= {size[t] - sum(cell[(t, p)] for p in classes if p != t) for t in classes}     # クラスごとの正解
     pct = {round(100 * (len(rows) - wrong) / len(rows), 1), round(100 * wrong / len(rows), 1)}
     for (t, p), v in cell.items():
-        pct |= {round(100 * v / 40, 1), round(100 * v / wrong, 1) if t != p else -1}
+        pct |= {round(100 * v / size[t], 1), round(100 * v / wrong, 1) if t != p else -1}
     for t in classes:
         e = sum(cell[(t, p)] for p in classes if p != t)
-        pct |= {round(100 * e / wrong, 1), round(100 * e / 40, 1), round(100 * (40 - e) / 40, 1)}
+        pct |= {round(100 * e / wrong, 1), round(100 * e / size[t], 1), round(100 * (size[t] - e) / size[t], 1)}
     return {"counts": counts, "pct": pct, "n": len(rows), "wrong": wrong}
+
+
+def truth(task: str = "image") -> dict:
+    if task == "change":
+        return truth_change()
+    if task != "birds":
+        return truth_rows(list(csv.DictReader(open(HERE / "task/data/predictions.csv", encoding="utf-8"))))
+    # 鳥の課題: モデルに渡したデータ（ラベルを変えた6枚を含む）と、6枚のラベルを戻したデータの、どちらの値も正しいとする
+    rows = list(csv.DictReader(open(HERE / "task3/data/predictions.csv", encoding="utf-8")))
+    planted = {r["id"]: r for r in csv.DictReader(open(HERE / "task3/planted.csv", encoding="utf-8"))}
+    fixed = [r | {"true_ja": planted[r["id"]]["content_ja"]} if r["id"] in planted else r for r in rows]
+    given, back = truth_rows(rows), truth_rows(fixed)
+    return {"counts": given["counts"] | back["counts"] | {len(planted)}, "pct": given["pct"] | back["pct"],
+            "n": given["n"], "wrong": given["wrong"]}
 
 
 def numeric_claims(slides: list[dict], t: dict) -> list[dict]:

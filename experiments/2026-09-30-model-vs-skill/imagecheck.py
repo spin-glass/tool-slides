@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """画像と主張の照合: 写真を載せたスライドごとに、主張の文と、載っている画像を大きくしたものを用意する。
 
-    MVS_WORK=… MVS_EVAL=… python imagecheck.py prepare     # <MVS_EVAL>-imagecheck/<記号>/ に確認用の資料を作る
-    python imagecheck.py collect [メモから組み立てる確認者 ...] # 確認者の JSON を results/imagecheck/ に集める
-    python imagecheck.py table                               # results/imagecheck.csv（主張ごと）と集計を出す
+    MVS_WORK=… MVS_EVAL=… python imagecheck.py prepare [回]     # <MVS_EVAL>-imagecheck[-回]/<記号>/ に確認用の資料を作る
+    MVS_EVAL=… python imagecheck.py prompts [回]                # 確認者ごとの文面（回が birds のとき。4名×4デッキ）
+    python imagecheck.py collect [回] [メモから組み立てる確認者 ...] # 確認者の JSON を results/ に集める
+    python imagecheck.py table [回]                               # 主張ごとの表と集計を出す
 
-対象は、検証で作らせたデッキ（score.py が描画し直した出力）と、リポジトリの写真を使うデッキ（decks/ の外れ値のデッキ）。
+回（省略時は main）:
+    main   検証で作らせたデッキ（鳥の課題を除く。score.py が描画し直した出力）と、リポジトリの外れ値のデッキ。確認者1名/デッキ
+    birds  独立した検証（鳥の課題）の8デッキ。各デッキを2名が確かめ、確認者の判定は改めない（README の計画のとおり）
 確認用の画像:
   slide-NN-fig-K.jpg   スライドに載った図（写真を並べた図）。図の中の見出しと説明文も主張に含む
   slide-NN-photos.jpg  スライドに HTML で載った写真を元の大きさで並べ、#番号・スライド上の説明・データを添えたもの
@@ -32,14 +35,26 @@ import score  # noqa: E402
 
 WORK = Path(os.environ.get("MVS_WORK", "/nonexistent"))
 EVAL = Path(os.environ.get("MVS_EVAL", WORK / "eval"))
-OUT = EVAL.parent / f"{EVAL.name}-imagecheck"
 RESULTS = HERE / "results"
-KEY = RESULTS / "imagecheck_key.json"
-SEED = 20260930 + 7
+PROMPTS = EVAL.parent / "prompts"
 MAX_W = 1600                       # 図を渡すときの横幅の上限（px）
 FONT = "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"
 OUTLIER = ROOT / "decks/2026-09-30-outlier-threshold-images"
 VOID = score.VOID
+
+
+class Round:
+    def __init__(self, name: str = "main"):
+        self.name = name
+        tag = "" if name == "main" else f"_{name}"
+        self.out = EVAL.parent / (f"{EVAL.name}-imagecheck" + ("" if name == "main" else f"-{name}"))
+        self.key = RESULTS / f"imagecheck_key{tag}.json"
+        self.dest = RESULTS / f"imagecheck{tag}"
+        self.table = RESULTS / f"imagecheck{tag}.csv"
+        self.adjudication = RESULTS / "imagecheck_adjudication.csv" if name == "main" else None
+        self.rubric = HERE / "judge" / f"rubric_imagecheck{tag}.md"
+        self.seed = 20260930 + 7 + sum(map(ord, tag))
+        self.label_word = "正解" if name == "main" else "ラベル"     # 鳥の課題のラベルには、わざと誤りを入れてある
 
 
 class Tree(HTMLParser):
@@ -149,7 +164,7 @@ def photo_like(path: Path) -> bool:
     return colors > 1500
 
 
-def data_lines(deck_data: Path) -> dict[str, str]:
+def data_lines(deck_data: Path, label_word: str = "正解") -> dict[str, str]:
     """画像ID → データの1行（正解・予測・確信度、旧版・新版、外れ値のスコア）と撮影者の題名。"""
     lines: dict[str, str] = {}
     credits = {}
@@ -158,7 +173,7 @@ def data_lines(deck_data: Path) -> dict[str, str]:
             credits = {r["id"]: r.get("title", "") for r in csv.DictReader(open(p, encoding="utf-8"))}
     if (deck_data / "predictions.csv").exists():
         for r in csv.DictReader(open(deck_data / "predictions.csv", encoding="utf-8")):
-            lines[r["id"]] = f"正解 {r['true_ja']}／予測 {r['pred_ja']} {float(r['prob']):.2f}"
+            lines[r["id"]] = f"{label_word} {r['true_ja']}／予測 {r['pred_ja']} {float(r['prob']):.2f}"
     if (deck_data / "changes.csv").exists():
         for r in csv.DictReader(open(deck_data / "changes.csv", encoding="utf-8")):
             lines[r["id"]] = (f"正解 {r['true_ja']}／旧 {r['old_ja']} {float(r['old_prob']):.2f}"
@@ -191,11 +206,11 @@ def photo_sheet(items: list[tuple[Path, str, str]], out: Path) -> None:
     sheet.save(out, "JPEG", quality=85)
 
 
-def decks() -> list[dict]:
-    """確認するデッキ: 検証の実行（results/metrics.csv にある、描画できたもの）と、外れ値のデッキ。"""
+def decks(rnd: Round) -> list[dict]:
+    """確認するデッキ: 検証の実行（results/metrics.csv にある、描画できたもの）。main には外れ値のデッキも加える。"""
     out = []
     for m in csv.DictReader(open(RESULTS / "metrics.csv", encoding="utf-8")):
-        if m["renders"] != "True":
+        if m["renders"] != "True" or (m["task"] == "birds") != (rnd.name == "birds"):
             continue
         s = json.loads((RESULTS / m["run_id"] / "summary.json").read_text())
         deck_dir = Path(s.get("deck_path") or "decks/farm-errors/index.qmd").parent
@@ -203,27 +218,30 @@ def decks() -> list[dict]:
         out.append({"name": m["run_id"], "html": ws / "_output" / deck_dir / "index.html",
                     "out_dir": ws / "_output" / deck_dir, "shots": WORK / "runs" / m["run_id"] / "shots",
                     "data": ws / deck_dir / "data", "qmd": ws / deck_dir / "index.qmd"})
+    if rnd.name != "main":
+        return out
     out.append({"name": "deck-outlier-threshold-images", "html": ROOT / "_output/decks" / OUTLIER.name / "index.html",
                 "out_dir": ROOT / "_output/decks" / OUTLIER.name, "shots": OUTLIER / "_check",
                 "data": OUTLIER / "data", "qmd": OUTLIER / "index.qmd"})
     return out
 
 
-def prepare() -> None:
+def prepare(rnd: Round) -> None:
     from PIL import Image
 
+    OUT = rnd.out
     if OUT.exists():
         sys.exit(f"既にある（確認者が使っているかもしれないので消さない）: {OUT}")
-    all_decks = decks()
+    all_decks = decks(rnd)
     codes = [a + b for a in string.ascii_uppercase for b in string.ascii_uppercase][:len(all_decks)]
-    random.Random(SEED).shuffle(codes)
+    random.Random(rnd.seed).shuffle(codes)
     key, total = {}, 0
     for deck, code in zip(all_decks, codes):
         html_text = deck["html"].read_text(encoding="utf-8")
         slides = leaves(html_text)
         shots = sorted(deck["shots"].glob("slide-*.png"))
         n_main = score.n_main_slides(deck["qmd"], score.parse_slides(deck["html"])) if deck["qmd"].exists() else 99
-        data = data_lines(deck["data"])
+        data = data_lines(deck["data"], rnd.label_word)
         d = OUT / code
         d.mkdir(parents=True)
         body = [f"# デッキ {code}", ""]
@@ -269,8 +287,42 @@ def prepare() -> None:
         total += n_listed
         print(f"{code} {deck['name']}: {n_listed} slides")
     RESULTS.mkdir(exist_ok=True)
-    KEY.write_text(json.dumps(dict(sorted(key.items())), indent=2) + "\n")
+    rnd.key.write_text(json.dumps(dict(sorted(key.items())), indent=2) + "\n")
     print(f"{len(all_decks)} decks, {total} slides -> {OUT}")
+
+
+def groups(rnd: Round) -> dict[str, list[str]]:
+    """birds: 確認者4名 × 4デッキ。記号を無作為に並べて前半・後半と、偶数番目・奇数番目に分け、各デッキを2名が見る。"""
+    codes = sorted(json.loads(rnd.key.read_text()))
+    rng = random.Random(rnd.seed + 1)
+    rng.shuffle(codes)
+    sets = {"c1": codes[:4], "c2": codes[4:], "c3": codes[0::2], "c4": codes[1::2]}
+    for v in sets.values():
+        rng.shuffle(v)                        # 確認者ごとの提示順
+    return sets
+
+
+def prompts(rnd: Round) -> None:
+    rubric = rnd.rubric.read_text(encoding="utf-8").split("\n", 2)[2].strip()
+    (rnd.out / "out").mkdir(exist_ok=True)
+    PROMPTS.mkdir(exist_ok=True)
+    for name, codes in groups(rnd).items():
+        out = rnd.out / "out" / f"check-{name}.json"
+        text = f"""{rubric}
+
+## 作業の決まり
+
+- 資料のフォルダ: `{rnd.out}`。見てよいのは、この下の次の記号のフォルダだけです: {"、".join(codes)}。ほかの場所は読まず、検索もしないでください。
+- 次の順に進めてください: {" → ".join(codes)}
+- 1つのデッキで、まず `manifest.md` を読み、スライドごとに確認用の画像を Read で開きます（1つのスライドの画像は、1回の応答の中でまとめて開いてかまいません）。
+- 1つのデッキを終えるたびに、そのデッキの答えを `{out}.notes.jsonl` に1行の JSON で追記してください（{{"記号": 答え}} の形）。追記だけにし、ファイル全体を書き直さないでください。
+- 全デッキを終えたら、基準がデッキの間でそろっているかをメモを読み返して確かめ（画像は開き直さない）、全デッキの答えを1つの JSON にして `{out}` に保存してください。
+- 最後の返答には、保存したファイルの場所と、デッキごとの ng と partial の件数だけを書いてください（JSON の本文は返答に書かない）。
+- これは確認の作業だけです。外部サービスは使わず、送信・コミットもしません。書き込むのは上の2つのファイルだけです。
+"""
+        path = PROMPTS / f"imagecheck-{rnd.name}-{name}.md"
+        path.write_text(text, encoding="utf-8")
+        print(f"{name}: {' → '.join(codes)} -> {path}")
 
 
 def read_notes(path: Path, codes: set[str]) -> dict:
@@ -284,11 +336,11 @@ def read_notes(path: Path, codes: set[str]) -> dict:
     return data
 
 
-def collect(from_notes: list[str]) -> None:
-    codes = set(json.loads(KEY.read_text()))
-    dest = RESULTS / "imagecheck"
+def collect(rnd: Round, from_notes: list[str]) -> None:
+    codes = set(json.loads(rnd.key.read_text()))
+    dest = rnd.dest
     dest.mkdir(exist_ok=True)
-    for f in sorted((OUT / "out").glob("check-*.json*")):
+    for f in sorted((rnd.out / "out").glob("check-*.json*")):
         name = f.name.split(".")[0].removeprefix("check-")
         if f.suffix == ".jsonl":
             if name not in from_notes:
@@ -302,18 +354,18 @@ def collect(from_notes: list[str]) -> None:
         print(f"{name}: {len(data)} decks")
 
 
-def table() -> None:
-    key = json.loads(KEY.read_text())
+def table(rnd: Round) -> None:
+    key = json.loads(rnd.key.read_text())
     rows = []
-    for f in sorted((RESULTS / "imagecheck").glob("*.json")):
+    for f in sorted(rnd.dest.glob("*.json")):
         for code, d in json.loads(f.read_text(encoding="utf-8")).items():
             for s in d.get("slides", []):
                 for c in s.get("claims", []):
                     rows.append({"checker": f.stem, "code": code, "deck": key[code], "slide": s.get("slide"),
                                  "verdict": c.get("verdict"), "claim": c.get("text", ""), "detail": c.get("detail", "")})
     # 確認者の判定を、元画像を拡大して確かめ直した結果で改めたもの（imagecheck_adjudication.csv。理由つき）
-    adj = list(csv.DictReader(open(RESULTS / "imagecheck_adjudication.csv", encoding="utf-8"))) \
-        if (RESULTS / "imagecheck_adjudication.csv").exists() else []
+    adj = list(csv.DictReader(open(rnd.adjudication, encoding="utf-8"))) \
+        if rnd.adjudication and rnd.adjudication.exists() else []
     used = set()
     for r in rows:
         r["final"], r["adjudication"] = r["verdict"], ""
@@ -324,7 +376,7 @@ def table() -> None:
     for n, a in enumerate(adj):
         if n not in used:
             print(f"WARNING 当てはまる主張が無い: {a['deck']} s{a['slide']} {a['claim_prefix']}")
-    with open(RESULTS / "imagecheck.csv", "w", newline="", encoding="utf-8") as fh:
+    with open(rnd.table, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=["checker", "code", "deck", "slide", "verdict", "final", "claim", "detail",
                                            "adjudication"])
         w.writeheader()
@@ -337,9 +389,44 @@ def table() -> None:
         c = by[deck]
         print(f"{deck:32s} ok {c.get('ok', 0):3d}  partial {c.get('partial', 0):2d}  ng {c.get('ng', 0):2d}  "
               f"unknown {c.get('unknown', 0):2d}")
-    print(f"{len(rows)} claims -> {RESULTS / 'imagecheck.csv'}")
+    print(f"{len(rows)} claims -> {rnd.table}")
+    if rnd.name == "birds":
+        rates(rnd, rows)
+
+
+def rates(rnd: Round, rows: list[dict]) -> None:
+    """食い違いの率 =（合わない＋一部合わない）÷（合う＋一部合わない＋合わない）。確認者ごと → デッキ（2名の平均）→ 条件（デッキの平均）。"""
+    per: dict[tuple[str, str], dict[str, int]] = {}
+    for r in rows:
+        c = per.setdefault((r["deck"], r["checker"]), {})
+        c[r["final"]] = c.get(r["final"], 0) + 1
+    out = []
+    for (deck, checker), c in sorted(per.items()):
+        judged = c.get("ok", 0) + c.get("partial", 0) + c.get("ng", 0)
+        out.append({"deck": deck, "checker": checker, **{k: c.get(k, 0) for k in ("ok", "partial", "ng", "unknown")},
+                    "rate": round((c.get("partial", 0) + c.get("ng", 0)) / judged, 4) if judged else ""})
+    with open(RESULTS / f"imagecheck_{rnd.name}_rates.csv", "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(out[0]))
+        w.writeheader()
+        w.writerows(out)
+    deck_rate: dict[str, float] = {}
+    for deck in sorted({o["deck"] for o in out}):
+        vals = [o["rate"] for o in out if o["deck"] == deck and o["rate"] != ""]
+        deck_rate[deck] = sum(vals) / len(vals)
+        print(f"{deck:28s} " + "  ".join(f"{o['checker']} {o['rate']:.2f}" for o in out if o["deck"] == deck and o["rate"] != "")
+              + f"  -> {deck_rate[deck]:.3f}")
+    cells: dict[tuple[str, str], list[float]] = {}
+    for deck, v in deck_rate.items():
+        _, model, skill = deck.split("-")[:3]
+        cells.setdefault((model, skill), []).append(v)
+        cells.setdefault(("all", skill), []).append(v)
+    for (model, skill), vals in sorted(cells.items()):
+        print(f"{model:7s} {skill}: {100 * sum(vals) / len(vals):5.1f}%  (decks {len(vals)})")
 
 
 if __name__ == "__main__":
     cmd = sys.argv[1:] or ["help"]
-    {"prepare": prepare, "collect": lambda: collect(cmd[1:]), "table": table}.get(cmd[0], lambda: sys.exit(__doc__))()
+    rnd = Round(cmd[1]) if len(cmd) > 1 and cmd[1] in ("main", "birds") else Round()
+    rest = [a for a in cmd[1:] if a not in ("main", "birds")]
+    {"prepare": lambda: prepare(rnd), "prompts": lambda: prompts(rnd), "collect": lambda: collect(rnd, rest),
+     "table": lambda: table(rnd)}.get(cmd[0], lambda: sys.exit(__doc__))()

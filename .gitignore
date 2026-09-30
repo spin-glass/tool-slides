@@ -15,6 +15,7 @@ __pycache__/
 decks/**/_cache/
 !decks/**/credits.html
 experiments/**/_cache/
+experiments/**/_cache_birds/
 
 # 検証のデッキを公開用にまとめたもの（site.py が作り直す。1本約6MB）
 experiments/*/site/
