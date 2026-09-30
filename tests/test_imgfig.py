@@ -212,6 +212,33 @@ class Layout(unittest.TestCase):
         self.assertTrue(any("p0 の説明" in f for f in found))
         self.assertTrue(any("見出し「白鳥の写真" in f and "p0" in f for f in found))
 
+    def test_closeup_image_shows_whole_photo_and_four_tiles(self):
+        from PIL import Image
+        it = self.photos([(1024, 683)])[0]
+        out = imgfig.closeup_image(it, Path(tempfile.mkdtemp()) / "c.jpg", header="探す: 犬・猫")
+        w, h = Image.open(out).size
+        self.assertEqual(w, 640 + 10 + 2 * (400 + 10))              # 全体（長辺640px）＋2列の区画（400px）
+        self.assertIn(h, range(40 + 2 * (266 + 34), 40 + 2 * (268 + 34) + 1))   # 区画2段（横長の区画は高さ約267px）。全体（427px）より高い
+
+    def test_check_look_asks_closeup_for_absent_classes(self):
+        items = self.photos([(256, 171)] * 4)          # p0: 何も写らない、p1: ラベルの白鳥が写らない、p2: 確かめ済み、p3: 写る
+        d = Path(tempfile.mkdtemp())
+        (d / "look.csv").write_text("id,label_class,classes,note,closeup\np0,白鳥,,サギ,\np1,白鳥,カモ,,\n"
+                                    "p2,カモ,,サギ,yes\np3,白鳥,白鳥,,\n", encoding="utf-8")
+        self.assertEqual([imgfig.needs_closeup(r) for r in imgfig.csv.DictReader(open(d / "look.csv", encoding="utf-8"))],
+                         [True, True, True, False])
+        looked = imgfig.load_look(items, d / "look.csv")
+        report = d / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.grid_figure(looked, caption=imgfig.seen)
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+            imgfig.plt.close("all")
+        found = imgfig.check_look(report, d / "look.csv")
+        self.assertEqual(len(found), 1, found)                  # 1つの図に、拡大で確かめていない2枚（p0, p1）
+        self.assertIn("2 枚（p0, p1）", found[0])
+
     def test_figures_report_their_size(self):
         items = self.photos([(256, 171)] * 12)
         report = Path(tempfile.mkdtemp()) / "report.jsonl"

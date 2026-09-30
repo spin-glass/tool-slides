@@ -33,6 +33,8 @@ CLI（qmd を書かずに1枚の図にする）:
                             （確認用。見せる画像を大きく並べる。元の写真 images/ があればそれを使う。画像について書く前に Read で見る）
     python imgfig.py locate --image images/<id>.jpg --out locate.jpg
                             （確認用。元の写真に10等分の目盛りを描く。拡大して見せる範囲を 0〜1 の割合で読む）
+    python imgfig.py closeup --look data/look.csv --thumbs data/thumbs --classes 犬,猫 --out _check/closeup
+                            （確認用。分類の対象かラベルのクラスが写っていないとした写真を、全体と4区画の拡大で1枚ずつ）
 表の列は自由（id 列が必須）。画像は <thumbs>/<id>.jpg。thumbs と同じ階層に images/ があれば、元の写真として使う
 （確認用の一覧と、zoom_figure の切り出し）。
 """
@@ -149,6 +151,18 @@ def seen(it: Item, sep: str = "＋", note: bool = True) -> str:
     return f"{classes}（{extra}）" if classes else extra
 
 
+CHECKED = {"yes", "y", "1", "true", "済", "はい"}
+
+
+def needs_closeup(row: dict) -> bool:
+    """拡大で確かめ直す写真か: 分類の対象が1つも写っていないとした（classes が空）か、データのラベルのクラス
+    （label_class の列があれば）が写っていないとした写真。どちらも「写っていない」と言うことになり、大きな別の物の後ろ・
+    体や翼の陰・遠くに写る対象を落としやすい。"""
+    classes = [c.strip() for c in (row.get("classes") or "").split(";") if c.strip()]
+    label = (row.get("label_class") or "").strip()
+    return not classes or bool(label and label not in classes)
+
+
 def check_look(report, look_csv, id_col: str = "id") -> list[str]:
     """図に書いた写真ごとの説明と群の見出しを、確認の表と照らす。食い違いの文を返す（無ければ空）。
 
@@ -156,6 +170,8 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
     - 説明に、その写真の note が入っていない（分類の対象以外の主役や目立つ物を落としている）
     - 見出しが1つのクラスだけを言う群に、そのクラス以外も写る写真や、そのクラスが写らない写真が入っている
       （見出しに「ラベル」「予測」「正解」「答え」「判定」「→」があるときは、データの値の見出しとみなして照らさない）
+    - 分類の対象が写っていない、またはラベルのクラスが写っていないとした写真（needs_closeup）を、拡大
+      （closeup の全体と4区画）で確かめていない（look.csv の closeup 列が yes でない）
     """
     import re as _re
 
@@ -163,12 +179,19 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
         rows = list(csv.DictReader(f))
     look = {r[id_col]: [c.strip() for c in r.get("classes", "").split(";") if c.strip()] for r in rows}
     notes = {r[id_col]: (r.get("note") or "").strip() for r in rows}
+    unchecked = {r[id_col] for r in rows
+                 if needs_closeup(r) and (r.get("closeup") or "").strip().lower() not in CHECKED}
     vocab = sorted({c for cs in look.values() for c in cs}, key=len, reverse=True)
     out = []
     for n, line in enumerate(open(report, encoding="utf-8"), 1):
         if not line.strip():
             continue
         rec = json.loads(line)
+        todo = list(dict.fromkeys(c["id"] for c in rec.get("captions", []) if c["id"] in unchecked))
+        if todo:
+            out.append(f"図{n}: 分類の対象またはラベルのクラスが写っていないとした写真のうち、拡大で確かめていない "
+                       f"{len(todo)} 枚（{', '.join(todo)}）。`imgfig.py closeup` で全体と4区画の拡大を作って1枚ずつ "
+                       "Read で開き、区画ごとに分類の対象を探す。確かめたら look.csv の closeup 列に yes と書く")
         for cap in rec.get("captions", []):
             classes = look.get(cap["id"])
             if cap["id"] in look and cap["caption"]:
@@ -755,6 +778,44 @@ def review_sheet(items, out, caption=None, cols: int | None = None, per_sheet: i
     return written
 
 
+TILES = (("左上", 0.0, 0.0), ("右上", 0.45, 0.0), ("左下", 0.0, 0.45), ("右下", 0.45, 0.45))   # 区画の左上（幅・高さは0.55。境目の物が切れないよう重ねる）
+
+
+def closeup_image(item: Item, out, header: str = "", full: int = 640, tile: int = 400) -> Path:
+    """確認用（スライドには載せない）: 写真全体と、4つの区画（左上・右上・左下・右下。少し重ねる）の拡大を並べた画像を書く。
+
+    縮小した写真を眺めるだけでは、大きな別の物の後ろ・体や翼の陰・遠くに写る対象を落とす。区画ごとに見ると気づきやすい。
+    元の写真（it.original）があれば、そこから切り出す。header は上に書く文字（例: 「探す: 犬・猫」）。"""
+    from PIL import ImageDraw, ImageFont
+
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc", 22)
+    except OSError:
+        font = ImageFont.load_default()
+    src = Image.open(item.original or item.path).convert("RGB")
+    W, H = src.size
+    whole = src.copy()
+    whole.thumbnail((full, full))
+    crops = []
+    for name, x0, y0 in TILES:
+        crop = src.crop((int(x0 * W), int(y0 * H), int(min(1.0, x0 + 0.55) * W), int(min(1.0, y0 + 0.55) * H)))
+        s = min(tile / crop.width, tile / crop.height)
+        crops.append((name, crop.resize((max(1, round(crop.width * s)), max(1, round(crop.height * s))), Image.LANCZOS)))
+    top, gap, label_h = 40, 10, 34
+    row_h = max(c.height for _, c in crops) + label_h
+    sheet = Image.new("RGB", (whole.width + gap + 2 * (tile + gap), top + max(whole.height, 2 * row_h)), "white")
+    d = ImageDraw.Draw(sheet)
+    d.text((4, 6), f"{item.id}  {header}".strip(), fill=INK, font=font)
+    sheet.paste(whole, (0, top))
+    for k, (name, crop) in enumerate(crops):
+        x = whole.width + gap + (k % 2) * (tile + gap)
+        y = top + (k // 2) * row_h
+        d.text((x, y), name, fill=INK, font=font)
+        sheet.paste(crop, (x, y + label_h - 4))
+    sheet.save(out, quality=88)
+    return Path(out)
+
+
 def zoom_figure(entries, caption=None, cols: int | None = None, color=ORANGE, caption_size=0.16, **canvas_kw):
     """小さく写る・端に写る・物の陰にいる対象を、写真全体（枠つき）と、その部分を拡大したものの組で見せる。
 
@@ -873,6 +934,14 @@ def main() -> int:
     ck.add_argument("--report", required=True)
     ck.add_argument("--look", required=True)
 
+    cu = sub.add_parser("closeup", help="写っていないとした写真を、全体と4区画の拡大で並べた確認用の画像にする（1枚ずつ）")
+    cu.add_argument("--look", required=True, help="確認の表（data/look.csv）。classes が空か、label_class が classes に無い行を選ぶ")
+    cu.add_argument("--thumbs", required=True)
+    cu.add_argument("--images", help="元の写真の置き場所（省略時は thumbs と同じ階層の images/ があればそれ）")
+    cu.add_argument("--ids", help="画像IDをカンマ区切りで（前方一致）。指定すると、表の条件によらずその画像を書く")
+    cu.add_argument("--classes", help="探す分類の対象（カンマ区切り）。画像の上に書く")
+    cu.add_argument("--out", required=True, help="書き出すフォルダ（<id>.jpg）")
+
     lo = sub.add_parser("locate", help="元の写真に0〜1の目盛りを描く（拡大して見せる範囲を読むため）")
     lo.add_argument("--image", required=True)
     lo.add_argument("--out", required=True)
@@ -913,6 +982,25 @@ def main() -> int:
 
     if a.cmd == "locate":
         print(locate_image(a.image, a.out))
+        return 0
+
+    if a.cmd == "closeup":
+        with open(a.look, newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        if a.ids:
+            want = [x.strip() for x in a.ids.split(",") if x.strip()]
+            ids = [r["id"] for r in rows if any(r["id"].startswith(w) for w in want)]
+        else:
+            ids = [r["id"] for r in rows if needs_closeup(r)]
+        orig = _originals(a.thumbs, a.images)
+        Path(a.out).mkdir(parents=True, exist_ok=True)
+        header = f"探す: {a.classes.replace(',', '・')}（区画ごとに、後ろ・陰・遠くまで）" if a.classes else ""
+        files = []
+        for i in ids:
+            o = orig / f"{i}.jpg" if orig else None
+            it = Item(i, Path(a.thumbs) / f"{i}.jpg", original=o if o and o.exists() else None)
+            files.append(closeup_image(it, Path(a.out) / f"{i}.jpg", header=header))
+        print(f"{len(files)} images -> {a.out}（1枚ずつ Read で開き、確かめたら look.csv の closeup 列に yes と書く）")
         return 0
 
     if a.cmd == "sheet":
