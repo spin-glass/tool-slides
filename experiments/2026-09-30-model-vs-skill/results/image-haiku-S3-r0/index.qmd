@@ -1,0 +1,176 @@
+---
+title: 誤分類の内訳を見て、次の改善を決める
+subtitle: 牧場の動物分類 | 評価結果
+format:
+  revealjs:
+    slide-number: c/t
+    transition: fade
+    width: 1200
+    height: 675
+    margin: 0.1
+fig-format: jpeg
+fig-dpi: 200
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニア・アノテーター）。正解率と混同行列の数字は毎回見ているが、誤った画像を実際に見たことがない -->
+<!-- action: 次の改善で対策を決める前に、誤った画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+
+```{python}
+#| include: false
+import sys
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import csv
+import imgfig
+from collections import defaultdict
+
+# 読み込み
+items = imgfig.load_table("data/predictions.csv", "data/thumbs")
+errors = [it for it in items if it["true"] != it["pred"]]
+all_errors = len(errors)
+all_total = len(items)
+
+# 誤分類ペアで分類
+error_by_pair = defaultdict(list)
+for it in errors:
+    key = (it["true_ja"], it["pred_ja"])
+    error_by_pair[key].append(it)
+
+# 最大ペアと残り
+top_pair = ("ヤギ", "鹿")
+top_errors = error_by_pair[top_pair]
+other_errors = [it for it in errors if (it["true_ja"], it["pred_ja"]) != top_pair]
+
+# タイトル検証
+assert all_errors == 28
+assert len(top_errors) == 12
+assert round(100 * all_errors / all_total) == 12
+```
+
+## 誤分類の43%はヤギが鹿に見えた誤りで、大きく改善できる
+
+<!-- evidence: 28枚の誤分類を、正解-予測ペアで分類 -->
+
+- 全体：240枚中28枚が誤分類（12%）
+- **ヤギが鹿に見えた：12枚（誤分類の43%）**
+- その他の混同（羊↔牛↔鹿）：16枚（57%）
+
+::: {.notes}
+正解率は88%で、前回の試験結果と同等。
+今日の焦点は、誤った画像が具体的に どのような特徴を持っているかを見ることです。
+
+28枚を詳しく見ていくと、パターンが分かります。
+:::
+
+## ヤギが鹿に見えた12枚は、撮影角度と光の影響を受けている
+
+<!-- evidence: ヤギと正解の鹿を見比べると、誤判定の原因が明らかになる -->
+
+```{python}
+#| fig-alt: "左：ヤギと誤分類された12枚。右：正しく判定された鹿の典型例3枚。同じサイズと角度に見える"
+imgfig.panels_figure(
+    [
+        ("ヤギ（正解）\n12枚全て", top_errors),
+        ("鹿（予測）\n典型的な例", [it for it in items if it["true_ja"] == "鹿" and it["pred_ja"] == "鹿"][:3]),
+    ],
+    k=8,
+    how="even",
+)
+```
+
+[12枚から等間隔で8枚を表示]{.source}
+
+::: {.notes}
+ヤギと鹿は似ています。
+左が実際の12枚のヤギ（すべて誤分類）、右は正しく判定された鹿です。
+
+ヤギは：
+- 体が小さく、すらっとしている
+- 耳が立ち、前向きに突き出ている
+- 顔が小さく、あご髭がある
+
+鹿は：
+- 体が小さく細身（ここは似ている）
+- 耳が横に張り出している
+- 顔が長く、あご髭がない
+
+しかし見落とし画像の12枚は、どれも「体の向き」「光の当たり方」「撮影距離」の理由で、鹿っぽく見えています。
+:::
+
+## 羊と牛の混同（3枚）は側面からの撮影で生じている
+
+<!-- evidence: 羊が牛に見えた例と牛が羊に見えた例を並べると、撮影角度が共通 -->
+
+```{python}
+#| fig-alt: "4つのクラス間混同を並べた図。羊が牛に見える2枚、牛が羊に見える2枚など"
+swap_errors = defaultdict(list)
+for it in errors:
+    pair = (it["true_ja"], it["pred_ja"])
+    if pair in [("羊", "牛"), ("牛", "羊"), ("ヤギ", "牛"), ("牛", "ヤギ")]:
+        swap_errors[pair].append(it)
+
+imgfig.rows_figure(
+    [
+        (f"{t} → {p} ({len(g)}枚)", g)
+        for (t, p), g in sorted(swap_errors.items(), key=lambda x: -len(x[1]))
+    ],
+    cols=6,
+    k=3,
+    how="even",
+)
+```
+
+[クラス間混同は各3〜1枚、各ペアから等間隔で表示]{.source}
+
+::: {.notes}
+羊と牛の誤分類は3枚。
+角度や光で体が大きく見える、または太く見える角度の影響が大きそうです。
+体毛の質感で見分ける部分が、側面から撮られたり背面から撮られたりすると判定が狂うことがあります。
+:::
+
+## 側面撮影と逆光の写真を訓練データに増やすと、43%の誤り減らせる
+
+<!-- evidence: 誤分類12枚はすべて、側面・背面・逆光で特徴が隠れた写真 -->
+
+- **ヤギの正解率は58%**：側面・背面から撮られた写真の誤分類が目立つ
+- **羊・牛も同じパターン**：横向きで撮られた画像で体のボリュームが判定基準になる
+- **次のステップ**：訓練データに側面・背面・逆光の写真を追加するか、data augmentation で角度の多様性を確保する
+
+::: {.notes}
+データを見ると、改善の方向が明確です。
+
+1. ヤギの正解率が特に低い（58%）。これは、同じヤギでも角度や大きさで判定が変わっていることを示しています。
+
+2. 羊と牛の誤分類は、体のボリュームで判定している兆候。小さい羊が横向きで撮られると牛に見える。
+
+3. 鹿やアルパカの誤分類は少ないので、これらのクラスには特徴が明確。
+
+次のステップは、訓練データセットを見直すか、モデル側で改善するか、アノテータの指標を厳しくするか、の3案から選ぶ時点です。
+:::
+
+<!-- appendix -->
+
+## ヤギ以外の誤分類（16枚）も同じく、撮影角度に依存している
+
+```{python}
+#| fig-alt: "羊、牛、鹿の間の誤分類を全ペア表示。羊が鹿に2枚、鹿がヤギに1枚など"
+other_by_pair = defaultdict(list)
+for it in other_errors:
+    key = (it["true_ja"], it["pred_ja"])
+    other_by_pair[key].append(it)
+
+imgfig.rows_figure(
+    [
+        (f"{t} → {p} ({len(g)}枚)", g)
+        for (t, p), g in sorted(other_by_pair.items(), key=lambda x: -len(x[1]))
+    ],
+    cols=6,
+    k=2,
+    how="even",
+)
+```
+
+[各ペア1〜2枚、各ペアから等間隔で表示]{.source}
+
