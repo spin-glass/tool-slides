@@ -91,6 +91,43 @@ def bird_sections() -> list[str]:
     return out
 
 
+CONTENT_TASKS = {"water": ("写真の中身の検証（開発用）：水辺の6種", "decks/water-errors"),
+                 "farmh": ("写真の中身の検証（最終確認）：牧場の6種", "decks/farm-hidden-errors")}
+
+
+def content_sections() -> list[str]:
+    """写真の中身の検証のデッキ。確認者2名の判定を、元の写真で確かめて確定した「中身の誤り」の件数を添える。"""
+    counts: dict[str, tuple[int, int]] = {}
+    for key in sorted(report.RESULTS.glob("content_key_*.json")):
+        rnd = key.stem.removeprefix("content_key_")
+        runs = {code: v["run"] for code, v in json.loads(key.read_text()).items()}
+        table = report.read_csv(report.RESULTS / f"content_{rnd}.csv")
+        for code, run in runs.items():
+            mine = [r for r in table if r["code"] == code]
+            wrong = {(r["kind"], r["slide"], r["n"]) for r in mine if r["final"] == "wrong"}
+            over = {(r["kind"], r["slide"], r["n"]) for r in mine if r["final"] == "overclaim"}
+            if mine:
+                counts[run] = (len(wrong), len(over))
+    metrics = [m for m in csv.DictReader(open(report.RESULTS / "metrics.csv", encoding="utf-8")) if m["task"] in CONTENT_TASKS]
+    out = []
+    for task, (title, deck) in CONTENT_TASKS.items():
+        rows = []
+        for m in sorted((m for m in metrics if m["task"] == task), key=lambda m: (m["skill"], m["model"], m["rep"])):
+            src = WORK / "runs" / m["run_id"] / "ws/_output" / deck
+            if not (src / "index.html").exists():
+                continue
+            shutil.copytree(src, SITE / m["run_id"])
+            title_ = html.escape(deck_title(report.RESULTS / m["run_id"] / "index.qmd"))
+            w, o = counts.get(m["run_id"], (None, None))
+            rows.append(f"<tr><td>{report.MODEL_JA[m['model']]}</td><td>{report.SKILL_JA.get(m['skill'], m['skill'])}</td>"
+                        f"<td>{m['rep'].lstrip('r')}</td><td><a href=\"{m['run_id']}/index.html\">{title_ or m['run_id']}</a></td>"
+                        f"<td>{m['n_main']}枚</td><td>{'' if w is None else f'{w}件'}</td><td>{'' if o is None else f'{o}件'}</td></tr>")
+        if rows:
+            out.append(f"<h2>{html.escape(title)}</h2><table><tr><th>モデル</th><th>スキル</th><th>回</th><th>デッキ</th>"
+                       f"<th>本編</th><th>中身の誤り（確定）</th><th>言い過ぎ</th></tr>{''.join(rows)}</table>")
+    return out
+
+
 def build() -> None:
     shutil.rmtree(SITE, ignore_errors=True)
     SITE.mkdir()
@@ -126,6 +163,7 @@ def build() -> None:
         body.append(f"<h2>{html.escape(title)}</h2><table><tr><th>モデル</th><th>スキル</th><th>回</th><th>デッキ</th>"
                     f"<th>本編</th><th>型</th><th>総合</th><th>画像</th><th>画像と主張</th></tr>{''.join(sections[task])}</table>")
     body += bird_sections()
+    body += content_sections()
     notes = ("<p class=\"n\">「画像と主張」は、スライドの主張（タイトル・箇条書き・図の見出し・画像ごとの説明）を、載っている画像と"
              "1件ずつ照らした結果（確認者は Claude のモデル。一部は元画像を拡大して確かめ直した）。件数を押すと中身を見られる。</p>"
              "<p class=\"n\">3点を与えない依頼の Fable は、ゲート課題（8ターンまで）でそのまま作り切ったデッキ。"
@@ -171,7 +209,9 @@ h2{{font-size:1.05em;margin-top:2em}} li{{margin:8px 0;line-height:1.6}} .d{{col
                        f'（<a href="{html.escape(r["source"])}">元の写真</a>）</li>'
                        for r in csv.DictReader(open(path, encoding="utf-8")))
     items = (credit_items(HERE / "task/data/credits.csv") + "</ol><h2>鳥6種の課題（独立した検証）</h2><ol>"
-             + credit_items(HERE / "task3/data/credits.csv"))
+             + credit_items(HERE / "task3/data/credits.csv") + "</ol><h2>水辺の6種の課題（写真の中身の検証）</h2><ol>"
+             + credit_items(HERE / "task4/data/credits.csv") + "</ol><h2>牧場の6種の課題（写真の中身の検証）</h2><ol>"
+             + credit_items(HERE / "task5/data/credits.csv"))
     credits = f'''<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>写真の出典</title><meta name="robots" content="noindex">
 <style>body{{font-family:"Hiragino Sans","Noto Sans JP",sans-serif;max-width:960px;margin:40px auto;padding:0 16px;color:#1f2328;background:#fff}}
