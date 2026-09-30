@@ -14,3 +14,4 @@ __pycache__/
 .wrangler/
 decks/**/_cache/
 !decks/**/credits.html
+experiments/**/_cache/
