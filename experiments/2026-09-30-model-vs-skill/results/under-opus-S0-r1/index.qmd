@@ -1,0 +1,380 @@
+---
+title: "画像分類の誤りを1件ずつ見る"
+subtitle: "牧場の動物6クラス × CLIP zero-shot の誤分類から"
+format:
+  revealjs:
+    css: styles.css
+    fig-dpi: 200
+---
+
+```{python}
+#| label: setup
+import csv
+import html
+import json
+from collections import Counter
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.patches import Patch, Rectangle
+
+def read_csv(path):
+    with open(path, encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+pred = read_csv("data/predictions.csv")
+credits = {r["id"]: r for r in read_csv("data/credits.csv")}
+# 誤り28件を目視で分けた結果（group と note は review.csv で直せる）
+review = {r["id"]: r for r in read_csv("review.csv")}
+with open("data/meta.json", encoding="utf-8") as f:
+    meta = json.load(f)
+
+by_id = {r["id"]: r for r in pred}
+errors = [r for r in pred if r["true"] != r["pred"]]
+assert set(review) == {r["id"] for r in errors}, "review.csv と誤り一覧が一致しない"
+
+n_all, n_err = len(pred), len(errors)
+n_ok = n_all - n_err
+acc_s = f"{n_ok / n_all:.0%}"
+group_n = Counter(review[r["id"]]["group"] for r in errors)
+n_model = group_n["wild"] + group_n["small"] + group_n["other"]
+n_label = group_n["mislabel"] + group_n["offclass"]
+
+by_true = Counter(r["true"] for r in errors)
+n_goat_err = by_true["Goat"]
+n_goat_deer = sum(r["true"] == "Goat" and r["pred"] == "Deer" for r in errors)
+n_goat = sum(r["true"] == "Goat" for r in pred)
+
+wild = [r for r in errors if review[r["id"]]["group"] == "wild"]
+n_wild_deer = sum(r["pred"] == "Deer" for r in wild)
+n_wild_hi = sum(float(r["prob"]) >= 0.8 for r in wild)
+
+TH = 0.8
+n_err_hi = sum(float(r["prob"]) >= TH for r in errors)
+n_err_hi_wild = sum(float(r["prob"]) >= TH and review[r["id"]]["group"] == "wild" for r in errors)
+n_ok_lo = sum(float(r["prob"]) < TH for r in pred if r["true"] == r["pred"])
+
+# 正解扱いのうち、スライドで例に使う写真の説明（目視）
+extra_notes = {
+    "cd5ce87adc68bef2": "ビッグホーン（野生ヒツジ）に「ヤギ」のラベル",
+    "7da4e355186ce058": "アダックス（レイヨウ類）に「牛」のラベル",
+    "0a5e8d559aa5d680": "ラクダに「アルパカ」のラベル",
+    "fa5de43462910548": "ボンゴ（レイヨウ類）に「鹿」のラベル",
+}
+
+# グラフの色：強調する系列は青、それ以外はグレー
+BLUE, GRAY, LIGHT = "#2a78d6", "#8a8883", "#c9c7c1"
+INK, INK2 = "#1f2328", "#57606a"
+plt.rcParams.update({
+    "font.family": ["Hiragino Sans", "Hiragino Kaku Gothic ProN", "sans-serif"],
+    "font.size": 15,
+    "axes.edgecolor": LIGHT,
+    "axes.labelcolor": INK2,
+    "xtick.color": INK2,
+    "ytick.color": INK,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+})
+
+shown = []  # 出典スライドに載せる写真（出てきた順）
+
+def thumbs(ids, cols=4, img_h=210, dense=False):
+    """写真を並べ、各写真に正解・予測・確信度と目視メモを添える。"""
+    items = []
+    for i in ids:
+        if i not in shown:
+            shown.append(i)
+        r = by_id[i]
+        note = review[i]["note"] if i in review else extra_notes.get(i, "")
+        alt = html.escape(note or f"正解ラベル「{r['true_ja']}」の写真")
+        cap = (f'正解 {r["true_ja"]} → <span class="pred">予測 {r["pred_ja"]}</span>'
+               f' {float(r["prob"]):.2f}')
+        if note and not dense:
+            cap += f'<span class="note">{html.escape(note)}</span>'
+        items.append(f'<figure><img src="data/thumbs/{i}.jpg" alt="{alt}">'
+                     f'<figcaption>{cap}</figcaption></figure>')
+    authors = "、".join(dict.fromkeys(html.escape(credits[i]["author"]) for i in ids))
+    cls = "thumbs dense" if dense else "thumbs"
+    print("```{=html}")
+    print(f'<div class="{cls}" style="--cols:{cols};--img-h:{img_h}px">{"".join(items)}</div>')
+    print(f'<div class="source">写真: {authors}（CC BY 2.0、縮小して掲載。詳細は巻末）</div>')
+    print("```")
+```
+
+## 今日の結論：誤りは「モデルの弱点」と「正解ラベルの問題」に分かれる
+
+- 正解率は `{python} acc_s`（`{python} n_ok`/`{python} n_all`）。誤り `{python} n_err` 件のうち `{python} n_goat_err` 件がヤギ
+- 誤りを1件ずつ見ると、`{python} n_label` 件は正解ラベルの側に問題があった
+- モデルの弱点で最も多いのは、野生のヤギ・ヒツジを「鹿」と判定するもの。高い確信度で間違える
+
+::: {.notes}
+結論を先に。後半は写真を見ながら確認していく。
+:::
+
+## 題材：牧場の動物6クラスを、追加学習なしの CLIP で分類した
+
+- クラス：羊・ヤギ・アルパカ・鹿・牛・馬（各40枚、計240枚）
+- 写真：Open Images V7 の検証・テスト用。正解は人手確認済みのラベル
+- モデル：CLIP ViT-B/32 の zero-shot 分類（各クラスの学習例は0枚）
+- データ作成時に、目視で6枚を除外済み
+
+::: {.source}
+モデル: openai/clip-vit-base-patch32　データ: Open Images V7
+:::
+
+::: {.notes}
+zero-shot なので、モデルはクラス名の文章と画像の近さだけで判定している。
+この後の「誤り」の分類は発表者が写真を目視して付けたもの。
+:::
+
+## 正解率は`{python} acc_s`だが、誤りはヤギに集中し、ヤギの`{python} f"{n_goat_deer / n_goat:.0%}"`は「鹿」と判定された
+
+:::: {.columns}
+::: {.column width="58%"}
+```{python}
+#| label: confusion
+#| fig-alt: "6クラスの混同行列。正解ヤギ40枚のうち23枚が正しく、12枚が鹿、3枚が牛、2枚が羊と判定された。アルパカは40枚すべて正解。"
+cls = list(meta["classes"])
+ja = [meta["classes"][c] for c in cls]
+M = np.zeros((6, 6), int)
+for r in pred:
+    M[cls.index(r["true"]), cls.index(r["pred"])] += 1
+
+ramp = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#104281"]
+vmax = max(M[i, j] for i in range(6) for j in range(6) if i != j)
+
+fig, ax = plt.subplots(figsize=(6.6, 4.8))
+for i in range(6):
+    for j in range(6):
+        v = M[i, j]
+        if i == j:
+            face, ink = "#eeede9", INK2
+        elif v == 0:
+            face, ink = "#fbfbfa", None
+        else:
+            face = ramp[min(len(ramp) - 1, int((v - 1) / vmax * len(ramp)))]
+            ink = "white" if face in ramp[3:] else INK
+        ax.add_patch(Rectangle((j, i), 1, 1, facecolor=face, edgecolor="white", linewidth=2))
+        if ink:
+            ax.text(j + 0.5, i + 0.5, str(v), ha="center", va="center", color=ink,
+                    fontsize=15, fontweight="bold" if i != j else "normal")
+ax.set_xlim(0, 6)
+ax.set_ylim(6, 0)
+ax.set_xticks(np.arange(6) + 0.5, ja)
+ax.set_yticks(np.arange(6) + 0.5, ja)
+ax.xaxis.tick_top()
+ax.xaxis.set_label_position("top")
+ax.set_xlabel("予測")
+ax.set_ylabel("正解")
+ax.tick_params(length=0)
+for s in ax.spines.values():
+    s.set_visible(False)
+plt.tight_layout()
+plt.show()
+```
+:::
+
+::: {.column width="42%"}
+- 対角（灰色）が正解、青が誤り
+- ヤギは40枚中 `{python} n_goat - n_goat_err` 枚しか当たらない
+- 最大の誤りは ヤギ→鹿 の `{python} n_goat_deer` 件
+- アルパカは全問正解
+:::
+::::
+
+::: {.notes}
+行が正解、列が予測。まず目につくのはヤギ→鹿。
+ただし数字だけでは、モデルが悪いのか正解が悪いのかは分からない。次で中身を見る。
+:::
+
+## 誤り`{python} n_err`件を目視で分けると、`{python} n_label`件は正解ラベルの側に問題があった
+
+```{python}
+#| label: groups
+#| fig-alt: "誤りの内訳を表す横棒グラフ。モデル側の誤り（野生のヤギ・ヒツジ、被写体が小さい、その他）と、正解ラベル側の問題（正解ラベルが誤り、6クラスにない動物）の件数。野生のヤギ・ヒツジが最も多い。"
+rows = [
+    ("wild", "野生のヤギ・ヒツジ", BLUE),
+    ("small", "被写体が小さい", BLUE),
+    ("other", "その他", BLUE),
+    ("mislabel", "正解ラベルが誤り", GRAY),
+    ("offclass", "6クラスにない動物", GRAY),
+]
+fig, ax = plt.subplots(figsize=(10, 3.9))
+y = np.arange(len(rows))
+vals = [group_n[k] for k, _, _ in rows]
+ax.barh(y, vals, height=0.62, color=[c for _, _, c in rows], edgecolor="white", linewidth=2)
+for yi, v in zip(y, vals):
+    ax.text(v + 0.2, yi, f"{v}件", va="center", color=INK, fontsize=16)
+ax.set_yticks(y, [lab for _, lab, _ in rows], fontsize=16)
+ax.invert_yaxis()
+ax.set_xlim(0, max(vals) + 2)
+ax.set_xticks([])
+ax.spines["bottom"].set_visible(False)
+ax.tick_params(axis="y", length=0)
+ax.legend(
+    handles=[Patch(color=BLUE, label=f"モデル側の誤り（{n_model}件）"),
+             Patch(color=GRAY, label=f"正解ラベル側の問題（{n_label}件）")],
+    loc="lower right", frameon=False, fontsize=15,
+)
+plt.tight_layout()
+plt.show()
+```
+
+::: {.source}
+分類は発表者が写真を1枚ずつ見て付けたもの（`review.csv`）。種名は見た目からの推定
+:::
+
+::: {.notes}
+青がモデル側、灰色が正解ラベル側。ここから順に写真を見ていく。
+:::
+
+## 最大の弱点：野生のヤギ・ヒツジは、確信度が高いまま「鹿」と判定される
+
+```{python}
+#| output: asis
+thumbs(["78a98dcc91cace3b", "7a89b4fc43ee7c13", "41f666db2257e015", "d4d91a285942921a"])
+```
+
+::: {.lead}
+該当`{python} len(wild)`件のうち`{python} n_wild_deer`件が「鹿」。確信度0.8以上が`{python} n_wild_hi`件あり、迷った末の誤りではない
+:::
+
+::: {.notes}
+アイベックス、マーコール、シャモアなど。茶色い毛、細い脚、山の背景は鹿と共通。
+一方、白やぶちの家畜ヤギは正しく当たっているものが多い。
+推測：モデルの「ヤギ」は家畜のヤギの見た目に寄っている。未検証。
+:::
+
+## `{python} n_label`件は正解ラベルの方がおかしい：ヤギやビッグホーンに「牛」、オリックスに「ヤギ」
+
+```{python}
+#| output: asis
+thumbs(["5b5e5614e196b919", "59ee2fabd15fcce4", "30d58f7a4d6f0943", "10962f6bc7c6d013"])
+```
+
+::: {.lead}
+左端のビッグホーン（野生ヒツジ）は、予測の「羊」の方が妥当。誤りに数えられているが、モデルは正しい
+:::
+
+::: {.notes}
+内訳は、明らかな誤ラベルが4件、6クラスのどれにも当てはまらない動物が4件（オリックス、ゲムズボック、ラバなど）。
+6クラスの外の動物も、評価データの中ではどれかのクラスに割り振られている。
+:::
+
+## 「正解」扱いの中にも6クラス外の動物が混じる。`{python} acc_s`は粗いラベルに対する数字
+
+```{python}
+#| output: asis
+thumbs(["0a5e8d559aa5d680", "7da4e355186ce058", "fa5de43462910548", "cd5ce87adc68bef2"])
+```
+
+::: {.lead}
+このデータの「鹿」にはレイヨウ類、「アルパカ」にはラクダも入っている。正解扱いの`{python} n_ok`件は全件を確認していない
+:::
+
+::: {.notes}
+誤りだけ見ていると気づかないが、正解の側にも同じ種類のずれがある。
+正解率を比べるときは、ラベルが何を意味しているかを先に揃える必要がある。
+:::
+
+## 被写体が小さく背景が広い写真は、`{python} group_n["small"]`件とも「牛」と判定された
+
+```{python}
+#| output: asis
+thumbs(["5c46432f977c05d6", "f462a8897c96f952", "241670ce818d0745", "54fd0a4958cbc9f8"])
+```
+
+::: {.lead}
+牧草地・雪原・路地など、背景が写真の大半を占めている
+:::
+
+::: {.notes}
+動物そのものより、草地や風景の印象で「牛」に寄っている可能性。4件だけなので傾向というより例として。
+:::
+
+## 確信度で弾くのは難しい：0.8以上でも誤りが`{python} n_err_hi`件残り、うち`{python} n_err_hi_wild`件が野生種
+
+```{python}
+#| label: confidence
+#| fig-alt: "正しい判定と誤りの確信度を点で並べた図。確信度0.8以上の誤りの大半が野生のヤギ・ヒツジ。"
+rng = np.random.default_rng(0)
+ok_p = np.array([float(r["prob"]) for r in pred if r["true"] == r["pred"]])
+err_w = np.array([float(r["prob"]) for r in errors if review[r["id"]]["group"] == "wild"])
+err_o = np.array([float(r["prob"]) for r in errors if review[r["id"]]["group"] != "wild"])
+
+fig, ax = plt.subplots(figsize=(10, 3.9))
+ax.scatter(ok_p, 1 + rng.uniform(-0.22, 0.22, len(ok_p)), s=30, color=LIGHT,
+           edgecolor="white", linewidth=0.8, label=f"正しい判定（{n_ok}件）")
+ax.scatter(err_o, rng.uniform(-0.18, 0.18, len(err_o)), s=70, color=GRAY,
+           edgecolor="white", linewidth=1.2, label=f"誤り：その他（{len(err_o)}件）")
+ax.scatter(err_w, rng.uniform(-0.18, 0.18, len(err_w)), s=70, color=BLUE,
+           edgecolor="white", linewidth=1.2, label=f"誤り：野生のヤギ・ヒツジ（{len(err_w)}件）")
+ax.axvline(TH, color=INK2, linewidth=1.2, linestyle=(0, (4, 3)))
+ax.text(TH - 0.006, -0.42, f"確信度 {TH}", color=INK2, fontsize=14, ha="right", va="center")
+ax.set_yticks([0, 1], [f"誤り {n_err}件", f"正しい {n_ok}件"], fontsize=16)
+ax.set_ylim(-0.5, 1.35)
+ax.set_xlim(0.3, 1.005)
+ax.set_xlabel("予測クラスの確信度")
+ax.tick_params(axis="y", length=0)
+ax.spines["left"].set_visible(False)
+fig.legend(loc="upper center", ncol=3, frameon=False, fontsize=14)
+plt.tight_layout(rect=(0, 0, 1, 0.9))
+plt.show()
+```
+
+::: {.lead}
+0.8未満を保留にすると、正しい判定も`{python} n_ok_lo`件が保留に回る
+:::
+
+::: {.notes}
+自信がないものだけ人が見る、という運用では野生種の誤りは拾えない。
+:::
+
+## 次の一手：モデルを替える前に、クラスの定義と正解ラベルを直す
+
+1. **クラスの定義を書く**：「ヤギ」に野生種を含めるか。レイヨウ・ラクダ・ラバはどこに入れるか、「その他」を作るか
+2. **評価データを見直す**：誤りだけでなく、正解扱いの`{python} n_ok`件も確認する
+3. **そのうえでモデル側を試す**：野生種の名前（ibex など）を文章に足す、各クラス数枚の例で学習する（どちらも未検証）
+
+議論したいこと：自分たちのデータの「正解ラベル」は、どこまで信用できるか
+
+::: {.notes}
+1と2をやらないと、3の効果が正しく測れない。
+:::
+
+## 付録：誤り一覧（1/2）野生のヤギ・ヒツジ `{python} group_n["wild"]`件
+
+```{python}
+#| output: asis
+thumbs([r["id"] for r in errors if review[r["id"]]["group"] == "wild"], cols=7, img_h=150, dense=True)
+```
+
+## 付録：誤り一覧（2/2）その他の`{python} n_err - group_n["wild"]`件
+
+```{python}
+#| output: asis
+order = ["small", "other", "mislabel", "offclass"]
+rest = sorted((r for r in errors if review[r["id"]]["group"] != "wild"),
+              key=lambda r: order.index(review[r["id"]]["group"]))
+thumbs([r["id"] for r in rest], cols=7, img_h=150, dense=True)
+```
+
+## 写真の出典
+
+```{python}
+#| output: asis
+lines = []
+for i in shown:
+    c = credits[i]
+    lines.append(
+        f'<p><a href="{html.escape(c["source"])}">{html.escape(c["title"])}</a>'
+        f' / {html.escape(c["author"])} / <a href="{html.escape(c["license"])}">CC BY 2.0</a></p>'
+    )
+print("```{=html}")
+print('<div class="credits">' + "".join(lines) + "</div>")
+print("```")
+```
+
+::: {.source}
+いずれも Open Images V7 に収録された Flickr の写真。表示用に縮小して掲載
+:::

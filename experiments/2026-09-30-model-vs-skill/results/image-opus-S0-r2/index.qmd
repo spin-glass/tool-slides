@@ -1,0 +1,352 @@
+---
+title: "間違えた画像を、見てみる"
+subtitle: "牧場の動物6クラス分類 ── 誤り28件の中身"
+format:
+  revealjs:
+    css: styles.css
+resources:
+  - data/thumbs/*.jpg
+---
+
+```{python}
+#| include: false
+import csv
+import html
+
+P = {x["id"]: x for x in csv.DictReader(open("data/predictions.csv", encoding="utf-8"))}
+C = {x["id"]: x for x in csv.DictReader(open("data/credits.csv", encoding="utf-8"))}
+CLASSES = ["羊", "ヤギ", "アルパカ", "鹿", "牛", "馬"]
+used = []  # 掲載した写真（クレジット用、登場順）
+
+
+def ph(i, what=None, mode="pred"):
+    """写真1枚。mode="pred": 予測と確信度 / "pair": 正解→予測"""
+    x = P[i]
+    if i not in used:
+        used.append(i)
+    if mode == "pred":
+        line = f'予測 <b>{x["pred_ja"]}</b>（確信度 {float(x["prob"]):.2f}）'
+    else:
+        mark = '<span class="ok">✓</span>' if x["true"] == x["pred"] else '<span class="ng">✗</span>'
+        line = f'正解 {x["true_ja"]} → 予測 <b>{x["pred_ja"]}</b> {mark}'
+    head = f'<div class="what">{what}</div>' if what else ""
+    return (f'<figure class="ph"><img src="data/thumbs/{i}.jpg" alt="{html.escape(what or x["true_ja"])}">'
+            f'<figcaption>{head}<div class="line">{line}</div>'
+            f'<div class="cr">写真: {html.escape(C[i]["author"])}</div></figcaption></figure>')
+
+
+def grid(tiles, cls=""):
+    return f'<div class="grid g{len(tiles)} {cls}">' + "".join(tiles) + "</div>"
+
+
+# 誤り28件を写真の目視で仕分けたもの
+WILD = ["78a98dcc91cace3b", "a18e8e19cd9b698d", "fb653d0bb921bb0d", "5806672761e3a840",
+        "41f666db2257e015", "7a89b4fc43ee7c13", "0af497431132df18", "4a51f8dd244cd303",
+        "cc6b583a6ebf4fd0", "bd871cfa3b03e1ae", "d4d91a285942921a",   # ヤギ→鹿
+        "13ee91a9369e648d", "ac5a4420790e24de"]                        # 羊→鹿
+LABEL = ["5b5e5614e196b919", "68d16e7efbb42509", "30d58f7a4d6f0943", "851c43ad70d10f45",
+         "be9ccb3ecebbcc09", "59ee2fabd15fcce4", "bb344550466c5b2e"]
+SMALL = ["241670ce818d0745", "5c46432f977c05d6", "54fd0a4958cbc9f8"]
+ALIKE = ["a7178fd3617c42bc", "f70c40ea63bec82d", "f462a8897c96f952", "10962f6bc7c6d013",
+         "4ff9f0b5f553f590"]
+errors = {i for i, x in P.items() if x["true"] != x["pred"]}
+sorted_ids = WILD + LABEL + SMALL + ALIKE
+assert len(sorted_ids) == len(set(sorted_ids)) and set(sorted_ids) == errors
+
+# 正解「ヤギ」40枚の仕分け（目視）
+GOAT_DOMESTIC = ["509aa3225f2b460d", "ff12cbd2dff942b2", "153d164e827a6716", "420781f846e31998",
+                 "51c14491dd8f589c", "dfe574fae44eb66b", "b1416101ba3f1ec5", "00dbabf445242ba3",
+                 "55311cf721c5f2e6", "e662a562f784d93c", "40003df857c97972", "3b4bc34797729d1d",
+                 "77e8894c31c69e65", "d18d2266bd34518a", "a2112872708ebfd5",
+                 "a7178fd3617c42bc", "241670ce818d0745", "f70c40ea63bec82d"]
+GOAT_WILD = ["75d5b2d21ff9fd97", "305f026be486e7de", "db8056c96b9c83a1", "a42286b32fb8b99a",
+             "fcf89fb114596adf", "cd5ce87adc68bef2", "68d16e7efbb42509"] + WILD[:11]
+GOAT_NOT = ["be9ccb3ecebbcc09", "851c43ad70d10f45", "659930c803700986"]
+GOAT_UNSURE = ["7217537d27457d2d"]
+goat_ids = GOAT_DOMESTIC + GOAT_WILD + GOAT_NOT + GOAT_UNSURE
+assert len(goat_ids) == len(set(goat_ids)) and set(goat_ids) == {i for i, x in P.items() if x["true"] == "Goat"}
+n_ok = lambda ids: sum(P[i]["true"] == P[i]["pred"] for i in ids)
+wild_ok = [i for i in GOAT_WILD if P[i]["true"] == P[i]["pred"]]
+
+
+def confusion_table():
+    rows = list(P.values())
+    out = ["<table class='cm'><thead><tr><th class='corner'>正解 ＼ 予測</th>"]
+    out += [f"<th>{p}</th>" for p in CLASSES] + ["<th class='acc'>正解</th></tr></thead><tbody>"]
+    for t in CLASSES:
+        out.append(f"<tr><th>{t}</th>")
+        for p in CLASSES:
+            n = sum(1 for x in rows if x["true_ja"] == t and x["pred_ja"] == p)
+            c = "diag" if t == p else "hot" if n >= 10 else "warm" if n else "zero"
+            out.append(f"<td class='{c}'>{n if n else '·'}</td>")
+        k = sum(1 for x in rows if x["true_ja"] == t and x["pred_ja"] == t)
+        total = sum(1 for x in rows if x["true_ja"] == t)
+        out.append(f"<td class='acc'>{k}/{total}</td></tr>")
+    return "".join(out) + "</tbody></table>"
+
+
+n_all = len(P)
+n_correct = n_all - len(errors)
+```
+
+## いつもの数字：正解率 `{python} f"{n_correct / n_all:.0%}"`、いちばん多い誤りは「ヤギ → 鹿」の12件
+
+:::: {.columns}
+::: {.column width="62%"}
+```{python}
+#| output: asis
+print(confusion_table())
+```
+:::
+::: {.column width="38%"}
+::: {.box}
+数字だけから考えると…
+
+**ヤギと鹿の区別が弱い**<br>
+→ ヤギの例を足す？<br>
+→ プロンプトを調整する？
+:::
+
+その前に、**この12件がどんな画像なのか**を見てみます。
+:::
+::::
+
+::: {.source}
+評価`{python} n_all`枚（各クラス40枚）／ モデル: CLIP ViT-B/32 の zero-shot 分類 ／ 正解: Open Images V7 の人手確認済みラベル
+:::
+
+::: {.notes}
+いつも見ている数字です。240枚中212枚正解で88%。混同行列でいちばん目立つのはヤギの行で、40枚中12枚を鹿と答えています。
+数字だけなら「ヤギと鹿の区別が弱いので、ヤギの例を足そう」と考えたくなります。対策を決める前に、この12枚を実際に見てみます。
+:::
+
+## 「ヤギ → 鹿」の12枚：牧場のヤギは1枚もいない
+
+```{python}
+#| output: asis
+goat_to_deer = [
+    ("78a98dcc91cace3b", "マーコール"), ("7a89b4fc43ee7c13", "ヌビアアイベックス"),
+    ("cc6b583a6ebf4fd0", "ヌビアアイベックス"), ("a18e8e19cd9b698d", "アイベックス"),
+    ("bd871cfa3b03e1ae", "アイベックス（逆光）"), ("41f666db2257e015", "野生ヤギの親子"),
+    ("5806672761e3a840", "野生ヤギ（遠景）"), ("4a51f8dd244cd303", "野生ヤギ（遠景）"),
+    ("d4d91a285942921a", "クリクリ（野生ヤギ）"), ("fb653d0bb921bb0d", "シャモア"),
+    ("0af497431132df18", "バーバリーシープ"), ("be9ccb3ecebbcc09", "オリックス"),
+]
+assert {i for i, _ in goat_to_deer} == {i for i, x in P.items() if x["true"] == "Goat" and x["pred"] == "Deer"}
+print(grid([ph(i, w) for i, w in goat_to_deer[:6]]))
+print(grid([ph(i, w) for i, w in goat_to_deer[6:]]))
+```
+
+::: {.take}
+11枚は**岩場や高原にいる野生のヤギの仲間**。残る1枚は**オリックス**（ヤギではない）
+:::
+
+::: {.notes}
+12枚すべて正解ラベルは「ヤギ」です。でも、牧場で飼われているヤギは1枚もありません。
+アイベックス、マーコール、シャモアといった野生のヤギの仲間が、岩場や高原に写っている写真です。右下の1枚はオリックスで、ヤギですらありません。
+:::
+
+## 当たるのは牧場のヤギ。野生のヤギの仲間は18枚中6枚だけ
+
+:::: {.columns}
+::: {.column width="50%"}
+### 家畜のヤギ　<span class="ok">`{python} n_ok(GOAT_DOMESTIC)`</span> / `{python} len(GOAT_DOMESTIC)`枚 正解
+
+```{python}
+#| output: asis
+print(grid([ph(i) for i in ["ff12cbd2dff942b2", "51c14491dd8f589c", "55311cf721c5f2e6"]], "tall"))
+```
+:::
+::: {.column width="50%"}
+### 野生のヤギの仲間　<span class="ng">`{python} n_ok(GOAT_WILD)`</span> / `{python} len(GOAT_WILD)`枚 正解
+
+```{python}
+#| output: asis
+print(grid([ph(i) for i in ["7a89b4fc43ee7c13", "a18e8e19cd9b698d", "d4d91a285942921a"]], "tall"))
+```
+:::
+::::
+
+::: {.take}
+「ヤギが苦手」ではなく「**野生のヤギの仲間が苦手**」
+:::
+
+::: {.source}
+ヤギ40枚を写真の見た目で仕分けた結果。ほかに、ヤギではない写真3枚（オリックス2・車1）と、見た目で判別できなかった1枚。
+野生側で当たった6枚も、`{python} sum(float(P[i]["margin"]) < 0.15 for i in wild_ok)`枚は2位のクラスとの確信度の差が 0.15 未満。
+:::
+
+::: {.notes}
+ヤギ40枚を、写真を見て「家畜のヤギ」と「野生のヤギの仲間」に分けました。
+白くてあご髭のある、柵や牧草地にいる家畜のヤギは18枚中15枚正解。野生の仲間は18枚中6枚しか当たらず、11枚が鹿、1枚が牛です。
+当たった6枚も、ほとんどが2位とぎりぎりの差でした。
+:::
+
+## 一方、評価データの「鹿」には、アンテロープが少なくとも10枚入っている
+
+```{python}
+#| output: asis
+antelopes = [("25e8ffb2fc84264d", "インパラ"), ("f7fedc553fce21a5", "スプリングボック"),
+             ("bbef8a90b2da2ad8", "ハーテビースト"), ("fa5de43462910548", "ボンゴ"),
+             ("41dd2d7531b5e9c3", "ブラックバック"), ("84ad51d586a5fdcb", "ボンテボック")]
+print(grid([ph(i, w, "pair") for i, w in antelopes]))
+```
+
+::: {.take}
+このデータの「鹿」は、実質「**野生の角のある草食動物**」。岩場の野生ヤギが「鹿」に寄るのは、定義から見ても起きやすい
+:::
+
+::: {.box}
+データの量より先に、**クラスの定義**を決める必要がある
+
+- 野生のヤギの仲間は「ヤギ」に入れるのか？
+- そもそも運用の画像に、野生のアイベックスは来るのか？
+:::
+
+::: {.notes}
+逆に、正解が「鹿」の40枚を見ると、インパラやスプリングボックなどアフリカのアンテロープが少なくとも10枚入っています。モデルはこれらを「鹿」と答えて正解になっています。
+このデータでは「鹿」は、実質「野生の角のある草食動物」という扱いです。そう考えると、岩場の野生ヤギが鹿と判定されるのは、ある意味で自然です。
+ここで決めるべきなのは、ヤギの画像を何枚足すかではなく、野生のヤギの仲間をどのクラスに入れるのか、そもそも運用の画像にそういう写真が来るのか、です。
+:::
+
+## 同じオオツノヒツジが、正解ラベルでは「羊」「ヤギ」「牛」に分かれている
+
+```{python}
+#| output: asis
+bighorns = [("13ee91a9369e648d", "オオツノヒツジ（親子）"), ("cd5ce87adc68bef2", "オオツノヒツジ"),
+            ("68d16e7efbb42509", "オオツノヒツジ"), ("5b5e5614e196b919", "オオツノヒツジの群れ")]
+print(grid([ph(i, w, "pair") for i, w in bighorns], "tall"))
+```
+
+::: {.take}
+モデルの答え以前に、**正解ラベルの付け方が揃っていない**。いちばん右は、モデルの「羊」のほうが写真に合っている
+:::
+
+::: {.notes}
+ここからは別の種類の誤りです。4枚とも北米のオオツノヒツジ、野生の羊です。ところが正解ラベルは、羊、ヤギ、ヤギ、牛とばらばらです。
+いちばん右は正解が「牛」で、モデルは「羊」と答えて誤り扱いですが、写真を見ればモデルのほうが合っています。
+アノテーターの方には、ここを一番見てほしいです。
+:::
+
+## 正解ラベルが写真と合わない画像は、ほかにもある。正解扱いの中にも
+
+:::: {.columns}
+::: {.column width="78%"}
+**誤り扱いの中に**
+
+```{python}
+#| output: asis
+mislabeled = [("30d58f7a4d6f0943", "ゲムズボック"), ("851c43ad70d10f45", "オリックス（遠景）"),
+              ("be9ccb3ecebbcc09", "オリックス"), ("59ee2fabd15fcce4", "ヤギと羊（牛はいない）"),
+              ("bb344550466c5b2e", "ヤギの群れ")]
+print(grid([ph(i, w, "pair") for i, w in mislabeled], "tall"))
+```
+:::
+::: {.column width="22%"}
+**正解扱いの中に**
+
+```{python}
+#| output: asis
+print(grid([ph("659930c803700986", "車（ポンティアック GTO）", "pair")], "tall"))
+```
+:::
+::::
+
+::: {.take}
+誤り28件のうち **`{python} len(LABEL)`件**は、まず正解ラベルの側を確認すべき画像（前のスライドの2件を含む）
+:::
+
+::: {.notes}
+ほかにも、アンテロープに「牛」や「ヤギ」、ヤギと羊しかいない囲いに「牛」、ヤギの群れに「羊」というラベルが付いていました。前のスライドのオオツノヒツジ2件と合わせて、誤り28件中7件は、まず正解ラベルを確認すべき画像です。
+右は正解扱いの中にあったものです。ラベルは「ヤギ」、予測も「ヤギ」で正解に数えられていますが、写っているのは車です。正解率の88%には、こういうものも入っています。
+:::
+
+## 残りの8件：小さく写っているもの、見た目が本当に似ているもの
+
+**動物が小さい・遠い・周りがごちゃごちゃ（`{python} len(SMALL)`件）**
+
+```{python}
+#| output: asis
+small = [("241670ce818d0745", "路地の奥の小さなヤギ"), ("5c46432f977c05d6", "湖を見下ろす丘の羊"),
+         ("54fd0a4958cbc9f8", "雪原の遠くのエルク")]
+assert [i for i, _ in small] == SMALL
+print(grid([ph(i, w, "pair") for i, w in small] + ["<div></div>"] * 2))
+```
+
+**見た目が似ている（`{python} len(ALIKE)`件）**
+
+```{python}
+#| output: asis
+alike = [("a7178fd3617c42bc", "牧場のヤギ"), ("f70c40ea63bec82d", "岩場のヤギ（ぶれ）"),
+         ("f462a8897c96f952", "牧草地の羊"), ("10962f6bc7c6d013", "荷を運ぶラバ"),
+         ("4ff9f0b5f553f590", "エランド（このデータでは鹿）")]
+assert [i for i, _ in alike] == ALIKE
+print(grid([ph(i, w, "pair") for i, w in alike]))
+```
+
+::: {.notes}
+残りは8件です。上の3件は、動物が小さく写っていたり、遠くにいたりする写真。運用でこういう写り方があるなら、切り出しや撮り方の話になります。
+下の5件は、見た目が似ていて間違えたものです。牧場のヤギを羊、羊を牛、ラバを牛。エランドはアンテロープで、このデータでは「鹿」扱いです。ラバを「馬」に入れるかも、実は定義の問題です。
+「データを足す」「モデルを変える」が素直に効きそうなのは、このあたりです。
+:::
+
+## 28件を仕分けると、先にやることは4種類に分かれる {.summary}
+
+| 何が起きていたか | 件数 | 先にやること |
+|:--|--:|:--|
+| 野生のヤギ・羊の仲間が「鹿」に | **`{python} len(WILD)`** | クラスの定義を決める（どこに入れるか・運用で来るか） |
+| 正解ラベルが写真と合わない | **`{python} len(LABEL)`** | ラベルを直す・付け方の基準を書き足す |
+| 動物が小さい・遠い | **`{python} len(SMALL)`** | 評価に含めるか決める・切り出しを検討する |
+| 見た目が本当に似ている | **`{python} len(ALIKE)`** | 例を足す・プロンプトやモデルを調整する |
+
+: {tbl-colwidths="[40,10,50]"}
+
+::: {.take}
+「ヤギと鹿の区別を強化する」がそのまま効くのは、28件のうち一部だけ
+:::
+
+::: {.notes}
+28件をまとめるとこうなります。いちばん多いのはクラスの定義の問題で13件、次が正解ラベルの問題で7件。データやモデルで対処するのが素直なのは「似ている」の5件です。
+混同行列の「ヤギ→鹿 12件」という数字からは、この違いは見えません。同じ数字でも、中身によって打ち手がまったく変わります。
+:::
+
+## お願い：次の対策を決める前に、間違えた画像を実際に見る
+
+1. `predictions.csv` から **正解 ≠ 予測** の行を抜き出す（今回は28件）
+2. 画像を並べ、1枚ずつ「**何が写っているか**」を一言メモする
+3. 似たメモをまとめて、件数を数える
+4. 件数の多いまとまりから、対策を選ぶ
+
+::: {.box}
+- 28枚なら30分ほど。エンジニアとアノテーターが一緒に見ると、モデルの問題かラベルの問題かがその場で分かる
+- 余裕があれば、正解扱いでも**2位との確信度の差が小さい**画像も見る
+:::
+
+::: {.notes}
+お願いはひとつです。次の改善で対策を決める前に、間違えた画像を実際に見てください。
+やり方は簡単で、正解と予測が違う行を抜き出して、画像を並べて、何が写っているかを一言ずつメモし、まとめて数えるだけです。今回の28枚なら30分ほどです。
+エンジニアとアノテーターが一緒に見ると、モデルの問題なのか、ラベルの問題なのかがその場で分かります。
+混同行列は「どこで」間違えたかを教えてくれますが、「なぜ」は画像を見ないと分かりません。
+:::
+
+## 付録：仕分けの方法と注意 {.appendix}
+
+- 対象：評価`{python} n_all`枚（各クラス40枚）のうち、正解 ≠ 予測の`{python} len(errors)`件すべて
+- 仕分けは写真を目視して行った。動物の種名（アイベックス、オリックスなど）は写真と Flickr のタイトルからの判断で、専門家の同定ではない
+- 正解「ヤギ」40枚の内訳（目視）：家畜のヤギ`{python} len(GOAT_DOMESTIC)`・野生のヤギの仲間`{python} len(GOAT_WILD)`・ヤギではない`{python} len(GOAT_NOT)`・判別できず`{python} len(GOAT_UNSURE)`
+- 「アンテロープが少なくとも10枚」は、正解「鹿」の40枚のうち目視で確認できた枚数（誤りになったエランド1枚を含む）
+- モデルは CLIP ViT-B/32 の zero-shot 分類。データ作成時に、目視で6枚を評価から除外済み（`meta.json`）
+
+## 付録：写真のクレジット {.appendix}
+
+掲載した写真はすべて Open Images V7 に収録された Flickr の写真で、各作者が [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) で公開しているもの（表示用に縮小・トリミング）。各項目のリンクが元の写真。
+
+```{python}
+#| output: asis
+assert all(C[i]["license"] == "https://creativecommons.org/licenses/by/2.0/" for i in used)
+items = "".join(
+    f'<li>“{html.escape(C[i]["title"])}” by {html.escape(C[i]["author"])} '
+    f'(<a href="{C[i]["source"]}">Flickr</a>)</li>'
+    for i in used)
+print(f'<ol class="credits">{items}</ol>')
+```

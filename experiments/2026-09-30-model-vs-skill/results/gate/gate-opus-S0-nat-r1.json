@@ -1,0 +1,45 @@
+{
+  "run_id": "gate-opus-S0-nat-r1",
+  "task": "gate",
+  "model": "opus",
+  "skill": "S0",
+  "rep": "1",
+  "natural": true,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    1
+  ],
+  "wall_s": 107,
+  "num_turns": 9,
+  "cost_usd": 0.589,
+  "output_tokens": 11416,
+  "models_used": {
+    "claude-opus-5-5": 0.589
+  },
+  "stop_reasons": [
+    "error_max_turns"
+  ],
+  "deck_exists": false,
+  "changed_files": [
+    "decks/farm-errors/review.csv"
+  ],
+  "tools": {
+    "Bash": 6,
+    "Read": 3,
+    "Skill": 1,
+    "Write": 1
+  },
+  "skill_calls": [
+    "dataviz"
+  ],
+  "slides_skill_listed": false,
+  "stop_hook_responses": 0,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.08,
+    "seven_day": 0.51,
+    "status": "allowed"
+  },
+  "final_message": ""
+}

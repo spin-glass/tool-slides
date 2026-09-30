@@ -1,0 +1,44 @@
+{
+  "run_id": "image-sonnet-S0-r1",
+  "task": "image",
+  "model": "sonnet",
+  "skill": "S0",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 645,
+  "num_turns": 122,
+  "cost_usd": 2.056,
+  "output_tokens": 68608,
+  "models_used": {
+    "claude-sonnet-5-5": 2.056
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-errors/index.qmd"
+  ],
+  "tools": {
+    "Bash": 33,
+    "Read": 87,
+    "Edit": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": false,
+  "stop_hook_responses": 2,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.22,
+    "seven_day": 0.53,
+    "status": "allowed"
+  },
+  "final_message": "`decks/farm-errors/index.qmd` に、本編13枚と写真の出典3枚の計16枚を作りました。`quarto render` は成功し、`_output/decks/farm-errors/index.html` ができています。Chrome でスライドを1枚ずつ画像にして、レイアウトの崩れを直しました。\n\n## 中身\n誤り28枚を実際に見ると、原因は3種類に分かれました。仕分けは私が縮小画像(長辺256px)と写真タイトルを見て付けたものです。\n\n| 種類 | 件数 | 内容 |\n|---|---|---|\n| 野生・動物園の動物 | 16 | 「ヤギ→鹿」12枚は、すべて野生か動物園の動物でした。牧場のヤギは1枚もありません。 |\n| ラベルに疑問 | 6 | 牛ラベルなのにオリックスやヤギが写っている、などです。 |\n| 写真が難しい | 6 | 被写体が小さい、遠い、似ている、といった普通の牧場写真での誤りです。 |\n\n- **ヤギの正解率57.5%の中身:** 農場のヤギは15/17枚(88%)が正解で、他クラスと同じ水準でした。低いのは野生・動物園の21枚で、正解は7枚です。\n- **正解側の異常:** 「ヤギ」ラベルで正解扱いの1枚は、実際は車の写真でした。\n\n流れは次のとおりです。\n1. 毎回見ている数字と混同行列を見せる。\n2. マーコール1枚を大きく見せる。\n3. 12枚を見せる。\n4. ヤギ40枚の内訳を見せる。\n5. 28枚を3種類に仕分ける。\n6. 種類ごとに画像を見せる。\n7. 種類ごとに対策と担当を整理する。\n8. 「次の改善の前に、間違えた画像を並べて仕分けてください」でまとめる。\n\n各スライドの発表メモ(約10分分)も入れています。\n\n## 注意点\n- **出典:** 写真は CC BY 2.0 なので、各写真の下に作者名を出し、末尾3枚に全35枚の出典を載せました。\n- **データの条件:** モデルは CLIP の zero-shot、評価は240枚です。この条件はスライド2の注記に書いてあります。\n- **仕分けの根拠:** 件数や「野生・動物園」の判定は私の目視判断で、「チームで見直すと動く」とスライドにも書いています。\n- **`.gitignore`:** render 時に Quarto が自動で `/.quarto/` と `**/*.quarto_ipynb` を追記しました。私が編集したものではありません。\n- **生成方法:** qmd は、数値を CSV から取り込む一時スクリプト(リポジトリ外)で生成しました。スクリプトは残していないので、以後は qmd を直接編集してください。\n- **Notion と git:** ご指示どおり、Notion への保存、commit、push、公開はしていません。"
+}

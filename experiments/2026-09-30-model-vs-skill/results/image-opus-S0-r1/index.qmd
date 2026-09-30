@@ -1,0 +1,340 @@
+---
+title: "どんな画像で間違えているか"
+subtitle: "牧場の動物6クラス分類：評価240枚のうち誤った28枚を、画像で見る"
+format:
+  revealjs:
+    css: style.css
+---
+
+```{python}
+#| label: setup
+import csv
+import html
+from collections import Counter
+
+CLASSES = ["Sheep", "Goat", "Alpaca", "Deer", "Cattle", "Horse"]
+JA = {"Sheep": "羊", "Goat": "ヤギ", "Alpaca": "アルパカ", "Deer": "鹿", "Cattle": "牛", "Horse": "馬"}
+
+with open("data/predictions.csv", encoding="utf-8") as f:
+    preds = {r["id"]: r for r in csv.DictReader(f)}
+with open("data/credits.csv", encoding="utf-8") as f:
+    credits = {r["id"]: r for r in csv.DictReader(f)}
+# 誤り28枚を1枚ずつ目で見て付けた分類（group）と、写っているもの（seen）
+with open("review.csv", encoding="utf-8") as f:
+    review = {r["id"]: r for r in csv.DictReader(f)}
+
+errors = [r for r in preds.values() if r["true"] != r["pred"]]
+n_all, n_err = len(preds), len(errors)
+cm = Counter((r["true"], r["pred"]) for r in preds.values())
+
+
+def full_id(prefix):
+    hits = [i for i in preds if i.startswith(prefix)]
+    assert len(hits) == 1, prefix
+    return hits[0]
+
+
+# 本文の数字と、元データ・目視分類が食い違っていたら描画を止める
+assert (n_all, n_err) == (240, 28)
+assert cm[("Goat", "Goat")] == 23 and cm[("Goat", "Deer")] == 12
+assert set(review) == {r["id"] for r in errors}
+groups = Counter(r["group"] for r in review.values())
+assert groups == {"wild": 12, "label": 9, "small": 4, "livestock": 3}
+
+shown = []  # 出典スライドに載せる写真（表示順）
+
+
+def img(i):
+    if i not in shown:
+        shown.append(i)
+    return f'<img src="data/thumbs/{i}.jpg" alt="{html.escape(review.get(i, {}).get("seen", ""))}">'
+
+
+def caption(i, seen=True):
+    r = preds[i]
+    head = f'正解 {r["true_ja"]} → 予測 <b>{r["pred_ja"]}</b> <span class="prob">{float(r["prob"]):.2f}</span>'
+    if seen and i in review:
+        head += f'<br><span class="seen">{review[i]["seen"]}</span>'
+    return head
+
+
+def grid(ids, cols, h=130, cap=caption):
+    cards = "".join(
+        f'<figure class="card">{img(i)}<figcaption>{cap(i)}</figcaption></figure>' for i in ids
+    )
+    raw(f'<div class="grid" style="grid-template-columns: repeat({cols}, 1fr); --h: {h}px;">{cards}</div>')
+
+
+def raw(h):
+    print("\n```{=html}\n" + h + "\n```\n")
+
+
+def of_group(g):
+    return [i for i in review if review[i]["group"] == g]
+
+
+SOURCE = '<div class="source">写真: Open Images V7 収録の Flickr 写真（各作者、CC BY 2.0）。作者・タイトル・出典は最後のスライド</div>'
+```
+
+## いつもの数字でわかるのは「ヤギが弱く、鹿と間違えやすい」ところまで
+
+:::: {.columns}
+::: {.column width="34%"}
+<div class="stat"><div class="num">88%</div><div class="what">全体の正解率（212/240枚）</div></div>
+<div class="stat"><div class="num">58%</div><div class="what">ヤギの正解率（23/40枚、6クラスで最低）</div></div>
+<div class="stat"><div class="num">12枚</div><div class="what">ヤギを鹿と判定（誤り28枚のうち最多）</div></div>
+:::
+
+::: {.column width="66%"}
+```{python}
+#| output: asis
+def cell_color(n):
+    # 誤りの枚数を1色の濃淡で（多いほど濃い）
+    if n >= 10:
+        return "#256abf", "#ffffff"
+    if n >= 3:
+        return "#86b6ef", "#111418"
+    return "#cde2fb", "#111418"
+
+rows = ['<tr><th></th>' + "".join(f"<th>{JA[c]}</th>" for c in CLASSES) + "</tr>"]
+for t in CLASSES:
+    tds = []
+    for p in CLASSES:
+        n = cm[(t, p)]
+        if t == p:
+            tds.append(f'<td class="diag">{n}</td>')
+        elif n == 0:
+            tds.append("<td></td>")
+        else:
+            bg, fg = cell_color(n)
+            cls = ' class="hit"' if (t, p) == ("Goat", "Deer") else ""
+            tds.append(f'<td{cls} style="background:{bg};color:{fg}">{n}</td>')
+    rows.append(f'<tr><th class="rowh">{JA[t]}</th>' + "".join(tds) + "</tr>")
+raw('<div class="axis-note">行＝正解、列＝予測。灰色は正解した枚数、青は誤りの枚数</div>'
+    + '<table class="cm">' + "".join(rows) + "</table>")
+```
+:::
+::::
+
+<p class="lead">では「ヤギ→鹿」の12枚は、どんな画像なのか。</p>
+
+::: notes
+正解率88%、ヤギが弱い、ヤギを鹿と間違える。ここまでは毎回の報告で見ている数字です。
+でもこの「12」という数字からは、どんな写真なのかはわかりません。今日はそのマスを開けて中を見ます。
+:::
+
+## 「ヤギ→鹿」の12枚を開くと、11枚は岩場や草原にいる野生のヤギの仲間だった
+
+```{python}
+#| output: asis
+goat_deer = sorted(
+    (r["id"] for r in errors if (r["true"], r["pred"]) == ("Goat", "Deer")),
+    key=lambda i: -float(preds[i]["prob"]),
+)
+assert sum(float(preds[i]["prob"]) >= 0.8 for i in goat_deer) == 8
+grid(goat_deer, cols=6, h=128)
+raw(SOURCE)
+```
+
+<p class="small">アイベックス、シャモア、マーコールなど。確信度0.8以上が8枚あり、迷わず「鹿」と答えている。残る1枚（右下）はオリックスで、そもそもヤギではない。</p>
+
+::: notes
+確信度の高い順に並べています。茶色くて細身で、角があって、岩場や斜面にいる。人の目で見ても鹿と言いたくなる写真が並んでいます。
+大事なのは確信度です。0.9を超えるものもあり、モデルは迷っていません。確信度のしきい値で人の確認に回す、という対策ではこの誤りは拾えません。
+右下のオリックスは、次に話す「ラベルの問題」の例です。
+（種名は写真の見た目と投稿タイトルからの判断です。専門家の確認はしていません。）
+:::
+
+## 当たったヤギは家畜、外れたヤギは野生種。「ヤギ」に野生種を含めるかを先に決める
+
+```{python}
+#| output: asis
+goat_kind = {
+    "domestic": ["509aa3", "153d16", "420781", "51c144", "dfe574", "55311c", "ff12cb", "e662a5",
+                 "40003d", "3b4bc3", "b14161", "00dbab", "77e889", "d18d22", "a21128", "721753",
+                 "a7178f", "f70c40", "241670"],
+    "wild": ["cd5ce8", "305f02", "db8056", "75d5b2", "a42286", "fcf89f",
+             "78a98d", "a18e8e", "fb653d", "580667", "41f666", "7a89b4", "0af497", "4a51f8",
+             "cc6b58", "bd871c", "d4d91a", "68d16e"],
+    "other": ["be9ccb", "851c43", "659930"],  # オリックス2枚、車1枚
+}
+goat_kind = {k: [full_id(p) for p in v] for k, v in goat_kind.items()}
+assert sorted(sum(goat_kind.values(), [])) == sorted(i for i, r in preds.items() if r["true"] == "Goat")
+
+
+def hit(ids):
+    return sum(preds[i]["pred"] == "Goat" for i in ids), len(ids)
+
+
+dom_ok, dom_n = hit(goat_kind["domestic"])
+wild_ok, wild_n = hit(goat_kind["wild"])
+assert (dom_ok, dom_n, wild_ok, wild_n) == (16, 19, 6, 18)
+
+def pred_only(i):
+    return f'予測 <b>{preds[i]["pred_ja"]}</b> <span class="prob">{float(preds[i]["prob"]):.2f}</span>'
+
+
+raw(f'<div class="rowlabel">家畜のヤギ：{dom_n}枚中 {dom_ok}枚 正解</div>')
+grid([full_id(p) for p in ["509aa3", "153d16", "420781", "51c144", "ff12cb", "40003d"]],
+     cols=6, h=128, cap=pred_only)
+raw(f'<div class="rowlabel">野生のヤギ・ヒツジの仲間：{wild_n}枚中 {wild_ok}枚 正解</div>')
+grid([full_id(p) for p in ["78a98d", "fb653d", "7a89b4", "cc6b58", "d4d91a", "41f666"]],
+     cols=6, h=128, cap=pred_only)
+raw(SOURCE)
+```
+
+<p class="small">正解「ヤギ」40枚を写っているもので分けた。残り3枚はオリックス2枚と車1枚。正解「鹿」にもインパラやガゼルが多く入っている。</p>
+
+::: notes
+正解が「ヤギ」の40枚を、写っているもので分けました。家畜のヤギは19枚中16枚当たっています。野生のヤギやヒツジの仲間は18枚中6枚しか当たっていません。
+つまり「ヤギが弱い」の中身は「野生種が弱い」です。
+ここで対策が分かれます。運用で扱うのが牧場の家畜だけなら、野生種は評価から外すか別クラスにする。野生種も「ヤギ」と答えてほしいなら、野生種の学習画像を足す。どちらにするかはモデルの問題ではなく、クラスの定義の問題なので、先に決める必要があります。
+ついでに言うと、正解が「鹿」の画像にもインパラやガゼルが多く入っていて、「鹿」の境界もあいまいです。
+:::
+
+## 誤り28枚は4種類に分かれ、効く対策が違う。9枚はラベル側の問題で、モデルを直しても減らない
+
+```{python}
+#| output: asis
+kinds = [
+    ("wild", "野生のヤギ・ヒツジの仲間を、主に「鹿」と判定",
+     "クラスの定義を決める。含めるなら野生種の画像を足す", ["fb653d", "7a89b4"]),
+    ("label", "正解ラベルが、写っている動物と合わない",
+     "ラベルを直す、または評価から外す", ["30d58f", "59ee2f"]),
+    ("small", "動物が小さい・荷物で形が隠れ、背景が目立つ",
+     "動物を切り出してから分類する", ["5c4643", "241670"]),
+    ("livestock", "はっきり写った家畜の取り違え",
+     "モデルの改善（確信度はどれも0.6未満）", ["a7178f", "f462a8"]),
+]
+trs = []
+for g, what, fix, ex in kinds:
+    thumbs = "".join(img(full_id(p)) for p in ex)
+    em = ' class="em"' if g == "label" else ""
+    trs.append(f"<tr{em}><td>{what}</td><td class=\"n\">{groups[g]}枚</td><td>{thumbs}</td><td>{fix}</td></tr>")
+raw('<table class="kinds"><tr><th>写っているもの</th><th>枚数</th><th>例</th><th>効く対策</th></tr>'
+      + "".join(trs) + "</table>")
+raw(SOURCE)
+```
+
+::: notes
+ヤギ以外も含めて、誤り28枚をすべて1枚ずつ見て、4種類に分けました。分け方は review.csv に残してあります。
+1つ目は今見た野生種で12枚。2つ目が9枚で、正解ラベルのほうが写っている動物と合っていないもの。3つ目は動物が小さく写っているもので4枚。4つ目の、はっきり写った家畜を取り違えたものは3枚だけです。
+もし数字だけ見て「ヤギの学習データを増やそう」と決めていたら、効くのは1つ目の一部だけで、2つ目の9枚はまったく減りません。
+:::
+
+## 9枚は正解ラベルが写真と合わない。オリックスに「ヤギ」、ヤギに「牛」
+
+```{python}
+#| output: asis
+label_ids = sorted(of_group("label"), key=lambda i: (preds[i]["true"], preds[i]["pred"]))
+
+
+def label_caption(i):
+    r = preds[i]
+    return (f'正解 <b>{r["true_ja"]}</b> → 予測 {r["pred_ja"]}'
+            f'<br><span class="seen">{review[i]["seen"].split("なのに")[0]}</span>')
+
+
+grid(label_ids, cols=5, h=128, cap=label_caption)
+raw(SOURCE)
+```
+
+<p class="small">オリックスやエランドのようなレイヨウは6クラスのどれでもない。「近いクラス」を付けず、対象外として扱う決まりが要る。<br><span class="seen">動物名は、写真の見た目と投稿タイトルから発表者が判断したもの（専門家の確認はしていない）。</span></p>
+
+::: notes
+正解ラベルが写真と合っていない9枚です。左上から、正解が「牛」なのにゲムズボックやヤギやビッグホーン、正解が「ヤギ」なのにオリックス、正解が「鹿」なのにエランド、正解が「羊」なのにヤギの群れ。
+中には、ビッグホーンの群れを「羊」と答えるなど、モデルのほうが正しいものもあります。これが「誤り」に数えられています。
+6クラスのどれでもない動物に、近いクラスを付けてしまっているように見えます。対象外として外すルールがあれば防げます。
+:::
+
+## 4枚は動物が小さい写真。雪原・街角・湖の背景や荷物のほうが目立つ
+
+```{python}
+#| output: asis
+grid(sorted(of_group("small"), key=lambda i: preds[i]["true"]), cols=4, h=280)
+raw(SOURCE)
+```
+
+<p class="small">どれも「牛」と予測している。実際の運用カメラでも動物が小さく写るなら、分類の前に動物の位置を切り出す段を入れる対策が効く。</p>
+
+::: notes
+4枚とも、動物が画面のごく一部です。湖の風景の隅の羊、街角のヤギ、雪原の遠くのワピチ、荷物を積んだラバの列。
+学習データを足すより、動物の部分を切り出してから分類するほうが直接効きます。運用中のカメラ画像でこういう写り方がどのくらいあるかも、実物を見れば分かります。
+:::
+
+## はっきり写った家畜の取り違えは3枚だけ。どれも確信度0.6未満で、モデルも迷っている
+
+```{python}
+#| output: asis
+grid(sorted(of_group("livestock"), key=lambda i: float(preds[i]["prob"])), cols=3, h=280)
+raw(SOURCE)
+```
+
+<p class="small">白いヤギを「羊」、牧草地の羊を「牛」。ここがモデル自体を改善する対象。</p>
+
+::: notes
+モデルの弱さと素直に言えるのはこの3枚です。白いヤギを羊と、柵のある牧草地の羊を牛と判定しています。
+確信度はどれも0.6未満で、モデル自身も迷っています。ただし0.6未満の予測は全体で25枚あり、そのうち17枚は正解なので、しきい値だけで分けるのは粗いです。
+:::
+
+## 「正解」に数えられた212枚にも、見ればすぐわかるラベル誤りがある
+
+```{python}
+#| output: asis
+hidden = {
+    "659930": "車（ポンティアックGTO、愛称 Goat）",
+    "0a5e8d": "ラクダ",
+    "5f8987": "シロイワヤギ",
+    "65c0b6": "リャマ",
+}
+for p in hidden:
+    i = full_id(p)
+    assert preds[i]["true"] == preds[i]["pred"]
+
+
+def hidden_caption(i):
+    r = preds[i]
+    return (f'正解 {r["true_ja"]} → 予測 {r["pred_ja"]}'
+            f'<br><span class="seen">写っているのは{hidden[i[:6]]}</span>')
+
+
+grid([full_id(p) for p in hidden], cols=4, h=240, cap=hidden_caption)
+raw(SOURCE)
+```
+
+<p class="small">ほかにラクダがあと2枚（正解「アルパカ」）、アダックス（正解「牛」）。正解率の88%には、こうした画像も「正解」として入っている。</p>
+
+::: notes
+誤りだけでなく、正解に数えられた画像も一部見ました。「ヤギ」の正解ラベルが付いた赤い車があります。ポンティアックGTOの愛称が Goat だからだと思われます。モデルもこれを「ヤギ」と答えて、正解に数えられています。
+ラクダ3枚が「アルパカ」、シロイワヤギやリャマが「羊」。数字だけ見ている限り、これらは絶対に見つかりません。
+:::
+
+## 次の改善の対策を決める前に、間違えた画像を実際に見てください
+
+1. **誤りの多いマスから、画像を一覧に並べる。** 今回の28枚なら、一覧2枚で全部見られる
+2. **1枚ずつ「ラベル」「クラスの定義」「写り方」「モデル」のどれかを付ける。** 今回の分類は `review.csv`
+3. **枚数の多い種類から対策を選ぶ。** ラベル修正と定義の決定は、モデル改善より先
+4. **正解に数えられた画像も、各クラス数枚は見る**
+
+<p class="lead">今回なら、ヤギの学習データを足す前に「ヤギに野生種を含めるか」と「どれにも当たらない動物の扱い」を決める。</p>
+
+::: notes
+お願いは1つです。次の改善で対策を決める前に、間違えた画像を実際に見てください。
+28枚を見て分けるのに、それほど時間はかかりません。数字だけで「ヤギのデータを増やす」と決めていたら、9枚のラベルの問題も、4枚の写り方の問題も残ったままでした。
+今回の例で言えば、最初に決めるべきは2つです。ヤギに野生種を含めるか。6クラスのどれでもない動物をどう扱うか。
+:::
+
+```{python}
+#| output: asis
+# 出典：このスライドで表示した写真すべて（表示順）
+items = []
+for i in shown:
+    c = credits[i]
+    items.append(
+        f'<li>「<a href="{html.escape(c["source"])}">{html.escape(c["title"])}</a>」'
+        f' {html.escape(c["author"])}, <a href="{html.escape(c["license"])}">CC BY 2.0</a></li>'
+    )
+print("\n## 写真の出典\n")
+raw('<p class="small">Open Images V7 収録の Flickr 写真。すべて各作者が CC BY 2.0 で公開。長辺256pxに縮小して表示（表示順）。</p>'
+    + '<ol class="credits">' + "".join(items) + "</ol>")
+```

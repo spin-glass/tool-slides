@@ -1,0 +1,41 @@
+{
+  "run_id": "gate-sonnet-S3-nat-r1",
+  "task": "gate",
+  "model": "sonnet",
+  "skill": "S3",
+  "rep": "1",
+  "natural": true,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 13,
+  "num_turns": 5,
+  "cost_usd": 0.112,
+  "output_tokens": 1224,
+  "models_used": {
+    "claude-sonnet-5-5": 0.112
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": false,
+  "changed_files": [],
+  "tools": {
+    "Skill": 1,
+    "Bash": 2
+  },
+  "skill_calls": [
+    "slides"
+  ],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.06,
+    "seven_day": 0.5,
+    "status": "allowed"
+  },
+  "final_message": "`decks/farm-errors/` に素材があります。牧場の動物6クラス（羊・ヤギ・アルパカ・鹿・牛・馬）の画像分類結果で、240枚分です。CLIP ViT-B/32 の zero-shot 分類で、予測・確信度・2番目の候補が入っています。スライドの骨子を書く前に、次の3点を教えてください。\n\n**1. 聴衆**\n- 誰が来ますか。部内のメンバー全員ですか。\n- 画像分類や zero-shot、CLIP をどこまで知っていますか。\n  - (a) ほぼ全員が知っている\n  - (b) ML は分かるが CLIP は初めて\n  - (c) ML 未経験の人も混じる\n\n**2. 聴後に取ってほしい行動を1つ**\n- 例1: 誤りを混同の型ごとに見る習慣をつける。\n- 例2: 自分のプロジェクトでも誤りの画像を全数見る。\n- 例3: この分類モデルのクラス定義やプロンプトを見直すことに合意する。\n- 例4: 理解して持ち帰ってもらえれば足りる。\n\n**3. 持ち時間**\n- 質疑を除いて何分ですか。\n- 目安は分 ÷ 1.5 で切り捨てです。10分なら本編6枚、15分なら10枚、20分なら13枚です。合意した枚数を budget にします。\n\n**補足の確認**\n- 素材は `farm-errors` のデータ（240枚）で合っていますか。別のデータや自分のモデルの結果を使うなら教えてください。\n- 誤りの原因（例: 羊とヤギの見た目が近い）は、データからは推測しかできません。発表者ご本人が知っている背景があれば教えてください。なければ「見て分かった事実」だけで組み、推測は注記します。\n\n3点とも「任せる」でも構いません。その場合は原文を記録したうえで、私が決めて進めます。"
+}

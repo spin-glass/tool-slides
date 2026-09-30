@@ -1,0 +1,39 @@
+{
+  "run_id": "gate-sonnet-S0-nat-r1",
+  "task": "gate",
+  "model": "sonnet",
+  "skill": "S0",
+  "rep": "1",
+  "natural": true,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    1
+  ],
+  "wall_s": 54,
+  "num_turns": 9,
+  "cost_usd": 0.265,
+  "output_tokens": 6990,
+  "models_used": {
+    "claude-sonnet-5-5": 0.265
+  },
+  "stop_reasons": [
+    "error_max_turns"
+  ],
+  "deck_exists": false,
+  "changed_files": [],
+  "tools": {
+    "Bash": 7,
+    "Read": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": false,
+  "stop_hook_responses": 0,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.06,
+    "seven_day": 0.5,
+    "status": "allowed"
+  },
+  "final_message": ""
+}

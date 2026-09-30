@@ -1,37 +1,51 @@
 #!/usr/bin/env python3
 """検証の集計: 指標・盲検評価・事実確認を合わせ、合否を判定して表にする。
 
-    python report.py            # results/summary.md と比較用の画像を書く
+    python report.py            # results/summary.md を書く
 
 入力: results/metrics.csv（score.py）、results/judge_scores.csv（judge.py table）、
-      results/factcheck/*.json（記述の正しさ）、results/number_errors.csv（数値の誤りを目で確かめた結果）
+      results/factcheck/*.json（記述の正しさ）、results/number_errors.csv（数値の誤りを目で確かめた結果）、
+      results/gate.csv と results/gate/*.json（ゲートの反応）
 """
 from __future__ import annotations
 
 import csv
 import json
-import os
 import statistics as st
-import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-WORK = Path(os.environ.get("MVS_WORK", Path(tempfile.gettempdir()) / "tool-slides-mvs"))
 RESULTS = HERE / "results"
 MODEL_JA = {"fable": "Fable 5.1", "opus": "Opus 5.5", "sonnet": "Sonnet 5.5", "haiku": "Haiku 4.5"}
 SKILL_JA = {"S0": "なし", "S1": "初版", "S3": "現行"}
 SCORES = ["audience", "images", "titles", "economy", "layout", "action", "overall"]
+SCORE_JA = {"audience": "聴衆", "images": "画像", "titles": "タイトル", "economy": "量", "layout": "見た目",
+            "action": "行動", "overall": "総合"}
+TASK_JA = {"image": "主課題（聴衆・行動・時間を与えた依頼）", "under": "3点を与えない依頼（スキルなし。探索的）"}
 
 
 def read_csv(path: Path) -> list[dict]:
     return list(csv.DictReader(open(path, encoding="utf-8"))) if path.exists() else []
 
 
+def order(m: dict) -> tuple:
+    return (list(TASK_JA).index(m["task"]), list(MODEL_JA).index(m["model"]), m["skill"], m["rep"])
+
+
+def fmt(v, spec=".1f") -> str:
+    return "" if v is None else format(v, spec)
+
+
+def mean(xs) -> float | None:
+    xs = [x for x in xs if x is not None]
+    return st.mean(xs) if xs else None
+
+
 def gate_table() -> list[str]:
     """ゲートの結果。反応の分類は記録を読んで results/gate.csv に書いたもの（run_id, outcome）を使う。"""
     outcome = {r["run_id"]: r["outcome"] for r in read_csv(RESULTS / "gate.csv")}
     rows = []
-    for f in sorted((WORK / "runs").glob("gate-*-r1/summary.json")):
+    for f in sorted((RESULTS / "gate").glob("gate-*-r1.json")):
         d = json.loads(f.read_text())
         used_skill = (d["skill"] != "S0" and not d["natural"]) or "slides" in d["skill_calls"]
         cond = "なし" if d["skill"] == "S0" else ("現行（`/slides` なし）" if d["natural"] else "現行（`/slides` あり）")
@@ -52,7 +66,6 @@ def compare_image(run_ids: list[str], labels: list[str], out: Path) -> None:
             font = ImageFont.truetype(path, 30)
             break
     sheets = [Image.open(RESULTS / r / "sheet.jpg").crop((0, 26, 1920, 10**6)) for r in run_ids]
-    sheets = [s.crop((0, 0, s.width, s.height)) for s in sheets]
     head = 56
     total = sum(s.height + head for s in sheets)
     canvas = Image.new("RGB", (1920, total), "white")
@@ -66,8 +79,7 @@ def compare_image(run_ids: list[str], labels: list[str], out: Path) -> None:
     canvas.save(out, "JPEG", quality=80)
 
 
-def main() -> None:
-    metrics = {r["run_id"]: r for r in read_csv(RESULTS / "metrics.csv")}
+def records() -> list[dict]:
     judge = read_csv(RESULTS / "judge_scores.csv")
     number_errors = {r["run_id"]: int(r["errors"]) for r in read_csv(RESULTS / "number_errors.csv")}
     key = json.loads((RESULTS / "judge_key.json").read_text()) if (RESULTS / "judge_key.json").exists() else {}
@@ -76,42 +88,109 @@ def main() -> None:
         for code, d in json.loads(f.read_text()).items():
             facts.setdefault(key[code], []).append(d)
 
-    lines = ["## 実行ごとの結果", "",
-             "| モデル | スキル | 回 | 本編 | 言い切り | 本文最大 | bullets最大 | ヘッジ | 誤り画像 | 数値誤り | 合否 | 総合 | 記述○/× | 費用 | 分 |",
-             "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
-    cells: dict[tuple, list[dict]] = {}
-    for run_id, m in sorted(metrics.items(), key=lambda kv: (list(MODEL_JA).index(kv[1]["model"]), kv[1]["skill"], kv[1]["rep"])):
-        js = [j for j in judge if j["run_id"] == run_id]
-        shown = st.median(int(float(j["n_error_images"])) for j in js) if js else None
-        overall = st.mean(float(j["overall"]) for j in js) if js else None
-        nerr = number_errors.get(run_id)
+    recs = []
+    for m in sorted(read_csv(RESULTS / "metrics.csv"), key=order):
+        js = [j for j in judge if j["run_id"] == m["run_id"]]
         renders = m["renders"] == "True"
-        ok = (renders and nerr == 0 and int(m["n_main"]) <= 7 and float(m["title_ok_rate"]) >= 0.8
-              and int(m["chars_max"]) <= 250 and shown is not None and shown >= 20) if renders else False
-        fc = facts.get(run_id, [])
-        sup = st.mean(d["n_supported"] for d in fc) if fc else None
-        uns = st.mean(d["n_unsupported"] for d in fc) if fc else None
-        rec = {"ok": ok, "overall": overall, "shown": shown, "uns": uns, "sup": sup, **m,
-               **{s: st.mean(float(j[s]) for j in js) if js else None for s in SCORES}}
-        cells.setdefault((m["model"], m["skill"]), []).append(rec)
-        if not renders:
-            lines.append(f"| {MODEL_JA[m['model']]} | {SKILL_JA[m['skill']]} | {m['rep']} | 描画できず | | | | | | | 不合格 | | | "
-                         f"${float(m['cost_usd']):.2f} | {int(m['wall_s']) / 60:.0f} |")
-            continue
-        lines.append(
-            f"| {MODEL_JA[m['model']]} | {SKILL_JA[m['skill']]} | {m['rep']} | {m['n_main']}枚 | "
-            f"{float(m['title_ok_rate']):.0%} | {m['chars_max']}字 | {m['bullets_max']} | {m['hedges']} | "
-            f"{'' if shown is None else f'{shown:.0f}/28'} | {'' if nerr is None else nerr} | {'合格' if ok else '不合格'} | "
-            f"{'' if overall is None else f'{overall:.1f}'} | {'' if sup is None else f'{sup:.1f}/{uns:.1f}'} | "
-            f"${float(m['cost_usd']):.2f} | {int(m['wall_s']) / 60:.0f} |")
+        shown = st.median(int(float(j["n_error_images"])) for j in js) if js else None
+        nerr = number_errors.get(m["run_id"])
+        checks = {}
+        if renders:
+            checks = {"数値の誤り": nerr == 0, "枚数": int(m["n_main"]) <= 7, "タイトル": float(m["title_ok_rate"]) >= 0.8,
+                      "本文の字数": int(m["chars_max"]) <= 250, "誤り画像の枚数": shown is not None and shown >= 20}
+        fc = facts.get(m["run_id"], [])
+        recs.append({
+            **m, "renders": renders, "judges": js, "shown": shown, "nerr": nerr, "checks": checks,
+            "ok": renders and all(checks.values()),
+            # 参考: 画像ごとの説明文を除いた字数で判定し直した場合
+            "ok_nocap": renders and all(v for k, v in checks.items() if k != "本文の字数")
+                        and int(m["chars_max_nocap"]) <= 250,
+            "failed": [k for k, v in checks.items() if not v] if renders else ["描画"],
+            "sup": mean(d["n_supported"] for d in fc), "uns": mean(d["n_unsupported"] for d in fc),
+            "unc": mean(d["n_uncheckable"] for d in fc),
+            "main_ok": f"{sum(bool(d['main_finding_correct']) for d in fc)}/{len(fc)}" if fc else "",
+            **{s: mean(float(j[s]) for j in js) for s in SCORES},
+        })
+    return recs
 
-    lines += ["", "## 条件ごとの平均（盲検評価、5点満点）", "",
-              "| モデル | スキル | n | 合格 | " + " | ".join(SCORES) + " |", "|---|---|---|---|" + "---|" * len(SCORES)]
-    for (model, skill), recs in sorted(cells.items(), key=lambda kv: (list(MODEL_JA).index(kv[0][0]), kv[0][1])):
-        vals = [(st.mean(r[s] for r in recs if r[s] is not None) if any(r[s] is not None for r in recs) else None)
-                for s in SCORES]
-        lines.append(f"| {MODEL_JA[model]} | {SKILL_JA[skill]} | {len(recs)} | {sum(r['ok'] for r in recs)}/{len(recs)} | "
-                     + " | ".join("" if v is None else f"{v:.1f}" for v in vals) + " |")
+
+def label(r: dict) -> str:
+    rep = "手順確認" if r["rep"] == "0" else r["rep"]
+    return f"| {MODEL_JA[r['model']]} | {SKILL_JA[r['skill']]} | {rep} |"
+
+
+def main() -> None:
+    recs = records()
+    lines: list[str] = []
+    for task, title in TASK_JA.items():
+        rows = [r for r in recs if r["task"] == task]
+        if not rows:
+            continue
+        lines += [f"## {title}", "",
+                  "| モデル | スキル | 回 | 本編 | 言い切り | 本文最大 | 説明文を除く | bullets最大 | 誤り画像 | 数値誤り | 合否 | 不合格の理由 | 費用 | 分 |",
+                  "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+        for r in rows:
+            if not r["renders"]:
+                lines.append(f"{label(r)} 描画できず | | | | | | | 不合格 | 描画 | ${float(r['cost_usd']):.2f} | "
+                             f"{int(r['wall_s']) / 60:.0f} |")
+                continue
+            lines.append(
+                f"{label(r)} {r['n_main']}枚 | {float(r['title_ok_rate']):.0%} | {r['chars_max']}字 | "
+                f"{r['chars_max_nocap']}字 | {r['bullets_max']} | {'' if r['shown'] is None else f'{r['shown']:.0f}/28'} | "
+                f"{'' if r['nerr'] is None else r['nerr']} | {'合格' if r['ok'] else '不合格'} | "
+                f"{'・'.join(r['failed'])} | ${float(r['cost_usd']):.2f} | {int(r['wall_s']) / 60:.0f} |")
+        lines.append("")
+
+    lines += ["## 盲検評価（評価者3名の平均、5点満点）", "",
+              "| 課題 | モデル | スキル | 回 | " + " | ".join(SCORE_JA[s] for s in SCORES) + " |",
+              "|---|---|---|---|" + "---|" * len(SCORES)]
+    for r in recs:
+        lines.append(f"| {'主' if r['task'] == 'image' else '3点なし'} {label(r)} "
+                     + " | ".join(fmt(r[s]) for s in SCORES) + " |")
+
+    lines += ["", "## 条件ごとの平均", "",
+              "| 課題 | モデル | スキル | n | 合格 | 説明文を除く字数なら | " + " | ".join(SCORE_JA[s] for s in SCORES) + " |",
+              "|---|---|---|---|---|---|" + "---|" * len(SCORES)]
+    cells: dict[tuple, list[dict]] = {}
+    for r in recs:
+        if r["rep"] != "0":
+            cells.setdefault((r["task"], r["model"], r["skill"]), []).append(r)
+    for (task, model, skill), rows in cells.items():
+        lines.append(f"| {'主' if task == 'image' else '3点なし'} | {MODEL_JA[model]} | {SKILL_JA[skill]} | {len(rows)} | "
+                     f"{sum(r['ok'] for r in rows)}/{len(rows)} | {sum(r['ok_nocap'] for r in rows)}/{len(rows)} | "
+                     + " | ".join(fmt(mean(r[s] for r in rows)) for s in SCORES) + " |")
+
+    judges = sorted({j["judge"] for r in recs for j in r["judges"]})
+    if judges:
+        lines += ["", "## 評価者ごとの総合点", "",
+                  "| 課題 | モデル | スキル | 回 | " + " | ".join(judges) + " |", "|---|---|---|---|" + "---|" * len(judges)]
+        for r in recs:
+            by = {j["judge"]: j["overall"] for j in r["judges"]}
+            lines.append(f"| {'主' if r['task'] == 'image' else '3点なし'} {label(r)} "
+                         + " | ".join(str(by.get(j, "")) for j in judges) + " |")
+
+        lines += ["", "## 評価者が数えた事実", "",
+                  "| 課題 | モデル | スキル | 回 | 総枚数 | 誤り画像 | 選び方の記載 | 対比 | 出典 | 破綻のある枚数 |",
+                  "|---|---|---|---|---|---|---|---|---|---|"]
+        for r in recs:
+            js = r["judges"]
+            if not js:
+                continue
+            votes = lambda k: f"{sum(str(j[k]).lower() == 'true' for j in js)}/{len(js)}"   # noqa: E731
+            lines.append(f"| {'主' if r['task'] == 'image' else '3点なし'} {label(r)} "
+                         f"{st.median(int(float(j['n_slides'])) for j in js):.0f} | "
+                         f"{'/'.join(str(int(float(j['n_error_images']))) for j in js)} | {votes('pick_rule')} | "
+                         f"{votes('contrast')} | {votes('credit')} | "
+                         f"{'/'.join(str(int(float(j['broken_slides']))) for j in js)} |")
+
+    if any(r["sup"] is not None for r in recs):
+        lines += ["", "## 記述の正しさ（参照図と照合。確認者の平均）", "",
+                  "| 課題 | モデル | スキル | 回 | 支持される | 支持されない | 確かめられない | 中心の説明が合う |",
+                  "|---|---|---|---|---|---|---|---|"]
+        for r in recs:
+            if r["sup"] is not None:
+                lines.append(f"| {'主' if r['task'] == 'image' else '3点なし'} {label(r)} {fmt(r['sup'])} | "
+                             f"{fmt(r['uns'])} | {fmt(r['unc'])} | {r['main_ok']} |")
 
     lines += ["", "## ゲート（聴衆・行動・時間の無い依頼）", ""] + gate_table()
     (RESULTS / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

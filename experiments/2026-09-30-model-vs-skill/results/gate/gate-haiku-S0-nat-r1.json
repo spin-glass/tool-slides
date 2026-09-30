@@ -1,0 +1,43 @@
+{
+  "run_id": "gate-haiku-S0-nat-r1",
+  "task": "gate",
+  "model": "haiku",
+  "skill": "S0",
+  "rep": "1",
+  "natural": true,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    1
+  ],
+  "wall_s": 48,
+  "num_turns": 9,
+  "cost_usd": 0.068,
+  "output_tokens": 4513,
+  "models_used": {
+    "claude-haiku-4-5-20251001": 0.068
+  },
+  "stop_reasons": [
+    "error_max_turns"
+  ],
+  "deck_exists": false,
+  "changed_files": [
+    ".gitignore",
+    "decks/image-classification-errors/index.qmd"
+  ],
+  "tools": {
+    "Bash": 9,
+    "Read": 3,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": false,
+  "stop_hook_responses": 0,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.05,
+    "seven_day": 0.5,
+    "status": "allowed"
+  },
+  "final_message": ""
+}

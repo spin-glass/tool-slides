@@ -1,0 +1,47 @@
+{
+  "run_id": "image-opus-S3-r2",
+  "task": "image",
+  "model": "opus",
+  "skill": "S3",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 531,
+  "num_turns": 49,
+  "cost_usd": 2.483,
+  "output_tokens": 52516,
+  "models_used": {
+    "claude-opus-5-5": 2.483
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-errors/credits.html",
+    "decks/farm-errors/index.qmd",
+    "decks/farm-errors/prepare.py",
+    "decks/farm-errors/review.csv"
+  ],
+  "tools": {
+    "Bash": 15,
+    "Read": 22,
+    "Write": 4,
+    "Edit": 7
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.2,
+    "seven_day": 0.53,
+    "status": "allowed"
+  },
+  "final_message": "The deck is at `decks/farm-errors/index.qmd`. `quarto render decks/farm-errors/index.qmd` produced `_output/decks/farm-errors/index.html`. It has 5 main slides plus 3 appendix slides. Lint shows 0 blocks and 0 warnings, and I checked a screenshot of every slide.\n\n**What I decided (you can send any of this back):**\n- Audience, goal and time are as you gave them. Slide budget: 6 (10 min ÷ 1.5). I used 5.\n- Slide titles, read top to bottom:\n  1. 誤り28枚のうち12枚は、ヤギを鹿と間違えた写真だ\n  2. 鹿と判定した14枚に、家畜のヤギや羊は1枚もいない\n  3. 誤りのうち8枚は、写っている動物が正解ラベルと食い違う\n  4. 残る7枚は、ラベルどおりの動物を牛や羊と取り違えた\n  5. 誤り28枚を見ると、打ち手はラベル8・範囲13・モデル7に分かれる\n  - Appendix: the confusion matrix, 2 non-goat photos among the images correctly classified as goats, and the photo credits.\n\n**What the images showed:**\n- 28 of the 240 images are misclassified, and the largest group is ヤギ→鹿 (12).\n- All 12 of those are wild species photographed on rocky ground or mountain slopes: ibex, chamois and similar. None of the 18 farm goats was classified as a deer.\n- In 8 of the errors, the animal in the photo doesn't match the label. Examples: oryx labelled 牛 or ヤギ, a herd of goats labelled 羊.\n- Only 7 errors show the labelled animal and the model still got it wrong. The last slide shows that the fix differs by group: 8 need label fixes, 13 need a decision on whether wild goats and sheep count, and 7 need model work.\n- The request to look at the images before deciding on fixes is in the speaker notes of the last slide.\n\n**Things to check before presenting:**\n- **The animal identifications are my own judgement.** I made them from the 256px thumbnails and the photographers' titles, and recorded them per image in `decks/farm-errors/review.csv`. The slide counts come from that file.\n  - I'm least sure about two photos. `fb653d0b…`: the photographer titled it \"Stag\", but I judged it a chamois. `13ee91a9…`: titled \"Baby Goats\", but I judged it wild bighorn sheep.\n  - It would be worth having your annotators confirm these.\n- I only checked the correct images for the goat class. The appendix says so.\n\n**Other changes:**\n- I added `prepare.py`, which builds `credits.html` (the author and source list for the 51 photos in the deck).\n- Quarto added two lines to `.gitignore` by itself during rendering (`/.quarto/` and `**/*.quarto_ipynb`). I left them in place.\n- As you asked, I didn't save anything to Notion or commit, push or publish."
+}

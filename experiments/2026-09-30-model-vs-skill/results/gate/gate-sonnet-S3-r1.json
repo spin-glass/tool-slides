@@ -1,0 +1,39 @@
+{
+  "run_id": "gate-sonnet-S3-r1",
+  "task": "gate",
+  "model": "sonnet",
+  "skill": "S3",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 18,
+  "num_turns": 5,
+  "cost_usd": 0.14,
+  "output_tokens": 1722,
+  "models_used": {
+    "claude-sonnet-5-5": 0.14
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": false,
+  "changed_files": [],
+  "tools": {
+    "Bash": 3,
+    "Read": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.07,
+    "seven_day": 0.5,
+    "status": "allowed"
+  },
+  "final_message": "スライドを作る前に、次の3点を教えてください。この3点が揃うまで、アウトラインもタイトル案も書きません。\n\n`decks/farm-errors/data/` に素材がありました。牧場の動物6クラス(羊・ヤギ・アルパカ・鹿・牛・馬)を CLIP の zero-shot で分類した結果で、評価用は240枚です。そのうち28枚が誤りで、最多は「ヤギ→鹿」の12枚でした。この素材を使う前提で聞きます。違うデータを使う場合は教えてください。\n\n**1. 聴衆**(部内勉強会に来る人)\n- a) ML の経験が浅く、分類モデルの評価も未経験\n- b) 分類モデルを使った経験はあるが、誤りの中身を見る習慣はない\n- c) ML の実務者で、誤り分析の手法もある程度知っている\n- d) その他(具体的に)\n\n**2. 聴講後に取ってほしい行動を1つ**\n- a) 自分のモデルの誤りを、正解率だけでなく画像で見る習慣をつける\n- b) 誤りの型(ヤギ→鹿など)ごとに、対策を選べるようになる\n- c) このデータ・モデルの結果を理解して、質問しない\n- d) その他(具体的に)\n\n**3. 持ち時間**(質疑を含むか、含まないかも)\n- 目安は、持ち時間(分)÷1.5 を切り捨てた枚数が本編の budget です。10分なら6枚、15分なら10枚、20分なら13枚です。\n- 質疑の時間は持ち時間に入れず、分けて数えてもらえると助かります。\n\n3点とも「任せる」と言ってもらえれば、私が決めます。その場合は、決めた内容と骨子(タイトル一覧)を最終報告の冒頭に示すので、すぐ差し戻せます。"
+}

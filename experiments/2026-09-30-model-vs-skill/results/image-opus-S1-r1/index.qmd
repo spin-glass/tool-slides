@@ -1,0 +1,292 @@
+---
+title: "牧場の動物分類の誤り28枚を、画像で見る"
+subtitle: "評価セット240枚・6クラスの誤分類レビュー"
+format:
+  revealjs:
+    css: style.css
+resources:
+  - data/thumbs/*.jpg
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列の数字は毎回見ているが、誤った画像そのものは見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+
+```{python}
+#| include: false
+import csv
+from collections import Counter
+from html import escape
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+
+plt.rcParams["font.family"] = ["Hiragino Sans", "Noto Sans JP", "sans-serif"]
+
+pred = list(csv.DictReader(open("data/predictions.csv", encoding="utf-8")))
+credit = {r["id"]: r for r in csv.DictReader(open("data/credits.csv", encoding="utf-8"))}
+review = {r["id"]: r for r in csv.DictReader(open("review.csv", encoding="utf-8"))}
+by_id = {r["id"]: r for r in pred}
+
+CLASSES = ["羊", "ヤギ", "アルパカ", "鹿", "牛", "馬"]
+cm = Counter((r["true_ja"], r["pred_ja"]) for r in pred)
+wrong = [r for r in pred if r["true"] != r["pred"]]
+n_all, n_wrong = len(pred), len(wrong)
+acc = 1 - n_wrong / n_all
+goat_n = sum(r["true_ja"] == "ヤギ" for r in pred)
+goat_acc = cm[("ヤギ", "ヤギ")] / goat_n
+goat_deer = cm[("ヤギ", "鹿")]
+
+kind = Counter(review[r["id"]]["kind"] for r in wrong)
+gd_scope = sum(review[r["id"]]["kind"] == "scope" for r in wrong
+               if (r["true_ja"], r["pred_ja"]) == ("ヤギ", "鹿"))
+model_small = sum(v["kind"] == "model" and v["small"] == "1" for v in review.values())
+
+# タイトルに書いた数字がデータと食い違ったら描画を止める
+assert set(review) == {r["id"] for r in wrong}
+assert (n_wrong, goat_deer, gd_scope, kind["label"], kind["model"], model_small) == (28, 12, 11, 9, 6, 4)
+
+# 誤りのマスを件数の多い順に（同数は正解クラス順）
+cells = sorted(Counter((r["true_ja"], r["pred_ja"]) for r in wrong).items(),
+               key=lambda kv: (-kv[1], CLASSES.index(kv[0][0]), CLASSES.index(kv[0][1])))
+wrong_sorted = sorted(wrong, key=lambda r: ([c for c, _ in cells].index((r["true_ja"], r["pred_ja"])),
+                                            -float(r["prob"])))
+used = []   # 本編・付録で載せた写真（出典一覧に使う）
+
+
+def md(s):
+    """作者名・題名を Markdown に埋めるときのエスケープ（「~Sage~」が下付きにならないように）。"""
+    return escape(s).replace("~", r"\~").replace("*", r"\*").replace("|", "/")
+
+
+def shots(ids, label="正解", cls="", seen=True, show_id=False):
+    """画像を並べ、キャプション（正解→予測・確信度・写っているもの）と出典行を出す。"""
+    out = [f'<div class="shots {cls}">']
+    for i in ids:
+        r = by_id[i]
+        used.append(i)
+        cap = f'{label} {r["true_ja"]} → 予測 <b>{r["pred_ja"]}</b> {float(r["prob"]):.2f}'
+        if seen and i in review:
+            cap += f'<br>{escape(review[i]["seen_ja"])}'
+        if show_id:
+            cap += f'<br>{i[:6]}'
+        out.append(f'<figure><img src="data/thumbs/{i}.jpg" alt="{escape(credit[i]["title"])}">'
+                   f'<figcaption>{cap}</figcaption></figure>')
+    out.append("</div>\n")
+    authors = "、".join(dict.fromkeys(md(credit[i]["author"]) for i in ids))
+    out.append(f"[写真: {authors}（Flickr、CC BY 2.0、詳細は付録）]{{.source}}")
+    print("\n".join(out))
+
+
+def ids_of(kind_name, cell=None):
+    return [r["id"] for r in wrong_sorted if review[r["id"]]["kind"] == kind_name
+            and (cell is None or (r["true_ja"], r["pred_ja"]) == cell)]
+```
+
+## 誤り28枚のうち12枚が「ヤギ→鹿」の1マスに集中している
+
+:::: {.columns}
+::: {.column width="58%"}
+```{python}
+fig, ax = plt.subplots(figsize=(6.4, 5.6))
+grid = [[cm[(t, p)] for p in CLASSES] for t in CLASSES]
+off = [[0 if t == p else grid[i][j] for j, p in enumerate(CLASSES)] for i, t in enumerate(CLASSES)]
+ax.imshow(off, cmap="Greys", vmin=0, vmax=max(max(row) for row in off) * 2.2)
+for i in range(6):
+    for j in range(6):
+        v = grid[i][j]
+        hit = (CLASSES[i], CLASSES[j]) == ("ヤギ", "鹿")
+        ax.text(j, i, v if v else "·", ha="center", va="center", fontsize=18,
+                color="#0b5cad" if hit else ("#9aa4ae" if i == j else "#1f2328"),
+                fontweight="bold" if hit else "normal")
+gi, dj = CLASSES.index("ヤギ"), CLASSES.index("鹿")
+ax.add_patch(Rectangle((dj - 0.5, gi - 0.5), 1, 1, fill=False, ec="#0b5cad", lw=3))
+ax.set_xticks(range(6), CLASSES, fontsize=14, rotation=30, ha="left")
+ax.set_yticks(range(6), CLASSES, fontsize=14)
+ax.xaxis.tick_top()
+ax.xaxis.set_label_position("top")
+ax.set_xlabel("予測", fontsize=14)
+ax.set_ylabel("正解", fontsize=14, rotation=0, ha="right", va="center")
+ax.tick_params(length=0)
+for s in ax.spines.values():
+    s.set_visible(False)
+fig.tight_layout()
+```
+:::
+::: {.column width="42%"}
+- 全体の正解率 `{python} f"{acc:.0%}"`（`{python} n_all`枚中`{python} n_all - n_wrong`枚）
+- ヤギの正解率 `{python} f"{goat_acc:.0%}"`（`{python} goat_n`枚中`{python} cm[("ヤギ", "ヤギ")]`枚）
+- **ヤギ→鹿 `{python} goat_deer`枚**は誤り全体の`{python} f"{goat_deer / n_wrong:.0%}"`
+:::
+::::
+
+[評価: 各クラス40枚。モデルは CLIP ViT-B/32 のゼロショット分類]{.source}
+
+::: {.notes}
+いつも見ている混同行列です。正解率は`{python} f"{acc:.0%}"`で、ヤギだけが`{python} f"{goat_acc:.0%}"`と低い。誤り28枚のうち12枚がヤギを鹿と答えたマスに入っています。
+数字だけを見ると「ヤギの学習データを足す」が次の対策に見えます。今日はこの28枚を実際に開いて、その対策で本当に直るのかを確かめます。
+:::
+
+## 「ヤギ→鹿」12枚中11枚は、牧場ではなく岩山の野生種だ
+
+```{python}
+#| output: asis
+gd_probs = [float(by_id[i]["prob"]) for i in ids_of("scope", ("ヤギ", "鹿"))]
+shots(["78a98dcc91cace3b", "a18e8e19cd9b698d", "7a89b4fc43ee7c13",
+       "41f666db2257e015", "cc6b583a6ebf4fd0", "bd871cfa3b03e1ae"])
+```
+
+::: {.notes}
+ヤギ→鹿の12枚のうち6枚です。どれも岩場や山腹にいる野生のヤギで、柵や小屋のある牧場の写真ではありません。細い脚と茶色の毛、山の背景は鹿の写真とよく似ていて、11枚の確信度は`{python} f"{min(gd_probs):.2f}"`〜`{python} f"{max(gd_probs):.2f}"`と高めです。
+残り5枚も同じ種類の写真で、付録に全部載せています。12枚目はオリックスで、次のスライドで扱います。
+ここで問うべきは「モデルを直すか」より先に「牧場の分類器の評価に、野生のヤギを入れるか」です。入れないなら、この11枚は評価セットから外す話になります。
+:::
+
+## 別の9枚は、モデルではなく正解ラベルの方が疑わしい
+
+```{python}
+#| output: asis
+shots(["30d58f7a4d6f0943", "5b5e5614e196b919", "59ee2fabd15fcce4",
+       "68d16e7efbb42509", "bb344550466c5b2e", "10962f6bc7c6d013"], label="ラベル")
+```
+
+::: {.notes}
+こちらは正解ラベルの方を疑うべき画像です。牛とラベルが付いているのにオリックスやオオツノヒツジ、ヤギが写っている。羊とラベルが付いているのにヤギの群れ。
+右下のラバは、馬に含めるかどうかの規則がそもそも決まっていません。
+オオツノヒツジを羊と答えた2枚目のように、モデルの方が正しく見えるものもあります。これらはアノテーターが見直す対象で、モデルを学習し直しても減りません。
+:::
+
+## ラベルも範囲も妥当な誤りは6枚で、4枚は動物が小さい
+
+```{python}
+#| output: asis
+shots(ids_of("model"))
+```
+
+::: {.notes}
+ラベルも正しく、野生種でもない写真で、モデルが本当に間違えたのはこの6枚です。
+街なかのヤギ、岩陰のヤギ、湖を背にした羊、雪原の鹿の4枚は、画面の中で動物がごく小さい。白いヤギを羊と答えた例もあります。
+モデル側の対策を考えるなら、ヤギの枚数を増やすより、小さく写った動物への対応の方が効きそうだと、画像を見ると分かります。
+:::
+
+## 28枚の対策は3つに分かれ、モデル改善が要るのは6枚だ
+
+:::: {.columns}
+::: {.column width="60%"}
+```{python}
+KINDS = [("model", "モデル改善", "#0b5cad"), ("label", "ラベル見直し", "#8c959f"),
+         ("scope", "評価範囲の判断", "#d0d7de")]
+fig, ax = plt.subplots(figsize=(6.4, 5.2))
+names = [f"{t}→{p}" for (t, p), _ in cells][::-1]
+left = [0] * len(cells)
+for k, lab, col in KINDS:
+    vals = [len(ids_of(k, c)) for c, _ in cells][::-1]
+    ax.barh(names, vals, left=left, color=col, label=lab, height=0.7)
+    left = [a + b for a, b in zip(left, vals)]
+for y, total in enumerate(left):
+    ax.text(total + 0.2, y, str(total), va="center", fontsize=14, color="#1f2328")
+ax.set_xlabel("誤りの枚数", fontsize=14)
+ax.tick_params(axis="y", labelsize=14, length=0)
+ax.tick_params(axis="x", labelsize=12)
+ax.legend(frameon=False, fontsize=14, loc="lower right")
+for s in ("top", "right"):
+    ax.spines[s].set_visible(False)
+fig.tight_layout()
+```
+:::
+::: {.column width="40%"}
+- **モデル改善 `{python} kind["model"]`枚** → エンジニア
+- ラベル見直し `{python} kind["label"]`枚 → アノテーター
+- 範囲の判断 `{python} kind["scope"]`枚 → 全員
+:::
+::::
+
+::: {.notes}
+28枚を、誰が何をすれば減るかで分け直すとこうなります。
+件数の多いヤギ→鹿のマスは、ほぼ全部が評価範囲の判断で、モデルを直す対象ではありません。逆にモデル改善の6枚は、いろいろなマスに少しずつ散っています。
+混同行列の件数順に対策を選ぶと、学習し直しても減らない誤りに工数をかけることになります。
+:::
+
+## 次の改善を決める前に、誤り画像をマスごとに全員で見てほしい
+
+- 件数の多いマスから、そのマスの画像を全枚並べる
+- 1枚ずつ「モデル・ラベル・評価範囲」のどれかを付ける
+- 3分類の枚数を見てから、対策と担当を決める
+
+[今回の28枚は付録の2枚に収まる]{.source}
+
+::: {.notes}
+お願いは1つです。次の改善で対策を決める前に、間違えた画像を実際に見てください。
+エンジニアとアノテーターが一緒に見るのが大事です。ラベルの疑いはアノテーターが、モデルの弱点はエンジニアがすぐ気づきます。
+今回の28枚なら、付録の2枚のスライドで全部見られます。
+:::
+
+<!-- appendix -->
+
+## 誤り28枚の前半14枚を、マスの件数順に並べた
+
+```{python}
+#| output: asis
+shots([r["id"] for r in wrong_sorted[:14]], cls="cols7", show_id=True)
+```
+
+## 誤り28枚の後半14枚を、マスの件数順に並べた
+
+```{python}
+#| output: asis
+shots([r["id"] for r in wrong_sorted[14:]], cls="cols7", show_id=True)
+```
+
+## 正解扱いの画像にも、ラベルの疑わしいものが少なくとも3枚ある
+
+```{python}
+#| output: asis
+shots(["5f8987c72f9b3b21", "65c0b6996cd9938b", "cd5ce87adc68bef2"], label="ラベル", seen=False)
+```
+
+- 写真の題名は「Mountain Goats」「Llama couple」「Bighorn Sheep ram」
+
+::: {.notes}
+予測がラベルと一致しているので正解に数えられていますが、写っているのは山岳のヤギ、リャマ、オオツノヒツジです。
+写真の題名に別の動物名が入っているものを拾っただけなので、全212枚を見たわけではありません。正解率88%にも、同じ種類のずれが含まれています。
+:::
+
+## 3分類は、発表者が画像と写真の題名を見て付けた
+
+- ラベル見直し: 写っている動物が正解ラベルと違う、または6クラスにない
+- 評価範囲の判断: ラベルは妥当だが、岩山・森の野生種で牧場の写真ではない
+- モデル改善: 上の2つに当たらない。「小さい」も目視で付けた
+- 動物種の同定は目視で、専門家の確認は受けていない
+- 評価セットは作成時に、目視で6枚を除外済み
+
+[分類の記録: review.csv（1行＝誤り1枚）]{.source}
+
+## 本編と付録の写真は、すべて Flickr の CC BY 2.0 で公開されている
+
+```{python}
+#| output: asis
+photos = list(dict.fromkeys(used))
+half = (len(photos) + 1) // 2
+
+
+def credit_table(ids):
+    rows = ["| ID | 題名 | 作者 | 出典 |", "|---|---|---|---|"]
+    for i in ids:
+        c = credit[i]
+        rows.append(f"| {i[:6]} | {md(c['title'])} | {md(c['author'])} "
+                    f"| [{c['source'].split('//')[1]}]({c['source']}) |")
+    print("::: {.credits}\n" + "\n".join(rows) + "\n\nライセンス: [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/)。"
+          "Open Images V7 収録画像を長辺256pxに縮小して掲載\n:::")
+
+
+credit_table(photos[:half])
+```
+
+## 出典の続きの写真も、同じく CC BY 2.0 で公開されている
+
+```{python}
+#| output: asis
+credit_table(photos[half:])
+```

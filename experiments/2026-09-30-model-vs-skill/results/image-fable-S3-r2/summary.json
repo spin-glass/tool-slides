@@ -1,0 +1,46 @@
+{
+  "run_id": "image-fable-S3-r2",
+  "task": "image",
+  "model": "fable",
+  "skill": "S3",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 234,
+  "num_turns": 39,
+  "cost_usd": 3.413,
+  "output_tokens": 22483,
+  "models_used": {
+    "claude-fable-5-1": 3.413
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-errors/credits.html",
+    "decks/farm-errors/index.qmd",
+    "decks/farm-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 11,
+    "Read": 18,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.17,
+    "seven_day": 0.52,
+    "seven_day_overage_included": 0.74,
+    "status": "allowed"
+  },
+  "final_message": "スライドを `decks/farm-errors/index.qmd` に作り、`quarto render decks/farm-errors/index.qmd` で `_output/decks/farm-errors/index.html` が出ることを確かめました。lint は block 0・warning 0 で、全8枚をスクリーンショットで目視し、はみ出しや崩れはありません。\n\n## 任されて決めたこと\n\n- **聴衆・行動・持ち時間**: ご指定のとおりです。\n- **枚数**: 口頭10分なので budget は6枚、本編は5枚にしました。\n- **骨子の承認**: 委任に従って省き、その旨を qmd の `decided-by` に記録しています。\n\n## タイトル一覧\n\n1. 誤り28枚のうち12枚は、ヤギを鹿と判定した誤りだ（混同行列）\n2. 鹿と判定されたヤギ12枚は、岩場か草地にいて白い個体が1枚もない（12枚すべて）\n3. 正しく判定したヤギ23枚では、確信度が最も低い3枚が岩場の写真だ（誤り12枚と正解23枚の対比）\n4. 残り16枚は8通りに散らばり、7枚は題名が正解と別の動物を指す（16枚すべて）\n5. 次の対策を決める前に、誤った28枚を組ごとに並べて全員で見るべきだ\n\n付録は2枚で、正しく鹿と判定した38枚と評価条件です。\n\n誤り28枚はすべて表示しています。タイトルの数字は先頭のセルで `assert` しているので、データが変わると描画が止まります。\n\n## 目視に頼っている箇所\n\n発表前に確かめてほしい点です。\n\n- **「体が白いヤギ」9枚**: 私が画像を見て数えたものです。ID は qmd の `WHITE` に書いてあります。\n- **「岩場か草地」「岩場の写真」**: これも私の目視による判断です。\n- **「題名が別の動物」7枚**: `credits.csv` にある撮影者の題名（Bighorn Sheep、Gemsbok、Mule Train など）と正解ラベルの食い違いです。ラベルが誤りだとは断定しておらず、ノートにもそう書きました。\n- **赤い車の写真**: 正解ラベルも予測もヤギで、正解に数えられています（題名「GTO: One Goatpower」）。3枚目の図と bullet に出ています。\n\n## そのほか\n\n- **追加したファイル**: 写真が CC BY 2.0 なので、作者・出典の一覧 `credits.html` と、それを作る `make_credits.py` を追加しました。\n- **`.gitignore`**: quarto の実行で2行（`/.quarto/` と `**/*.quarto_ipynb`）が自動で追記されています。\n- **公開する場合**: 人物が写る写真が2枚あります（4枚目の図の、街角の写真と、ヤギの群れの中に人が座っている写真）。公開前に外すかどうかの確認が必要です。\n- **していないこと**: ご指示どおり、Notion への保存、git の commit・push、公開はしていません。"
+}

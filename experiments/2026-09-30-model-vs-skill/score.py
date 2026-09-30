@@ -112,11 +112,93 @@ class Slides(HTMLParser):
             cur["text"].append(data.strip())
 
 
+class Tree(HTMLParser):
+    """画像に付いた説明文（キャプション）を見分けるための、要素の木。"""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.root = {"tag": "root", "cls": "", "kids": [], "up": None}
+        self.cur = self.root
+
+    def handle_starttag(self, tag, attrs):
+        node = {"tag": tag, "cls": dict(attrs).get("class") or "", "kids": [], "up": self.cur}
+        self.cur["kids"].append(node)
+        if tag not in VOID:
+            self.cur = node
+
+    def handle_endtag(self, tag):
+        n = self.cur
+        while n is not self.root and n["tag"] != tag:
+            n = n["up"]
+        if n is not self.root:
+            self.cur = n["up"]
+
+    def handle_data(self, data):
+        if data.strip():
+            self.cur["kids"].append({"tag": "#text", "text": data.strip(), "up": self.cur})
+
+
+def n_imgs(node: dict) -> int:
+    if "imgs" not in node:
+        node["imgs"] = (node["tag"] == "img") + sum(n_imgs(k) for k in node.get("kids", []))
+    return node["imgs"]
+
+
+def caption_chars(html_text: str) -> list[float]:
+    """葉のスライドごとに、画像1枚ごとの説明文の字数を返す（parse_slides と同じ順）。
+
+    画像を2枚以上並べたスライドで、「画像をちょうど1枚含む要素」の中にある文字を、その画像の説明文とみなす。
+    図の中に説明文を描き込むデッキ（文字が HTML に出ない）と、HTML で画像の下に書くデッキを、同じ基準で比べるために使う。
+    """
+    t = Tree()
+    start = html_text.find('<div class="slides')
+    t.feed(html_text[start:] if start >= 0 else html_text)
+    out: list[float] = []
+
+    def walk_text(node, section, acc):
+        for k in node.get("kids", []):
+            if k["tag"] == "#text":
+                up, cap = k["up"], False
+                while up is not section and up is not None:
+                    if up["tag"] in ("script", "style") or (up["tag"] == "aside" and "notes" in up["cls"]):
+                        cap = None
+                        break
+                    if up["tag"] in ("h1", "h2", "h3"):
+                        cap = None
+                        break
+                    if n_imgs(up) == 1:
+                        cap = True
+                    up = up["up"]
+                if cap:
+                    acc[0] += lint.zen_len(k["text"])
+            elif k["tag"] != "section":
+                walk_text(k, section, acc)
+
+    def walk(node):
+        for k in node.get("kids", []):
+            if k["tag"] == "section":
+                if any(c["tag"] == "section" for c in k["kids"]):
+                    walk(k)
+                else:
+                    acc = [0.0]
+                    if n_imgs(k) >= 2:
+                        walk_text(k, k, acc)
+                    out.append(acc[0])
+            elif k["tag"] != "#text":
+                walk(k)
+
+    walk(t.root)
+    return out
+
+
 def parse_slides(html_path: Path) -> list[dict]:
     p = Slides()
     text = html_path.read_text(encoding="utf-8")
     start = text.find('<div class="slides')
     p.feed(text[start:] if start >= 0 else text)
+    caps = caption_chars(text)
+    for n, s in enumerate(p.leaves):
+        s["caption_chars"] = caps[n] if len(caps) == len(p.leaves) else 0.0
     return p.leaves
 
 
@@ -266,11 +348,13 @@ def score(run_dir: Path) -> dict | None:
     n_main = n_main_slides(qmd, slides)
     main = body[:n_main]
     chars = [sum(lint.zen_len(t) for t in s["text"]) for s in main]
+    nocap = [max(0.0, c - s["caption_chars"]) for c, s in zip(chars, main)]   # 画像ごとの説明文を除いた字数
     row |= {
         "n_main": n_main, "n_appendix": len(body) - n_main, "over_budget": max(0, n_main - BUDGET_10MIN),
         "title_ok_rate": round(sum(title_ok(s["title"]) for s in main) / max(1, n_main), 2),
         "title_len_max": max((lint.zen_len(s["title"]) for s in main), default=0),
         "chars_mean": round(sum(chars) / max(1, n_main)), "chars_max": round(max(chars, default=0)),
+        "chars_max_nocap": round(max(nocap, default=0)),
         "bullets_mean": round(sum(s["li"] for s in main) / max(1, n_main), 1),
         "bullets_max": max((s["li"] for s in main), default=0),
         "hedges": count_ng([t for s in main for t in [s["title"]] + s["text"]], "hedge"),

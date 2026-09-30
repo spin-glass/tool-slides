@@ -1,0 +1,48 @@
+{
+  "run_id": "image-fable-S1-r1",
+  "task": "image",
+  "model": "fable",
+  "skill": "S1",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 337,
+  "num_turns": 42,
+  "cost_usd": 3.93,
+  "output_tokens": 30694,
+  "models_used": {
+    "claude-fable-5-1": 3.93
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-errors/README.md",
+    "decks/farm-errors/eye_notes.csv",
+    "decks/farm-errors/index.qmd",
+    "decks/farm-errors/style.css"
+  ],
+  "tools": {
+    "Bash": 14,
+    "Read": 20,
+    "Write": 2
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.21,
+    "seven_day": 0.53,
+    "seven_day_overage_included": 0.75,
+    "status": "allowed"
+  },
+  "final_message": "スライドは `decks/farm-errors/index.qmd` に作成し、`quarto render decks/farm-errors/index.qmd` で `_output/decks/farm-errors/index.html` が出ることを確かめました。lint は block 0 / warning 0 で、全11枚をスクリーンショットで目視し、はみ出しや崩れはありません。\n\n本編は6枚（10分 ÷ 1.5 の budget どおり）、付録が4枚です。\n\n1. 正解率88%でも、誤り28枚のうち12枚はヤギを鹿と答えている（混同行列）\n2. 鹿と答えた12枚は、岩場や草地にいる茶色い野生のヤギばかりだ（12枚すべてと確信度）\n3. 当てたヤギ23枚のうち16枚は、牧場や小屋にいる家畜のヤギだ（23枚すべて）\n4. 鹿と答えたヤギは、正解が鹿の写真と並べると背景も体つきも似ている（誤り5枚と正解の鹿5枚）\n5. 残りの誤り16枚のうち5枚は、正解ラベルのほうが写真と合わない（5枚とラベル・予測・撮影者の題名）\n6. 対策を決める前に、誤った28枚を正解と予測の組ごとに並べて見よう（28枚の一覧）\n\n付録は、残りの誤り11枚、評価条件、写真の作者と出典（2枚）です。\n\n確認してほしい点:\n\n- **目視による分類が入っています。** 3枚目の「家畜16枚・野生7枚」、5枚目の「ラベルが合わない5枚」、付録の「小さく写る5枚」は、私が写真を見て分けた数です。分け方は `decks/farm-errors/eye_notes.csv` に残し、スライドにも「目視による」と書きました。\n- **5枚目はラベル誤りの断定ではありません。** 根拠は写真の見た目と撮影者の題名（ラベルは牛で題名は Bighorn Sheep、など）です。5枚のうち1枚（題名「ibk」）は題名の裏付けがなく、見た目だけで入れています。発表前にアノテーターの方の確認を通すのが安全です。\n- **2枚目の右下の1枚は、ヤギよりオリックスに見えます。** タイトルは「ばかりだ」とし、ノートで触れています。\n- **承認の段階は飛ばしました。** 途中確認は不要とのことだったので、タイトル骨子の承認を取らずに `status: approved` で本文まで書いています。\n- **写真の出典**は、各写真の下に作者名、付録に作者・題名・URLの一覧を置きました（CC BY 2.0、縮小して掲載と明記）。\n\nNotion への保存、commit、push、公開はしていません。`.gitignore` に `/.quarto/` と `**/*.quarto_ipynb` の2行が増えていますが、これは Quarto が render 時に自動で追記したものです。\n\n確認用スクリーンショットは `decks/farm-errors/_check/` にあります。"
+}

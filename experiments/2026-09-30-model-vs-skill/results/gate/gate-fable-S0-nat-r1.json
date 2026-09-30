@@ -1,0 +1,45 @@
+{
+  "run_id": "gate-fable-S0-nat-r1",
+  "task": "gate",
+  "model": "fable",
+  "skill": "S0",
+  "rep": "1",
+  "natural": true,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 160,
+  "num_turns": 14,
+  "cost_usd": 1.831,
+  "output_tokens": 16435,
+  "models_used": {
+    "claude-fable-5-1": 1.831
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "changed_files": [
+    ".gitignore",
+    "theme/custom.scss",
+    "decks/farm-errors/index.qmd"
+  ],
+  "tools": {
+    "Bash": 7,
+    "Read": 5,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": false,
+  "stop_hook_responses": 2,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.13,
+    "seven_day": 0.51,
+    "seven_day_overage_included": 0.73,
+    "status": "allowed"
+  },
+  "final_message": "スライドは作成してレンダリングまで通りましたが、**見た目の確認はできていません**。ヘッドレス Chrome での書き出しが2回とも白紙になったためで、文字のはみ出しや図の大きさは未確認です。発表前に一度ブラウザで通して見てください。\n\n`decks/farm-errors/data/` の判定結果（6クラス×40枚、CLIP の zero-shot）を集計し、誤った画像を実際に見て構成を決めました。全8枚です。\n\n1. **タイトル**：正解率88%の内訳を見ると、誤りは「ヤギを鹿と判定」に集中していた\n2. **クラス別の正解数**：全体は240枚中212枚正解だが、ヤギだけ40枚中23枚\n3. **混同行列**：誤り28件のうち12件が「ヤギ→鹿」で、次に多い誤りは3件\n4. **写真の比較**：鹿と判定された12枚すべてと、正しくヤギと判定された6枚を並べた。前者は山や岩場の茶色い野生種に偏る\n5. **確信度**：0.9以上でも160枚中5件誤り、その5件はすべて「鹿」と回答（ヤギ→鹿4件、羊→鹿1件）\n6. **正解ラベルの疑い**：題名が「Gemsbok」なのに正解が牛、「Baby Goats」なのに正解が羊、など4例\n7. **まとめ**：クラス別 → 混同行列 → 画像を見る → 確信度とラベルを疑う、の順で見る\n8. **写真の出典**：載せた21枚の題名・作者・リンク（CC BY 2.0）\n\n発表前に知っておいてほしい点：\n\n- **原因は仮説どまり**：「背景と毛色で鹿と判断している」は写真を見ての推測で、検証していません。スライドと発表者ノートにもそう書いてあります。\n- **ラベルの疑いは推定**：6枚目は写真の題名と見た目からの判断で、種の同定はしていません。\n- **データに車の写真が1枚**：正解ラベルも予測も「ヤギ」で正解扱いになっています（ID `6599…`）。スライドには入れていませんが、質問が出るかもしれません。\n- **発表者名と日付は未記入**：タイトルスライドに入れる場合は `index.qmd` 冒頭に `author` と `date` を足してください。\n- **テーマに追記**：出典一覧用の `.credits` スタイルを `theme/custom.scss` に追加しました。\n- **`.gitignore` の変更**：私は編集していませんが変更ありになっています。中身は未確認です（レンダリング時に Quarto が追記した可能性があります）。\n\nコミットはしていません。\n\n開くファイルは `_output/decks/farm-errors/index.html`、編集元は `decks/farm-errors/index.qmd` です。"
+}

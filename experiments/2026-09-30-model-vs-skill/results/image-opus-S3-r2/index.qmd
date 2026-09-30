@@ -1,0 +1,239 @@
+---
+title: "誤った28枚の写真を見ると、打ち手が3つに分かれる"
+subtitle: "牧場の動物6クラス分類・評価用240枚の誤り"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列の数字は毎回見ているが、誤った画像は見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-09-30） -->
+
+```{python}
+#| include: false
+import csv
+import sys
+from collections import Counter
+
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import imgfig
+
+items = imgfig.load_table("data/predictions.csv", "data/thumbs")
+review = {r["id"]: r for r in csv.DictReader(open("review.csv", encoding="utf-8"))}
+for it in items:
+    it.attrs.update(review.get(it.id, {}))
+
+wrong = [it for it in items if it["true"] != it["pred"]]
+ok_goat = [it for it in items if it["true"] == it["pred"] == "Goat"]
+assert all(it.id in review for it in wrong + ok_goat)   # 載せる写真はすべて目視済み
+
+goat_deer = [it for it in wrong if (it["true"], it["pred"]) == ("Goat", "Deer")]
+to_deer = [it for it in wrong if it["pred"] == "Deer"]
+by_cause = {c: [it for it in wrong if it["cause"] == c] for c in ("label", "wild", "mixup")}
+mixup_cattle = [it for it in by_cause["mixup"] if it["pred"] == "Cattle"]
+goat_row = [it for it in wrong if it["true"] == "Goat"]
+domestic_goat = [it for it in items if it["true"] == "Goat" and it.get("kind") == "家畜のヤギ"]
+not_goat_ok = [it for it in ok_goat if it["animal"] in ("ビッグホーン（野生の羊）", "自動車")]
+
+# タイトルに書いた数字の検算（データが変わったら描画を止める）
+assert len(wrong) == 28 and len(goat_deer) == 12
+assert len(to_deer) == 14 and not any(it["kind"] == "家畜のヤギ" or it["animal"] == "羊" for it in to_deer)
+assert len(by_cause["label"]) == 8 and len(by_cause["wild"]) == 13 and len(by_cause["mixup"]) == 7
+assert all(it["pred"] in ("Cattle", "Sheep") for it in by_cause["mixup"])
+assert len(goat_row) == 17 and len(ok_goat) == 23 and len(not_goat_ok) == 2
+assert len(review) == 51
+
+
+def count(group, col):
+    """群の中の値ごとの枚数を「A 3・B 1」の形にする（多い順）。"""
+    return "・".join(f"{v}{len(g)}" for v, g in imgfig.split_by(group, lambda it: it[col]))
+
+
+def short(it):
+    return it["animal"].split("（")[0]
+
+
+def captioned_figure(group, cols, color=imgfig.OUTLIER_COLOR, **canvas_kw):
+    """1枚ごとに「正解ラベル→予測」と「写っている動物」の2行を添えて並べる。"""
+    pitch = 1.62
+    c = imgfig.Canvas(cols, imgfig._rows(len(group), cols) * pitch, **canvas_kw)
+    for n, it in enumerate(group):
+        x, y = n % cols, (n // cols) * pitch
+        c.thumb(it, x, y, color=color)
+        c.text(x + 0.5, y + 1.13, f"{it['true_ja']}→{it['pred_ja']}", size=0.16, color=color, weight="bold")
+        c.text(x + 0.5, y + 1.4, short(it), size=0.15)
+    return c.finish()
+
+
+def packed_figure(lines, caption=None, gap=0.5, head=0.5, **canvas_kw):
+    """群を横に詰めて並べ、その行を縦に積む。lines = [[(見出し, items, 列数), ...], ...]。"""
+    pitch = 1 + (imgfig.CAPTION_H if caption else 0)
+    heights = [head + max(imgfig._rows(len(g), n) for _, g, n in line) * pitch for line in lines]
+    w = max(sum(n for _, _, n in line) + gap * (len(line) - 1) for line in lines)
+    c = imgfig.Canvas(w, sum(heights) + gap * (len(lines) - 1), **canvas_kw)
+    y = 0.0
+    for line, h in zip(lines, heights):
+        x = 0.0
+        for title, g, n in line:
+            c.text(x + 0.04, y + head / 2 - 0.04, f"{title} {len(g)}枚", size=0.2, ha="left", weight="bold",
+                   color=imgfig.OUTLIER_COLOR)
+            c.hline(y + head - 0.06, x + 0.04, x + n - 0.04, color=imgfig.OUTLIER_COLOR, lw=0.02)
+            imgfig._grid(c, g, x, y + head, n, caption, imgfig.OUTLIER_COLOR)
+            x += n + gap
+        y += h + gap
+    return c.finish()
+
+
+CREDIT = "写真: Open Images V7（各作者 CC BY 2.0、一覧は付録）"
+KIND_ORDER = {"野生種": 0, "6クラス外": 1, "家畜のヤギ": 2}
+```
+
+## 誤り28枚のうち12枚は、ヤギを鹿と間違えた写真だ
+
+```{python}
+#| fig-alt: "誤った28枚を正解と予測の組ごとに並べた図。最多はヤギを鹿とした12枚で、岩場や山の斜面にいる角の長い動物が並ぶ。次いで牛を羊、ヤギを牛、羊を牛とした各3枚、その他7枚。"
+groups = imgfig.split_by(wrong, lambda it: (it["true_ja"], it["pred_ja"]))
+top = [(f"{t} → {p}", g) for (t, p), g in groups[:4]]
+rest = [it for _, g in groups[4:] for it in g]
+packed_figure([[(*top[0], 6), ("その他", rest, 4)], [(*t, 3) for t in top[1:]]],
+              caption=lambda it: f"{it['true_ja']}→{it['pred_ja']}" if it in rest else "");
+```
+
+[誤った`{python} len(wrong)`枚をすべて表示（評価用`{python} len(items)`枚のうち）。見出しは「正解 → 予測」。`{python} CREDIT`]{.source}
+
+::: {.notes}
+混同行列で毎回見ている数字の中身を、写真で並べた。240枚のうち誤りは28枚。
+いちばん多いのはヤギを鹿と判定した12枚で、誤り全体の4割強になる。
+1段目を見てほしい。角の長い動物が、岩場や山の斜面に立っている写真が並ぶ。
+次のスライドで、この12枚と、正しくヤギと判定できた写真を比べる。
+:::
+
+## 鹿と判定した14枚に、家畜のヤギや羊は1枚もいない
+
+```{python}
+#| fig-alt: "左は鹿と判定した14枚。アイベックスやシャモアなど岩場や山にいる野生種13枚とオリックス1枚。右は正しくヤギと判定した23枚。柵や小屋の近くの白や茶の家畜のヤギが15枚、野生種7枚、自動車1枚。"
+by_kind = lambda g: sorted(g, key=lambda it: KIND_ORDER.get(it["kind"], 9))
+imgfig.panels_figure([("鹿と判定した ヤギ・羊", by_kind(to_deer), imgfig.OUTLIER_COLOR),
+                      ("正しくヤギと判定", by_kind(ok_goat), imgfig.NORMAL_COLOR)],
+                     cols_each=[5, 8], counts=True, caption=lambda it: it["kind"]);
+```
+
+- 鹿と判定 `{python} len(to_deer)`枚: `{python} count(to_deer, "kind")`（オリックスは次の8枚にも入る）
+- 正しくヤギと判定 `{python} len(ok_goat)`枚: `{python} count(ok_goat, "kind")`
+- 家畜のヤギ`{python} len(domestic_goat)`枚は、1枚も鹿と判定されていない
+
+[両群とも全数を表示。画像の下は写っている動物の種類（発表者の目視。撮影者の題名も参照）。`{python} CREDIT`]{.source}
+
+::: {.notes}
+左が鹿と判定した14枚、右が正しくヤギと判定できた23枚。
+左はアイベックス、シャモア、マーコールなど、山や岩場にいる野生のヤギの仲間と野生の羊。家畜のヤギは1枚もいない。
+右は柵や小屋のそばの家畜のヤギが中心。ただし野生種も7枚は当たっている。
+評価用データの「ヤギ」には、野生のヤギの仲間がかなり入っている。牧場で使う分類器として、これを「ヤギ」と数えるべきかは、数字だけでは見えない論点だ。
+推測だが、モデルは「角のある動物が自然の中にいる」写真を鹿に寄せている可能性がある。これは写真を見て立てた仮説で、確かめてはいない。
+:::
+
+## 誤りのうち8枚は、写っている動物が正解ラベルと食い違う
+
+```{python}
+#| fig-alt: "正解ラベルと写っている動物が違う8枚。牛ラベルのオリックス、ヤギ、ビッグホーン。鹿ラベルのエランド。ヤギラベルのオリックス2枚とビッグホーン。羊ラベルのヤギの群れ。"
+label = sorted(by_cause["label"], key=lambda it: (it["kind"] != "6クラス外", it["true"]))
+captioned_figure(label, cols=8);
+```
+
+- 6クラスのどれでもない動物 `{python} sum(it["kind"] == "6クラス外" for it in label)`枚: `{python} count([it for it in label if it["kind"] == "6クラス外"], "animal")`
+- 6クラス内の別の動物 `{python} sum(it["kind"] != "6クラス外" for it in label)`枚: ヤギを牛・羊ラベル、野生の羊を牛・ヤギラベル
+
+[`{python} len(label)`枚をすべて表示。上段は「正解ラベル→予測」、下段は写っている動物（発表者の目視。撮影者の題名も参照）。`{python} CREDIT`]{.source}
+
+::: {.notes}
+この8枚は、モデルより先にラベルを見直す対象になる。
+左の4枚は、オリックスやエランドなど6クラスのどれにも入らない動物。牛・ヤギ・鹿のどれかのラベルが付いている。
+右の4枚は6クラスの中の別の動物で、ヤギの群れに羊や牛のラベル、野生の羊に牛やヤギのラベルが付いている。
+アノテーターの方には、この8枚を実際に開いて、判定が合っているかを確かめてほしい。私の判定は縮小画像と撮影者の題名によるものだ。
+付録に、正しく判定された側にもヤギでない写真が2枚ある例を載せた。ラベルの食い違いは正解率を上下両方に動かす。
+:::
+
+## 残る7枚は、ラベルどおりの動物を牛や羊と取り違えた
+
+```{python}
+#| fig-alt: "ラベルどおりの動物なのに別クラスと判定した7枚。牛と判定した5枚は、湖畔の丘の羊、牧草地の羊、路地の家畜のヤギ、荷を積んだラバ、雪原のエルク。羊と判定した2枚は白い家畜のヤギ。"
+mixup = sorted(by_cause["mixup"], key=lambda it: (it["pred"] != "Cattle", it["true"]))
+captioned_figure(mixup, cols=7);
+```
+
+- 牛と判定 `{python} len(mixup_cattle)`枚: `{python} count(mixup_cattle, "animal")`
+- 羊と判定 `{python} len(mixup) - len(mixup_cattle)`枚: どちらも白い家畜のヤギ
+
+[`{python} len(mixup)`枚をすべて表示。上段は「正解ラベル→予測」、下段は写っている動物（発表者の目視）。`{python} CREDIT`]{.source}
+
+::: {.notes}
+ラベルも正しく、写っているのが6クラスのどれかの動物なのに間違えたのは、この7枚だけだ。
+7枚のうち5枚は牛と判定している。湖を見下ろす丘の羊、牧草地の羊の群れ、路地のヤギ、荷を積んだラバ、雪原のエルク。
+羊と判定した2枚は、どちらも白いヤギ。
+推測だが、牛の判定は動物が小さく写る写真や群れの写真に寄っているように見える。確かめるなら、牛と判定された正解側の写真と並べて見るのがよい。
+学習データの追加や閾値の調整が効くのは、主にこの7枚だ。
+:::
+
+## 誤り28枚を見ると、打ち手はラベル8・範囲13・モデル7に分かれる
+
+```{python}
+#| fig-alt: "誤り28枚を打ち手で3段に分けた図。ラベルを直す8枚、野生種を対象に含めるかを決める13枚、モデルで直す7枚。"
+imgfig.panels_figure([("ラベルを直す", label, imgfig.ORANGE),
+                      ("対象範囲を決める", by_cause["wild"], imgfig.PURPLE),
+                      ("モデルで直す", mixup, imgfig.TEAL)], cols_each=[4, 5, 4], counts=True);
+```
+
+- ラベル: 写っている動物に合わせて直すか、評価から外す
+- 対象範囲: 野生のヤギ・羊を「ヤギ」「羊」に数えるかを決める
+- モデル: ラベルどおりの動物の取り違えに、学習データや閾値の対策を当てる
+
+[誤り`{python} len(wrong)`枚をすべて表示。群分けは発表者の目視による。`{python} CREDIT`]{.source}
+
+::: {.notes}
+混同行列だけを見ると、ヤギの行の誤りが17枚で目立つので、「ヤギの学習データを増やす」が次の対策になりやすい。
+写真を見ると、ヤギの誤りの多くは野生種か、ラベルの食い違いだった。学習データを増やして直せるのは7枚の群が中心になる。
+お願いしたいのは1つ。次の改善で対策を決める前に、誤った画像を「正解→予測」ごとに並べて、全数を一度見てほしい。
+今回の28枚なら、見るのに10分かからない。
+:::
+
+<!-- appendix -->
+
+## 混同行列では、誤り28枚のうち17枚がヤギの行に集まる
+
+```{python}
+#| output: asis
+names = ["羊", "ヤギ", "アルパカ", "鹿", "牛", "馬"]
+cells = Counter((it["true_ja"], it["pred_ja"]) for it in items)
+print("| 正解＼予測 | " + " | ".join(names) + " | 正解率 |")
+print("|---|" + "---:|" * (len(names) + 1))
+for t in names:
+    n = [cells[(t, p)] for p in names]
+    print(f"| {t} | " + " | ".join(str(v) for v in n) + f" | {n[names.index(t)] / sum(n):.0%} |")
+```
+
+[評価用`{python} len(items)`枚（各クラス40枚）。分類は CLIP ViT-B/32 の zero-shot。正解は Open Images V7 の人手確認済みラベル]{.source}
+
+## 正しくヤギと判定された23枚にも、ヤギでない写真が2枚ある
+
+```{python}
+#| fig-alt: "正解ラベルがヤギで、ヤギと判定された写真のうち、ヤギでない2枚。岩場のビッグホーン（野生の羊）と、赤い自動車。"
+imgfig.grid_figure(not_goat_ok, cols=2, caption=short, width_in=6, max_height_in=3.4);
+```
+
+- 2枚とも正解ラベルはヤギで、モデルもヤギと判定した
+- 自動車は撮影者の題名が「GTO: One Goatpower」だ
+
+[正しくヤギと判定された`{python} len(ok_goat)`枚のうち、該当する2枚をすべて表示。ヤギ以外のクラスの正解側は目視していない。`{python} CREDIT`]{.source}
+
+## 載せた写真51枚は、各作者が CC BY 2.0 で公開したものだ
+
+- 出典: Open Images V7（validation / test）。表示用に長辺256pxへ縮小
+- 作者・題名・元URLの一覧: [credits.html](credits.html)（`{python} len(review)`枚）
+- 写っている動物の判定: `review.csv`（発表者の目視。撮影者の題名も参照）

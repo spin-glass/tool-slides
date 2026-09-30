@@ -1,0 +1,295 @@
+---
+title: "間違えた28枚を見てから、<br>対策を決める"
+pagetitle: "間違えた28枚を見てから、対策を決める"
+subtitle: "牧場の動物6クラス分類 ── どのクラスが何に間違われ、それはどんな画像か"
+format:
+  revealjs:
+    css: styles.css
+---
+
+## いつもの数字で分かるのは「ヤギが鹿に12枚間違われた」までである
+
+```{python}
+import csv
+from html import escape
+from pathlib import Path
+
+DATA = Path("data")
+rows = list(csv.DictReader(open(DATA / "predictions.csv", encoding="utf-8")))
+credits = {r["id"]: r for r in csv.DictReader(open(DATA / "credits.csv", encoding="utf-8"))}
+by_id = {r["id"]: r for r in rows}
+CLASSES = ["羊", "ヤギ", "アルパカ", "鹿", "牛", "馬"]
+errors = [r for r in rows if r["true"] != r["pred"]]
+used = []  # スライドに載せた写真（末尾の出典一覧に使う）
+
+
+def cell(t, p):
+    return [r for r in rows if r["true_ja"] == t and r["pred_ja"] == p]
+
+
+def by_prob(rs):
+    return sorted(rs, key=lambda r: -float(r["prob"]))
+
+
+def photos(ids, cols, height, caption, aside=(), extra=""):
+    """写真を格子に並べる。caption(r) は写真の下に出す HTML を返す"""
+    out = [f'<div class="grid-photos" style="grid-template-columns: repeat({cols}, 1fr);">']
+    for i in ids:
+        r = by_id[i]
+        if i not in used:
+            used.append(i)
+        cls = ' class="aside"' if i in aside else ""
+        alt = f'正解 {r["true_ja"]}、予測 {r["pred_ja"]} の写真'
+        out.append(
+            f'<figure{cls}><img src="data/thumbs/{i}.jpg" alt="{alt}" style="height: {height}px;">'
+            f"<figcaption>{caption(r)}</figcaption></figure>"
+        )
+    out.append(extra + "</div>")
+    print("\n".join(out))
+
+
+def find(prefix):
+    (hit,) = [r["id"] for r in rows if r["id"].startswith(prefix)]
+    return hit
+
+
+# 見出しや本文に書いた数字が、データとずれたら render を止める
+assert len(rows) == 240 and len(errors) == 28
+assert len(cell("ヤギ", "鹿")) == 12 and len(cell("ヤギ", "ヤギ")) == 23
+```
+
+:::: {.columns}
+::: {.column width="62%"}
+
+```{python}
+#| output: asis
+out = ['<table class="cm">']
+out.append(f'<tr><th class="axis"></th><th class="axis" colspan="{len(CLASSES)}">モデルの予測 →</th></tr>')
+out.append('<tr><th class="axis">正解 ↓</th>' + "".join(f"<th>{c}</th>" for c in CLASSES) + "</tr>")
+for t in CLASSES:
+    tds = []
+    for p in CLASSES:
+        n = len(cell(t, p))
+        kind = "diag" if t == p else "focus" if (t, p) == ("ヤギ", "鹿") else "zero" if n == 0 else "miss"
+        tds.append(f'<td class="{kind}">{n}</td>')
+    out.append(f"<tr><th>{t}</th>" + "".join(tds) + "</tr>")
+out.append("</table>")
+print("\n".join(out))
+```
+
+[評価用の写真は各クラス40枚、計240枚。モデルは CLIP ViT-B/32 の zero-shot 分類]{.note-small}
+
+:::
+::: {.column width="38%"}
+
+::: {.bignum}
+88.3%
+:::
+
+[正解率（240枚中212枚が正解）]{.note-small}
+
+::: {.lead}
+誤りは[28枚]{.err}。そのうち[12枚]{.err}が「ヤギ → 鹿」の1マスに集まっている。
+:::
+
+::: {.lead}
+では、その12枚は**どんな写真**か。
+:::
+
+:::
+::::
+
+::: {.notes}
+（約1分）毎回見ている表から入る。ヤギの行だけ正解が23枚で、12枚が鹿に流れている。
+ここで「ヤギと鹿の見分けが弱い」と結論して対策に進みたくなるが、その前に12枚を全部見せる、と予告する。
+:::
+
+## 鹿に間違われた12枚に、牧場で見るような白いヤギは1枚もない
+
+```{python}
+#| output: asis
+gd = by_prob(cell("ヤギ", "鹿"))
+photos([r["id"] for r in gd], cols=4, height=150,
+       caption=lambda r: f'<span class="sub">「鹿」の確信度</span> {float(r["prob"]):.2f}')
+```
+
+::: {.source}
+正解「ヤギ」・予測「鹿」の全12枚（確信度の高い順）。写真: Open Images V7 収録、各作者が CC BY 2.0 で公開（縮小して掲載）。作者と出典は末尾
+:::
+
+::: {.notes}
+（約2分）ここが山場。まず10秒ほど黙って見てもらう。
+見えること: 岩場や山の斜面にいる、茶色い毛の野生のヤギの仲間がほとんど。体が小さく写っている写真、逆光の写真もある。
+右下の1枚は長い角のオリックスに見える（次の次のスライドの話につながる）。
+確信度は12枚中8枚が0.8以上。モデルは迷わずに鹿と答えている。
+:::
+
+## 一方、自信を持って当てたヤギは、近くで撮った家畜のヤギである
+
+```{python}
+#| output: asis
+gg = by_prob(cell("ヤギ", "ヤギ"))
+photos([r["id"] for r in gg[:8]], cols=4, height=185,
+       caption=lambda r: f'<span class="sub">「ヤギ」の確信度</span> {float(r["prob"]):.2f}')
+```
+
+::: {.lead}
+混同行列の「ヤギ」は1クラスだが、写真では**見た目の違う2つの集団**に分かれている。
+:::
+
+::: {.source}
+正解「ヤギ」・予測「ヤギ」23枚のうち、確信度の高い順に8枚。写真: Open Images V7 収録、CC BY 2.0（縮小して掲載）。出典は末尾
+:::
+
+::: {.notes}
+（約1分半）前のスライドと見比べてもらう。こちらは顔や体が大きく写り、白い毛が多い。
+正直に補足: 当てた23枚の中にも岩場の野生のヤギは数枚あるが、確信度は0.34〜0.35と低い（ぎりぎりで当たっている）。
+つまり「ヤギ全般に弱い」のではなく「山や岩場にいる茶色いヤギの仲間を鹿と答える」。数字だけではこの区別がつかない。
+:::
+
+## 別の8枚は、モデルより先に「正解ラベル」を確かめたい写真だった
+
+```{python}
+#| output: asis
+label_ids = [find(p) for p in ["5b5e5614", "68d16e7e", "30d58f7a", "851c43ad",
+                               "10962f6b", "bb344550", "13ee91a9", "59ee2fab"]]
+car = find("659930c8")
+
+
+# 題名の補足（題名は credits.csv のまま。長い題は先頭だけ使う）
+GLOSS = {
+    "5b5e5614": ("Bighorn Sheep", "オオツノヒツジ"),
+    "68d16e7e": ("Bighorn sheep", "オオツノヒツジ"),
+    "30d58f7a": ("Gemsbok", "オリックスの一種"),
+    "851c43ad": ("Scimitar-horned Oryx", "シロオリックス"),
+    "10962f6b": ("Mule Train", "ラバの隊列"),
+    "bb344550": ("Battaglia capre", "capre はヤギ"),
+    "13ee91a9": ("Baby Goats", "子ヤギ"),
+    "59ee2fab": ("ibk", "写っているのはヤギと羊"),
+    "659930c8": ("GTO: One Goatpower", "車"),
+}
+
+
+def cap_label(r):
+    head_title, gloss = GLOSS[r["id"][:8]]
+    assert credits[r["id"]]["title"].startswith(head_title)
+    more = "" if credits[r["id"]]["title"] == head_title else " …"
+    title = f"{escape(head_title)}{more}<br>（{gloss}）"
+    if r["id"] == car:
+        head = f'正解 {r["true_ja"]} → 予測 {r["pred_ja"]}（正解扱い）'
+    else:
+        head = f'正解 {r["true_ja"]} → <span class="err">予測 {r["pred_ja"]}</span>'
+    return f'{head}<br><span class="sub">題: {title}</span>'
+
+
+photos(label_ids + [car], cols=5, height=132, caption=cap_label, aside=[car])
+```
+
+::: {.lead}
+点線の1枚は逆に、**車の写真が「ヤギ」で正解扱い**になっている。「正解」の側も、見ないと分からない。
+:::
+
+::: {.source}
+「題」は撮影者が付けた写真の題名。写真: Open Images V7 収録、CC BY 2.0（縮小して掲載）。出典は末尾
+:::
+
+::: {.notes}
+（約2分）アノテーターに一番見てほしいスライド。
+撮影者の題名と正解ラベルが合わない写真が7枚（Bighorn Sheep が2枚、Gemsbok、Scimitar-horned Oryx、Mule Train、capre＝イタリア語でヤギ、Baby Goats）。
+題が「ibk」の1枚は題名からは分からないが、写っているのはヤギと羊で、牛はいない。
+2種類ある: (1) ラベルの付け間違いに見えるもの、(2) 6クラスのどれにも入れにくい動物（オリックス、ラバ）。
+どちらも、モデルをいくら直しても数字は良くならない。決めるべきはラベルの定義。
+車の写真は誤り28枚には入っていない。「正解」の212枚の側にも見るべきものがある、という例。
+断定はしない。「確かめたい」であって、最終判断はアノテーターに委ねる。
+:::
+
+## さらに5枚は、動物が画面のごく一部にしか写っていない
+
+```{python}
+#| output: asis
+small_ids = [find(p) for p in ["241670ce", "5c46432f", "f462a889", "a7178fd3", "54fd0a49"]]
+photos(small_ids, cols=3, height=192,
+       caption=lambda r: f'正解 {r["true_ja"]} → <span class="err">予測 {r["pred_ja"]}</span>'
+                         f'　<span class="sub">確信度</span> {float(r["prob"]):.2f}',
+       extra='<div class="cell-text"><p>街角、湖の風景、放牧地、納屋の前、雪原。写真の大半は背景である。</p>'
+             '<p>確信度は 0.44〜0.71。正解した写真の中央値 0.96 より低く、モデルも迷っている。</p></div>')
+```
+
+```{python}
+import statistics
+ok_median = statistics.median(float(r["prob"]) for r in rows if r["true"] == r["pred"])
+small_probs = [float(by_id[i]["prob"]) for i in small_ids]
+assert round(ok_median, 2) == 0.96 and (min(small_probs), max(small_probs)) == (0.4433, 0.7135)
+```
+
+::: {.source}
+写真: Open Images V7 収録、CC BY 2.0（縮小して掲載）。出典は末尾
+:::
+
+::: {.notes}
+（約1分）3つ目の型。1枚目は街角の写真で、ヤギは右寄りに小さく1頭いるだけ。
+ここは「ヤギと羊が似ている」という話ではなく「引きの写真で被写体が小さい」という話。
+背景に引っ張られたのかどうかは検証していない。見えている共通点として伝える。
+:::
+
+## 同じ「誤り28枚」でも、見ると型が違い、打つ手も担当も違う
+
+```{python}
+n_other = len(errors) - 12 - len(label_ids) - len(small_ids)
+assert n_other == 3 and not (set(label_ids) | set(small_ids)) & {r["id"] for r in cell("ヤギ", "鹿")}
+assert not set(label_ids) & set(small_ids)
+```
+
+<table class="types">
+<tr><th>写真を見て分かった型</th><th>枚数</th><th>次に検討すること</th><th>主に誰が</th></tr>
+<tr><td>山や岩場にいる茶色いヤギの仲間を「鹿」と答える</td><td class="n">12枚</td><td>野生のヤギの仲間を「ヤギ」に含めるかを決める。含めるなら、その見た目をモデルに教える</td><td>両方</td></tr>
+<tr><td>正解ラベルのほうを確かめたい</td><td class="n">8枚</td><td>ラベルを見直す。6クラスに入らない動物の扱いを決める</td><td>アノテーター</td></tr>
+<tr><td>動物が小さくしか写っていない</td><td class="n">5枚</td><td>引きの写真を評価に含めるか決める。含めるなら、動物を切り出してから分類する</td><td>エンジニア</td></tr>
+<tr><td>その他</td><td class="n">3枚</td><td>──</td><td></td></tr>
+</table>
+
+::: {.lead}
+混同行列だけで決めると、28枚すべてが「モデルの見分けが弱い」に見える。
+実際には、モデルを直しても数字が動かない誤りが[少なくとも8枚]{.err}ある。
+:::
+
+[型分けは写真を見ての観察で、原因を検証したものではない。240枚・1モデルでの結果]{.note-small}
+
+::: {.notes}
+（約1分半）12＋8＋5＋3＝28。型は重ならないように1枚を1つの型に入れている。
+「次に検討すること」は方向の例であって、効果を確かめたものではない、と口頭で添える。
+言いたいのは対策の中身ではなく、「見ないと対策の種類すら選べない」ということ。
+:::
+
+## 次の改善では、対策を決める前に、間違えた写真を全部見る
+
+::: {.steps}
+1. 誤りを「正解 → 予測」のマスごとに、**写真で**並べる
+2. エンジニアとアノテーターが**同じ画面で**見て、型に分ける
+3. 型ごとに対策を決める。数字に戻るのはその後
+:::
+
+::: {.lead}
+今回の誤り28枚のうち25枚は、スライド3枚に収まった。見られない量ではない。
+:::
+
+::: {.notes}
+（約1分）お願いは1つだけ。次の改善サイクルで、対策の議論を始める前に誤り画像を並べて一緒に見る時間を取る。
+エンジニアだけで見るとラベルの疑問に気づきにくく、アノテーターだけで見るとモデル側の癖に気づきにくいので、一緒に見る。
+:::
+
+```{python}
+#| output: asis
+PER_SLIDE = 18
+for k in range(0, len(used), PER_SLIDE):
+    part = f"（{k // PER_SLIDE + 1}/{-(-len(used) // PER_SLIDE)}）"
+    print(f"\n## 写真の出典{part}\n")
+    print('<div class="credits">')
+    for i in used[k:k + PER_SLIDE]:
+        c = credits[i]
+        print(f'<p>{escape(c["author"])}「<a href="{escape(c["source"])}">{escape(c["title"])}</a>」</p>')
+    print("</div>\n")
+    print('<p class="note-small">掲載順。すべて Open Images V7 に収録された写真で、各作者が '
+          '<a href="https://creativecommons.org/licenses/by/2.0/">CC BY 2.0</a> で公開。'
+          "表示用に長辺256pxへ縮小したものを載せている。</p>\n")
+```

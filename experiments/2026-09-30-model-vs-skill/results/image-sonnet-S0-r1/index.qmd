@@ -1,0 +1,308 @@
+---
+title: "間違えた画像を、見てから決める"
+subtitle: "牧場6クラス分類 — 誤り28枚の中身"
+lang: ja
+format:
+  revealjs:
+    include-in-header:
+      - text: |
+          <style>
+          .reveal .slides { font-size: 32px; }
+          .reveal .grid { display: grid; gap: 14px 18px; margin-top: 6px; }
+          .reveal .grid.c3 { grid-template-columns: repeat(3, 1fr); }
+          .reveal .grid.c4 { grid-template-columns: repeat(4, 1fr); }
+          .reveal .grid figure { margin: 0; }
+          .reveal .grid .ph { background: #ece8e0; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+          .reveal .grid.c3 .ph { height: var(--ph); }
+          .reveal .grid.c4 .ph { height: 300px; }
+          .reveal .grid img { max-width: 100%; max-height: 100%; margin: 0; object-fit: contain; }
+          .reveal figcaption { font-size: 0.56em; line-height: 1.35; margin-top: 4px; text-align: left; }
+          .reveal figcaption b { display: block; color: #b23c0a; }
+          .reveal figcaption .by { display: block; color: #6e7781; font-size: 0.86em; }
+          .reveal table.cm { border-collapse: separate; border-spacing: 4px; font-size: 0.78em; margin: 0 auto; }
+          .reveal table.cm th { font-weight: 700; padding: 4px 10px; color: #444; text-align: center; }
+          .reveal table.cm th.corner { font-size: 0.66em; color: #6e7781; font-weight: 400; }
+          .reveal table.cm th { white-space: nowrap; }
+          .reveal table.cm td { width: 92px; height: 70px; text-align: center; border-radius: 4px; font-variant-numeric: tabular-nums; border: none; padding: 0; }
+          .reveal table.cm td.diag { background: #dde7f2; color: #1c4f82; }
+          .reveal table.cm td.zero { background: #f4f2ee; color: #b5b0a6; }
+          .reveal table.cm td.hot { outline: 4px solid #111418; outline-offset: 1px; font-weight: 700; }
+          .reveal .big { font-size: 2.6em; font-weight: 700; line-height: 1.05; color: #1c4f82; }
+          .reveal .two { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 36px; align-items: center; }
+          .reveal .one { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 36px; align-items: center; }
+          .reveal .one .ph { background: #ece8e0; border-radius: 4px; display: flex; justify-content: center; }
+          .reveal .one img { height: 400px; width: auto; max-height: none; margin: 0; }
+          .reveal .strip { display: flex; gap: 10px; margin-top: 8px; }
+          .reveal .strip figure { margin: 0; flex: 1; }
+          .reveal .strip .ph { background: #ece8e0; border-radius: 4px; height: var(--h); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+          .reveal .strip img { max-width: 100%; max-height: 100%; margin: 0; }
+          .reveal .strip figcaption { font-size: 0.5em; }
+          .reveal .tag { display: inline-block; padding: 2px 14px; border-radius: 6px; font-weight: 700; margin-right: 8px; }
+          .reveal .tag.t { background: #dde7f2; color: #1c4f82; }
+          .reveal .tag.p { background: #d9480f; color: #fff; }
+          .reveal .bar { margin: 0 0 4px; }
+          .reveal .bar .lab { font-weight: 700; margin-bottom: 4px; }
+          .reveal .bar .lab span { font-weight: 400; font-size: 0.7em; color: #555; margin-left: 14px; }
+          .reveal .track { background: #ece8e0; border-radius: 6px; height: 54px; }
+          .reveal .fill { height: 100%; border-radius: 6px; color: #fff; font-weight: 700; padding-left: 14px; line-height: 54px; min-width: 70px; }
+          .reveal .stack { display: flex; height: 62px; border-radius: 6px; overflow: hidden; font-weight: 700; color: #fff; line-height: 62px; margin: 6px 0 18px; }
+          .reveal .stack div { text-align: center; }
+          .reveal .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+          .reveal .card { border-top: 8px solid; background: #f6f4ef; padding: 10px 18px 16px; border-radius: 0 0 6px 6px; font-size: 0.82em; line-height: 1.5; }
+          .reveal .card h3 { font-size: 1.15em; margin: 4px 0 6px; }
+          .reveal table.plan { font-size: 0.7em; border-collapse: collapse; width: 100%; }
+          .reveal table.plan th { background: #111418; color: #fff; padding: 8px 12px; text-align: left; }
+          .reveal table.plan td { padding: 10px 12px; border-bottom: 1px solid #d8d4cb; vertical-align: top; line-height: 1.45; }
+          .reveal table.plan td:first-child { font-weight: 700; white-space: nowrap; }
+          .reveal ol.credits { font-size: 0.58em; line-height: 1.32; margin: 0; padding-left: 1.6em; }
+          .reveal ol.credits li { margin-bottom: 0.18em; }
+          .reveal .ask { font-size: 1.0em; }
+          .reveal .ask li { margin-bottom: 0.55em; }
+          .reveal .closer { margin-top: 26px; padding: 16px 24px; border-left: 8px solid #d9480f; background: #f6f4ef; font-size: 0.95em; font-weight: 700; line-height: 1.5; }
+          .reveal .callout { margin-top: 18px; padding: 12px 20px; border-left: 8px solid #d9480f; background: #f6f4ef; font-size: 0.85em; font-weight: 700; }
+          .reveal .note { font-size: 0.6em; color: #555; }
+          </style>
+---
+
+## 正解率は88.3%。目立つ誤りは「ヤギ→鹿」の12枚
+
+```{=html}
+<div class="two">
+<div><div class="big">88.3%</div>
+<div>212/240枚が正解</div>
+<p style="font-size:0.78em;margin-top:18px">誤りは28枚。最多は<b>ヤギ→鹿 12枚</b>で、ヤギの行だけで誤りの6割(17/28枚)。</p></div>
+<div><table class="cm"><thead><tr><th class="corner">正解＼予測</th><th>羊</th><th>ヤギ</th><th>アルパカ</th><th>鹿</th><th>牛</th><th>馬</th></tr></thead><tbody><tr><th>羊</th><td class="diag">35</td><td class="zero">·</td><td class="zero">·</td><td class="off" style="background:rgba(217,72,15,0.29);color:#1f2328">2</td><td class="off" style="background:rgba(217,72,15,0.36);color:#1f2328">3</td><td class="zero">·</td></tr><tr><th>ヤギ</th><td class="off" style="background:rgba(217,72,15,0.29);color:#1f2328">2</td><td class="diag">23</td><td class="zero">·</td><td class="off hot" style="background:rgba(217,72,15,1.00);color:#fff">12</td><td class="off" style="background:rgba(217,72,15,0.36);color:#1f2328">3</td><td class="zero">·</td></tr><tr><th>アルパカ</th><td class="zero">·</td><td class="zero">·</td><td class="diag">40</td><td class="zero">·</td><td class="zero">·</td><td class="zero">·</td></tr><tr><th>鹿</th><td class="zero">·</td><td class="off" style="background:rgba(217,72,15,0.22);color:#1f2328">1</td><td class="zero">·</td><td class="diag">38</td><td class="off" style="background:rgba(217,72,15,0.22);color:#1f2328">1</td><td class="zero">·</td></tr><tr><th>牛</th><td class="off" style="background:rgba(217,72,15,0.36);color:#1f2328">3</td><td class="zero">·</td><td class="zero">·</td><td class="zero">·</td><td class="diag">37</td><td class="zero">·</td></tr><tr><th>馬</th><td class="zero">·</td><td class="zero">·</td><td class="zero">·</td><td class="zero">·</td><td class="off" style="background:rgba(217,72,15,0.22);color:#1f2328">1</td><td class="diag">39</td></tr></tbody></table></div>
+</div>
+```
+
+::: {.source}
+評価240枚(各クラス40枚)/ CLIP ViT-B/32 の zero-shot 分類 / 正解は Open Images V7 の人手確認済みラベル
+:::
+
+::: {.notes}
+（約1分）毎回見ている数字です。正解率は88.3%、混同行列で一番目立つのはヤギが鹿と判定される12枚。ここまでは数字で分かる。では、この12枚は何が写っているのか。今日はそれを見ます。
+:::
+
+## その12枚の1枚目。牧場のヤギではなく、野生のマーコール
+
+```{=html}
+<div class="one" style="min-height:500px">
+<div class="ph" style="background:none;justify-content:flex-start"><img src="data/thumbs/78a98dcc91cace3b.jpg" alt="角が大きくねじれた野生のマーコールのアップ"></div>
+<div>
+<p><span class="tag t">正解 ヤギ</span><span class="tag p">予測 鹿</span></p>
+<p style="font-size:0.85em">撮影者のタイトルは “Markhor”(マーコール)。<br>大きくねじれた角と、たてがみのような毛を持つ野生のヤギ科です。</p>
+<p style="font-size:0.85em">モデルの確信度は 鹿 0.79、ヤギは 0.17。迷ったのではなく、鹿だと判断しています。</p>
+<p style="font-size:0.85em">牧場のヤギを思い浮かべていると、この写真は想定外です。</p>
+<p class="note">© Nick Jonsson / Flickr / CC BY 2.0</p>
+</div></div>
+```
+::: {.source}
+写真: Open Images V7(各作者が CC BY 2.0 で公開)。作者名は各写真の下、出典は末尾に掲載
+:::
+
+::: {.notes}
+（約40秒）1枚目。正解はヤギ、予測は鹿。撮影者のタイトルはマーコール。牧場のヤギではなく、岩場にいる野生種です。
+:::
+
+## 「ヤギ→鹿」12枚のうち6枚。どれも野生のヤギ科の動物
+
+```{=html}
+<div class="grid c3" style="--ph:200px"><figure><div class="ph"><img src="data/thumbs/78a98dcc91cace3b.jpg" alt="マーコール(タイトルより)"></div><figcaption><div class="cap">マーコール(タイトルより)</div><span class="by">© Nick Jonsson</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/a18e8e19cd9b698d.jpg" alt="山の斜面に立つ、角の反った野生の動物"></div><figcaption><div class="cap">山の斜面に立つ、角の反った野生の動物</div><span class="by">© ADT 04</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/fb653d0bb921bb0d.jpg" alt="撮影者のタイトルは “Stag”(雄鹿)"></div><figcaption><div class="cap">撮影者のタイトルは “Stag”(雄鹿)</div><span class="by">© András Bögöly</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/5806672761e3a840.jpg" alt="岩場の野生ヤギ(タイトル: Cabra salvatge)"></div><figcaption><div class="cap">岩場の野生ヤギ(タイトル: Cabra salvatge)</div><span class="by">© Àlex Milian</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/41f666db2257e015.jpg" alt="シャモアの親子(タイトル: Camosci)"></div><figcaption><div class="cap">シャモアの親子(タイトル: Camosci)</div><span class="by">© guido612</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/7a89b4fc43ee7c13.jpg" alt="ヌビアアイベックス(タイトルより)"></div><figcaption><div class="cap">ヌビアアイベックス(タイトルより)</div><span class="by">© Greg Schechter</span></figcaption></figure></div>
+```
+
+::: {.source}
+写真: Open Images V7(各作者が CC BY 2.0 で公開)。作者名は各写真の下、出典は末尾に掲載
+:::
+
+::: {.notes}
+（約1分）12枚を6枚ずつ。アイベックス、シャモア、野生ヤギ。どれも山や岩場で、茶〜灰色の体、反った角。鹿と間違えるのも分かる見た目です。1枚は撮影者自身が「Stag（雄鹿）」とタイトルを付けている。
+:::
+
+## 残りの6枚も野生か動物園。牧場のヤギは1枚もない
+
+```{=html}
+<div class="grid c3" style="--ph:200px"><figure><div class="ph"><img src="data/thumbs/be9ccb3ecebbcc09.jpg" alt="オリックスに見える。動物園(タイトルより)"></div><figcaption><div class="cap">オリックスに見える。動物園(タイトルより)</div><span class="by">© Phalinn Ooi</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/0af497431132df18.jpg" alt="動物園の岩場。タイトルは Mountain Goats"></div><figcaption><div class="cap">動物園の岩場。タイトルは Mountain Goats</div><span class="by">© Parée</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/4a51f8dd244cd303.jpg" alt="山の斜面に立つ、細身で角のある動物"></div><figcaption><div class="cap">山の斜面に立つ、細身で角のある動物</div><span class="by">© Marina Sanz Biendicho</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/cc6b583a6ebf4fd0.jpg" alt="断崖のアイベックス2頭(タイトルより)"></div><figcaption><div class="cap">断崖のアイベックス2頭(タイトルより)</div><span class="by">© PsJeremy</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/bd871cfa3b03e1ae.jpg" alt="逆光のシルエット。タイトルは Chamois"></div><figcaption><div class="cap">逆光のシルエット。タイトルは Chamois</div><span class="by">© Faustino Garcia</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/d4d91a285942921a.jpg" alt="クレタの野生ヤギ Kri-kri(タイトルより)"></div><figcaption><div class="cap">クレタの野生ヤギ Kri-kri(タイトルより)</div><span class="by">© GanMed64</span></figcaption></figure></div>
+```
+
+::: {.source}
+写真: Open Images V7(各作者が CC BY 2.0 で公開)。作者名は各写真の下、出典は末尾に掲載
+:::
+
+::: {.notes}
+（約40秒）残り6枚。オリックスや動物園の岩場の写真も「ヤギ」ラベルで入っている。12枚のうち牧場のヤギは0枚です。
+:::
+
+## ヤギの正解率57.5%は、性質の違う2種類の写真が混ざった値
+
+```{=html}
+<div class="two" style="grid-template-columns:1.15fr 0.85fr">
+<div>
+<div class="bar"><div class="lab">農場のヤギ<span>15/17枚が正解</span></div><div class="track"><div class="fill" style="width:88%;background:#1c4f82">88%</div></div></div>
+<div class="strip" style="--h:112px"><figure><div class="ph"><img src="data/thumbs/ff12cbd2dff942b2.jpg" alt=""></div><figcaption style="color:#1c4f82;font-weight:700;margin:0">正解 ✓</figcaption></figure><figure><div class="ph"><img src="data/thumbs/3b4bc34797729d1d.jpg" alt=""></div><figcaption style="color:#1c4f82;font-weight:700;margin:0">正解 ✓</figcaption></figure><figure><div class="ph"><img src="data/thumbs/77e8894c31c69e65.jpg" alt=""></div><figcaption style="color:#1c4f82;font-weight:700;margin:0">正解 ✓</figcaption></figure></div>
+<div style="height:14px"></div>
+<div class="bar"><div class="lab">野生・動物園のヤギ科<span>7/21枚が正解</span></div><div class="track"><div class="fill" style="width:33%;background:#d9480f">33%</div></div></div>
+<div class="strip" style="--h:112px"><figure><div class="ph"><img src="data/thumbs/db8056c96b9c83a1.jpg" alt=""></div><figcaption style="color:#1c4f82;font-weight:700;margin:0">正解 ✓</figcaption></figure><figure><div class="ph"><img src="data/thumbs/a18e8e19cd9b698d.jpg" alt=""></div><figcaption style="color:#b23c0a;font-weight:700;margin:0">誤り ✗</figcaption></figure><figure><div class="ph"><img src="data/thumbs/5806672761e3a840.jpg" alt=""></div><figcaption style="color:#b23c0a;font-weight:700;margin:0">誤り ✗</figcaption></figure></div>
+</div>
+<div style="font-size:0.9em;line-height:1.6">
+<p><b>農場のヤギは88%</b>。ほかのクラス(羊87.5%・牛92.5%)と同じ水準です。</p>
+<p>低いのは<b>野生・動物園</b>の21枚で、正解は7枚だけ。</p>
+<p>「ヤギをもっと集める」では、この差は縮まりません。</p>
+<p class="note">ヤギ40枚の内訳(目視): 農場17枚・野生や動物園21枚・車1枚(正解扱い)・判別不能1枚(不正解)</p>
+</div></div>
+```
+
+::: {.source}
+農場/野生の区別は、筆者が縮小画像(長辺256px)と写真タイトルを見て付けた目視判定。写真の出典は末尾に掲載
+:::
+
+::: {.notes}
+（約1分15秒）ヤギの正解率は57.5%と低く見えるが、農場のヤギだけなら15/17で約88%、他クラスと同じ。低いのは野生・動物園の21枚で、正解は7枚。この差は数字だけでは見えません。区別は私が目で付けたものなので、チームで見直してほしい。
+:::
+
+## 誤り28枚を見て仕分けると、原因は3種類だった
+
+```{=html}
+<div class="stack"><div style="width:57.1%;background:#d9480f">野生・動物園 16</div><div style="width:21.4%;background:#7a5c00">ラベル疑い 6</div><div style="width:21.4%;background:#1c4f82">写真が難しい 6</div></div>
+<div class="cards">
+<div class="card" style="border-color:#d9480f"><h3>① 野生・動物園(16枚)</h3><div class="strip" style="--h:175px"><figure><div class="ph"><img src="data/thumbs/78a98dcc91cace3b.jpg" alt=""></div></figure><figure><div class="ph"><img src="data/thumbs/be9ccb3ecebbcc09.jpg" alt=""></div></figure><figure><div class="ph"><img src="data/thumbs/ac5a4420790e24de.jpg" alt=""></div></figure></div>「牧場のヤギ・羊」の外にいる動物。ヤギ→鹿の12枚を含む。</div>
+<div class="card" style="border-color:#7a5c00"><h3>② ラベルに疑問(6枚)</h3><div class="strip" style="--h:175px"><figure><div class="ph"><img src="data/thumbs/30d58f7a4d6f0943.jpg" alt=""></div></figure><figure><div class="ph"><img src="data/thumbs/5b5e5614e196b919.jpg" alt=""></div></figure><figure><div class="ph"><img src="data/thumbs/10962f6bc7c6d013.jpg" alt=""></div></figure></div>写っているのは別の動物。モデルの予測のほうが近い例もある。</div>
+<div class="card" style="border-color:#1c4f82"><h3>③ 写真が難しい(6枚)</h3><div class="strip" style="--h:175px"><figure><div class="ph"><img src="data/thumbs/241670ce818d0745.jpg" alt=""></div></figure><figure><div class="ph"><img src="data/thumbs/5c46432f977c05d6.jpg" alt=""></div></figure><figure><div class="ph"><img src="data/thumbs/54fd0a4958cbc9f8.jpg" alt=""></div></figure></div>被写体が小さい、遠い、似ている。ふつうの牧場写真での誤り。</div>
+</div>
+<div class="callout" style="font-size:0.8em">ふつうの牧場写真での誤りは28枚中6枚。残りの22枚は、写真の外(定義とラベル)に原因がある。</div>
+```
+
+::: {.source}
+仕分けは筆者の目視判定(縮小画像と写真タイトルが根拠)。写真の出典は末尾に掲載
+:::
+
+::: {.notes}
+（約45秒）28枚全部を見て3つに分けました。野生・動物園が16、ラベルに疑問が6、写真そのものが難しいのが6。普通の牧場写真で純粋にモデルが間違えたのは6枚だけです。
+:::
+
+## 野生のオリックスやビッグホーンにも、正解ラベルは「ヤギ」「羊」
+
+```{=html}
+<div class="grid c4" style="--ph:200px"><figure><div class="ph"><img src="data/thumbs/851c43ad70d10f45.jpg" alt="遠くに白い群れ。タイトルは Scimitar-horned Oryx"></div><figcaption><b>正解 ヤギ → 予測 牛</b><div class="cap">遠くに白い群れ。タイトルは Scimitar-horned Oryx</div><span class="by">© Stuart Chapman</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/68d16e7efbb42509.jpg" alt="ビッグホーンのアップ。耳に黄色いタグ"></div><figcaption><b>正解 ヤギ → 予測 牛</b><div class="cap">ビッグホーンのアップ。耳に黄色いタグ</div><span class="by">© Sarah Page</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/ac5a4420790e24de.jpg" alt="タイトルは Widder(雄羊)。野生のムフロンに見える"></div><figcaption><b>正解 羊 → 予測 鹿</b><div class="cap">タイトルは Widder(雄羊)。野生のムフロンに見える</div><span class="by">© Michael Mayer</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/13ee91a9369e648d.jpg" alt="タイトルは Baby Goats。岩場の野生の親子"></div><figcaption><b>正解 羊 → 予測 鹿</b><div class="cap">タイトルは Baby Goats。岩場の野生の親子</div><span class="by">© Chris Barker</span></figcaption></figure></div>
+```
+
+```{=html}
+<div class="callout">牧場の「ヤギ」「羊」に、野生種は含まれるのか。まだ決まっていない。</div>
+```
+::: {.source}
+写真: Open Images V7(各作者が CC BY 2.0 で公開)。作者名は各写真の下、出典は末尾に掲載
+:::
+
+::: {.notes}
+（約45秒）ヤギ→鹿以外の野生動物。オリックスやビッグホーンがヤギや羊になっている。牧場の動物として扱うのか、決めていない。
+:::
+
+## 6枚は、モデルよりラベルを先に疑いたい写真だった
+
+```{=html}
+<div class="grid c3" style="--ph:180px"><figure><div class="ph"><img src="data/thumbs/30d58f7a4d6f0943.jpg" alt="ジェムズボック(オリックス)。牛ではない"></div><figcaption><b>正解 牛 → 予測 羊</b><div class="cap">ジェムズボック(オリックス)。牛ではない</div><span class="by">© Charles D P Miller</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/59ee2fabd15fcce4.jpg" alt="柵に前足をかけるヤギの子と、羊"></div><figcaption><b>正解 牛 → 予測 羊</b><div class="cap">柵に前足をかけるヤギの子と、羊</div><span class="by">© Lindsey Nicholson</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/5b5e5614e196b919.jpg" alt="ビッグホーンの群れ。羊のほうが近い"></div><figcaption><b>正解 牛 → 予測 羊</b><div class="cap">ビッグホーンの群れ。羊のほうが近い</div><span class="by">© California Department of Fish and Wildlife</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/bb344550466c5b2e.jpg" alt="茶色いヤギの群れ(Battaglia capre)"></div><figcaption><b>正解 羊 → 予測 牛</b><div class="cap">茶色いヤギの群れ(Battaglia capre)</div><span class="by">© Eleonora Gianinetto</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/4ff9f0b5f553f590.jpg" alt="大型のアンテロープ(エランド?)に見える"></div><figcaption><b>正解 鹿 → 予測 ヤギ</b><div class="cap">大型のアンテロープ(エランド?)に見える</div><span class="by">© Jose Luis Cernadas Iglesias</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/10962f6bc7c6d013.jpg" alt="荷を背負うラバ(タイトル: Mule Train)"></div><figcaption><b>正解 馬 → 予測 牛</b><div class="cap">荷を背負うラバ(タイトル: Mule Train)</div><span class="by">© fredsharples</span></figcaption></figure></div>
+```
+
+::: {.source}
+写真: Open Images V7(各作者が CC BY 2.0 で公開)。作者名は各写真の下、出典は末尾に掲載
+:::
+
+::: {.notes}
+（約1分）アノテーターの方に見てほしい6枚。牛ラベルなのにオリックスやヤギ、羊が写っているもの。ビッグホーンの群れは、予測の「羊」のほうが写真に合っている。ラバや、エランドのようなアンテロープは、6クラスのどれに入れるかの基準が要る。
+:::
+
+## ふつうの写真での誤りは6枚だけ。小さい・遠い・似ている
+
+```{=html}
+<div class="grid c3" style="--ph:180px"><figure><div class="ph"><img src="data/thumbs/241670ce818d0745.jpg" alt="路地の奥に小さく写る白いヤギ"></div><figcaption><b>正解 ヤギ → 予測 牛</b><div class="cap">路地の奥に小さく写る白いヤギ</div><span class="by">© Erick LEVASSEUR</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/a7178fd3617c42bc.jpg" alt="白と茶のヤギの群れ。羊にも見える"></div><figcaption><b>正解 ヤギ → 予測 羊</b><div class="cap">白と茶のヤギの群れ。羊にも見える</div><span class="by">© Bob n Renee</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/f70c40ea63bec82d.jpg" alt="岩と同じ色合いで、輪郭がつかみにくい"></div><figcaption><b>正解 ヤギ → 予測 羊</b><div class="cap">岩と同じ色合いで、輪郭がつかみにくい</div><span class="by">© febs</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/5c46432f977c05d6.jpg" alt="丘の上の小さな2頭。景色が広い"></div><figcaption><b>正解 羊 → 予測 牛</b><div class="cap">丘の上の小さな2頭。景色が広い</div><span class="by">© Aaron Bateman</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/f462a8897c96f952.jpg" alt="遠くで草を食べる羊の群れ"></div><figcaption><b>正解 羊 → 予測 牛</b><div class="cap">遠くで草を食べる羊の群れ</div><span class="by">© Linda N.</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/54fd0a4958cbc9f8.jpg" alt="雪原の遠景にいるエルク"></div><figcaption><b>正解 鹿 → 予測 牛</b><div class="cap">雪原の遠景にいるエルク</div><span class="by">© Jeff Gunn</span></figcaption></figure></div>
+```
+
+::: {.source}
+写真: Open Images V7(各作者が CC BY 2.0 で公開)。作者名は各写真の下、出典は末尾に掲載
+:::
+
+::: {.notes}
+（約45秒）純粋にモデルの誤りといえるのはここ。被写体が小さい、遠い、似た動物が混ざる。ここはエンジニア側の対策の対象。
+:::
+
+## 正解にも、車の写真と紙一重の正解が混ざっている
+
+```{=html}
+<div class="grid c4" style="--ph:200px"><figure><div class="ph"><img src="data/thumbs/659930c803700986.jpg" alt="写っているのは車(GTO: One Goatpower)"></div><figcaption><b>正解 ヤギ → 予測 ヤギ ✓</b><div class="cap">写っているのは車(GTO: One Goatpower)</div><span class="by">© Lynn Newsome</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/cd5ce87adc68bef2.jpg" alt="ビッグホーンの雄。差 0.03"></div><figcaption><b>正解 ヤギ → 予測 ヤギ ✓</b><div class="cap">ビッグホーンの雄。差 0.03</div><span class="by">© Jeff Keacher</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/db8056c96b9c83a1.jpg" alt="野生の角のあるアップ。差 0.05"></div><figcaption><b>正解 ヤギ → 予測 ヤギ ✓</b><div class="cap">野生の角のあるアップ。差 0.05</div><span class="by">© Nicki Mannix</span></figcaption></figure><figure><div class="ph"><img src="data/thumbs/fcf89fb114596adf.jpg" alt="岩場の群れと橋の背景。差 0.03"></div><figcaption><b>正解 ヤギ → 予測 ヤギ ✓</b><div class="cap">岩場の群れと橋の背景。差 0.03</div><span class="by">© Roanish</span></figcaption></figure></div>
+```
+
+```{=html}
+<div class="callout" style="font-size:0.7em">「差」は1位と2位の確信度の差で、小さいほど迷っている。正解率だけでは、こうした正解の中身は見えない。</div>
+```
+::: {.source}
+写真: Open Images V7(各作者が CC BY 2.0 で公開)。作者名は各写真の下、出典は末尾に掲載
+:::
+
+::: {.notes}
+（約45秒）誤りだけでなく正解の中にも。ヤギ正解のうち1枚は車の写真で、ラベルも予測も「ヤギ」。ほかにも差が0.03〜0.05の紙一重の正解がある。正解率は、この中身を教えてくれない。
+:::
+
+## 同じ「誤り」でも、直す場所は3つに分かれる
+
+```{=html}
+<table class="plan">
+<colgroup><col style="width:17%"><col style="width:25%"><col style="width:40%"><col style="width:18%"></colgroup>
+<thead><tr><th>種類</th><th>見て分かったこと</th><th>対策の候補</th><th>主に判断する人</th></tr></thead>
+<tbody>
+<tr><td style="color:#d9480f">① 野生・動物園<br>16枚</td><td>「ヤギ」「羊」に野生を含めるかが決まっていない</td><td>含めない → 評価データから外す、または「その他」クラスを足す<br>含める → 野生の例を学習やプロンプトに足す</td><td>アノテーター<br>+ エンジニア</td></tr>
+<tr><td style="color:#7a5c00">② ラベル疑問<br>6枚</td><td>写っているのは別の動物(ラバ・アンテロープなど)</td><td>ラベルを再確認し、ラバやアンテロープの扱いを基準に書く</td><td>アノテーター</td></tr>
+<tr><td style="color:#1c4f82">③ 写真が難しい<br>6枚</td><td>被写体が小さい、遠い、似ている</td><td>高解像度化や切り出し、小さい被写体の例を足す</td><td>エンジニア</td></tr>
+</tbody></table>
+<p class="note" style="margin-top:14px">件数は筆者の目視判定。チームで見直すと動く。①の決め方しだいで評価データそのものが変わるので、先に決めたい。</p>
+```
+
+::: {.notes}
+（約45秒）同じ誤りでも直す場所が違う。①は定義の決めごと、②はラベル、③がモデルやデータ。もし最初から「ヤギのデータを増やす」と決めていたら、①には効かなかったはず。
+:::
+
+## 次の改善の前に、間違えた画像を並べて仕分けてください
+
+::: {.ask}
+1. `predictions.csv` で `true ≠ pred` を抜き出す(今回は28枚)
+2. 混同ペアごとに、画像を全部並べて見る(ヤギ→鹿なら12枚)
+3. 1枚ずつ「野生・別クラス」「ラベル疑い」「写真が難しい」に仕分ける
+4. 件数の多いものから、対策と担当を決める
+:::
+
+```{=html}
+<div class="closer">同じ「ヤギ→鹿 12枚」でも、中身が野生の写真なら、対策はデータ追加より先に、クラスの定義を決めることになる。画像を見てから決める。</div>
+```
+
+::: {.notes}
+（約45秒）お願いは1つ。次の改善で対策を決める前に、間違えた画像を実際に見てください。28枚なら数分で見終わります。仕分けの件数が、対策の順番になります。
+:::
+
+## 写真の出典(1/3)
+
+```{=html}
+<ol class="credits" start="1"><li><a href="https://www.flickr.com/photos/nickjonsson/17196395711">Markhor Capra falconeri Kingcraig 2014</a> — Nick Jonsson</li><li><a href="https://www.flickr.com/photos/alpesdehauteprovence-tourisme/13773335413">Randonnées, randos aquatiques, VTT avec Rando Passion</a> — ADT 04</li><li><a href="https://www.flickr.com/photos/bogolyandras/14775600961">Stag</a> — András Bögöly</li><li><a href="https://www.flickr.com/photos/milianbeser/6106956572">Cabra salvatge</a> — Àlex Milian</li><li><a href="https://www.flickr.com/photos/guido61270/2695113919">Camosci in Val Maira</a> — guido612</li><li><a href="https://www.flickr.com/photos/gregthebusker/15787698886">Nubian ibex</a> — Greg Schechter</li><li><a href="https://www.flickr.com/photos/phalinn/6966827432">Zoo Negara</a> — Phalinn Ooi</li><li><a href="https://www.flickr.com/photos/pareeerica/3577226731">* Mountain Goats *</a> — Parée</li><li><a href="https://www.flickr.com/photos/marinasanz/9126937439">Sin miedo a nada</a> — Marina Sanz Biendicho</li><li><a href="https://www.flickr.com/photos/psjeremy/8416900318">A Pair of Firm Footed Ibexes - in Israel</a> — PsJeremy</li><li><a href="https://www.flickr.com/photos/sgtgarcia/14344269491">Valais - Van d&#x27;En Haut - Chamoix</a> — Faustino Garcia</li><li><a href="https://www.flickr.com/photos/ganmed64/4140721776">Kri-kri goat, Samaria Gorge, Crete</a> — GanMed64</li></ol>
+```
+
+::: {.source}
+すべて Open Images V7 収録の Flickr 写真。各作者が [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) で公開。縮小して掲載。
+:::
+
+## 写真の出典(2/3)
+
+```{=html}
+<ol class="credits" start="13"><li><a href="https://www.flickr.com/photos/33590535@N06/5707424305">Domestic Goat {capra hirus}</a> — Drew Avery</li><li><a href="https://www.flickr.com/photos/vix_b/865812033">Bubble the Goat at Longleat (with an itch)</a> — Vix_B</li><li><a href="https://www.flickr.com/photos/wm_archiv/2706062361">2007-07-07 Ponyhof Weil 016</a> — Allie_Caulfield</li><li><a href="https://www.flickr.com/photos/nickimm/12552364304">The Stare</a> — Nicki Mannix</li><li><a href="https://www.flickr.com/photos/michael_mayer/7018716061">Widder / Naturpark Schönbuch</a> — Michael Mayer</li><li><a href="https://www.flickr.com/photos/cdpm/5607710380">Gemsbok</a> — Charles D P Miller</li><li><a href="https://www.flickr.com/photos/californiadfg/21068055400">Bighorn Sheep</a> — California Department of Fish and Wildlife</li><li><a href="https://www.flickr.com/photos/ballena/640376039">Mule Train Approaching Rae Lakes Ranger Station</a> — fredsharples</li><li><a href="https://www.flickr.com/photos/ericklevasseur/15153832081">182-DSC_0869</a> — Erick LEVASSEUR</li><li><a href="https://www.flickr.com/photos/aaronbateman/5038896224">Untitled</a> — Aaron Bateman</li><li><a href="https://www.flickr.com/photos/jeffgunn/8478716017">Grand Teton National Park</a> — Jeff Gunn</li><li><a href="https://www.flickr.com/photos/99353930@N00/2737982989">Scimitar-horned Oryx</a> — Stuart Chapman</li></ol>
+```
+
+::: {.source}
+すべて Open Images V7 収録の Flickr 写真。各作者が [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) で公開。縮小して掲載。
+:::
+
+## 写真の出典(3/3)
+
+```{=html}
+<ol class="credits" start="25"><li><a href="https://www.flickr.com/photos/28455143@N08/4817001410">Bighorn sheep</a> — Sarah Page</li><li><a href="https://www.flickr.com/photos/clb8888/953857554">Baby Goats</a> — Chris Barker</li><li><a href="https://www.flickr.com/photos/linznicholson/4792933138">ibk</a> — Lindsey Nicholson</li><li><a href="https://www.flickr.com/photos/22670972@N02/6634063493">Battaglia capre 2011</a> — Eleonora Gianinetto</li><li><a href="https://www.flickr.com/photos/jlcernadas/16766651299">4318-Marcelle (Lugo)</a> — Jose Luis Cernadas Iglesias</li><li><a href="https://www.flickr.com/photos/bobnrenee/2464823743">Elkus Ranch 2008</a> — Bob n Renee</li><li><a href="https://www.flickr.com/photos/febs/18920853">dscn2268</a> — febs</li><li><a href="https://www.flickr.com/photos/22748341@N00/174563785">Bucolic scene deux</a> — Linda N.</li><li><a href="https://www.flickr.com/photos/risibility/2684407277">GTO: One Goatpower</a> — Lynn Newsome</li><li><a href="https://www.flickr.com/photos/teuobk/9000011709">Bighorn Sheep ram</a> — Jeff Keacher</li><li><a href="https://www.flickr.com/photos/roanish/5061373941">Mountain goats ... and the bridge</a> — Roanish</li></ol>
+```
+
+::: {.source}
+すべて Open Images V7 収録の Flickr 写真。各作者が [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) で公開。縮小して掲載。
+:::
+
