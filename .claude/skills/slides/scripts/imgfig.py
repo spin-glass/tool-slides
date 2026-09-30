@@ -128,6 +128,61 @@ def load_table(table_csv, thumbs_dir, id_col: str = "id", label_col: str | None 
     return items
 
 
+def load_look(items, look_csv, id_col: str = "id") -> list[Item]:
+    """確認の表（data/look.csv: id, classes, note）を items に足す。classes は元の写真に写っている分類の対象を
+    「;」で区切ったもの（スライドに書く名前で）。note はほかの物・様子。表に無い画像はそのまま返す。"""
+    import dataclasses
+
+    with open(look_csv, newline="", encoding="utf-8") as f:
+        look = {r[id_col]: r for r in csv.DictReader(f)}
+    return [dataclasses.replace(it, attrs={**it.attrs, **{k: v for k, v in look[it.id].items() if k != id_col}})
+            if it.id in look else it for it in items]
+
+
+def seen(it: Item, sep: str = "＋") -> str:
+    """確認の表の classes（写っている分類の対象すべて）を、説明に使う文字列にする。例: 「コクチョウ＋カモ」。"""
+    return sep.join(c.strip() for c in str(it.get("classes", "")).split(";") if c.strip())
+
+
+def check_look(report, look_csv, id_col: str = "id") -> list[str]:
+    """図に書いた写真ごとの説明と群の見出しを、確認の表と照らす。食い違いの文を返す（無ければ空）。
+
+    - 説明に、その写真の classes のどれかが入っていない（主役だけを書いて、ほかに写る対象を落としている）
+    - 見出しが1つのクラスだけを言う群に、そのクラス以外も写る写真や、そのクラスが写らない写真が入っている
+      （見出しに「ラベル」「予測」「正解」「答え」「判定」「→」があるときは、データの値の見出しとみなして照らさない）
+    """
+    import re as _re
+
+    with open(look_csv, newline="", encoding="utf-8") as f:
+        look = {r[id_col]: [c.strip() for c in r.get("classes", "").split(";") if c.strip()] for r in csv.DictReader(f)}
+    vocab = sorted({c for cs in look.values() for c in cs}, key=len, reverse=True)
+    out = []
+    for n, line in enumerate(open(report, encoding="utf-8"), 1):
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        for cap in rec.get("captions", []):
+            classes = look.get(cap["id"])
+            if classes and cap["caption"]:
+                missing = [c for c in classes if c not in cap["caption"]]
+                if missing:
+                    out.append(f"図{n}: {cap['id']} の説明「{cap['caption'].replace(chr(10), ' ')}」に、確認の表の"
+                               f"「{'・'.join(missing)}」が無い")
+        for g in rec.get("groups", []):
+            title = g["title"]
+            if _re.search(r"ラベル|予測|正解|答え|判定|→", title):
+                continue
+            named = [c for c in vocab if c in title]
+            if len(named) != 1:
+                continue
+            k = named[0]
+            for i in g["ids"]:
+                classes = look.get(i)
+                if classes and (k not in classes or any(c != k for c in classes)):
+                    out.append(f"図{n}: 見出し「{title}」の群の {i} は、確認の表では「{'・'.join(classes)}」")
+    return out
+
+
 def load_items(scores_csv, thumbs_dir, normal_group: str, role: str | None = None,
                group_col: str = "group", label_col: str = "label_ja") -> list[Item]:
     """閾値の型の表（id, role, group, label, score）を読み、スコアの小さい順に返す。"""
@@ -241,6 +296,8 @@ class Canvas:
         self.unit_in = scale            # 1単位の実寸（インチ）
         self.pt = scale * 72.0          # 1単位あたりのポイント数
         self.cell_h, self.kind, self.n_thumbs = cell_h, kind, 0
+        self.captions: list[dict] = []     # 写真ごとの説明（render_check が確認の表 data/look.csv と照らす）
+        self.groups: list[dict] = []       # 群の見出しと、その群の写真
 
     def finish(self):
         self.ax.set_xlim(0, self.w)
@@ -250,11 +307,16 @@ class Canvas:
         if os.environ.get("IMGFIG_REPORT"):        # render_check.sh が図ごとの大きさを表示するための記録
             with open(os.environ["IMGFIG_REPORT"], "a", encoding="utf-8") as f:
                 f.write(json.dumps({"kind": self.kind, "thumbs": self.n_thumbs, "px": round(px),
-                                    "px_tall": round(px_tall)}) + "\n")
+                                    "px_tall": round(px_tall), "captions": self.captions, "groups": self.groups},
+                                   ensure_ascii=False) + "\n")
         if self.n_thumbs and px_tall < MIN_UNIT_PX:
             warnings.warn(f"サムネイルが小さい（bullets を置かなくても、スライド上で約{px_tall:.0f}px）。"
                           "見せる枚数を減らす（pick）か、図を分ける。全数は appendix に回せる", stacklevel=3)
         return self.fig
+
+    def group(self, title, items):
+        """群の見出しと写真を記録する（見出しが1つのクラスを言うとき、ほかのクラスも写る写真が入っていないかを照らすため）。"""
+        self.groups.append({"title": str(title), "ids": [it.id for it in items]})
 
     def text(self, x, y, s, size=0.17, color=INK, ha="center", va="center", weight="normal", **kw):
         self.ax.text(x, y, s, fontsize=size * self.pt, color=color, ha=ha, va=va, weight=weight, **kw)
@@ -283,6 +345,7 @@ class Canvas:
         self.ax.imshow(np.asarray(im), extent=(ix, ix + iw, iy + ih, iy), zorder=2, interpolation="antialiased")
         self.ax.add_patch(Rectangle((x0, y0), fw, fh, fc="none", ec=color, lw=0.035 * self.pt, zorder=3))
         self.n_thumbs += 1
+        self.captions.append({"id": item.id, "caption": str(caption) if caption else ""})
         for n, line in enumerate(str(caption).split("\n") if caption else []):
             self.text(x + 0.5, y + self.cell_h + caption_size * 0.7 + n * CAPTION_LINE, line, size=caption_size,
                       color=color if n == 0 else INK)
@@ -385,6 +448,7 @@ def panels_figure(groups, cols_each=None, caption=None, k: int | None = None, ho
         if counts or k is not None:
             title = _counted(title, len(items), len(s))
         c.text(x + 0.04, head / 2 - 0.04, title, size=0.2, ha="left", weight="bold", color=color)
+        c.group(title, s)
         c.hline(head - 0.06, x + 0.04, x + n - 0.04, color=color, lw=0.02)
         _grid(c, s, x, head, n, caption, color, cap)
         x += n + gap
@@ -433,6 +497,7 @@ def flow_figure(groups, width: float | None = None, caption=None, k: int | None 
         for g, cols, w, x in line:
             color = groups[g][2]
             c.text(x + 0.04, y + head / 2 - 0.04, labels[g], size=0.2, ha="left", weight="bold", color=color)
+            c.group(labels[g], shown[g])
             c.hline(y + head - 0.06, x + 0.04, x + w - 0.04, color=color, lw=0.02)
             _grid(c, shown[g], x, y + head, cols, caption, color, cap)
         y += h + line_gap
@@ -470,6 +535,7 @@ def rows_figure(rows, cols: int | None = None, caption=None, k: int | None = Non
             c.text(1.25, y + 0.08 + ch / 2, "→", size=0.3, color=MUTED)
         else:
             c.text(0.04, y + 0.36, str(head), size=0.2, ha="left", weight="bold", color=color)
+            c.group(head, s)
             if counts:
                 note = f"{len(items)}枚" + (f"（{len(s)}枚を表示）" if len(s) < len(items) else "")
                 c.text(0.04, y + 0.68, note, size=0.16, ha="left", color=MUTED)
@@ -720,6 +786,7 @@ def zoom_figure(entries, caption=None, cols: int | None = None, color=ORANGE, ca
                 c.ax.add_patch(Rectangle((ix, iy), iw, ih, fc="none", ec=color, lw=0.035 * c.pt, zorder=3))
             c.n_thumbs += 1
         c.text(x + 1.05, y + cell_h / 2, "→", size=0.2, color=color)
+        c.captions.append({"id": it.id, "caption": str(caption(it)) if caption else ""})
         for k, line in enumerate(str(caption(it)).split("\n") if caption else []):
             c.text(x + 1.05, y + cell_h + caption_size * 0.7 + k * CAPTION_LINE, line, size=caption_size,
                    color=color if k == 0 else INK)
@@ -791,6 +858,10 @@ def main() -> int:
     sh.add_argument("--images", help="元の写真の置き場所（省略時は thumbs と同じ階層の images/ があればそれ）")
     sh.add_argument("--out", required=True)
 
+    ck = sub.add_parser("check-look", help="図の説明・群の見出しを確認の表（data/look.csv）と照らす（render_check.sh が呼ぶ）")
+    ck.add_argument("--report", required=True)
+    ck.add_argument("--look", required=True)
+
     lo = sub.add_parser("locate", help="元の写真に0〜1の目盛りを描く（拡大して見せる範囲を読むため）")
     lo.add_argument("--image", required=True)
     lo.add_argument("--out", required=True)
@@ -820,6 +891,13 @@ def main() -> int:
         fig = flow_figure([(" → ".join(v), g) for v, g in groups], k=a.k, how=a.how, caption=cap)
         fig.savefig(a.out, dpi=200)
         print("; ".join(f"{' → '.join(v)}: {len(g)}" for v, g in groups), "->", a.out)
+        return 0
+
+    if a.cmd == "check-look":
+        found = check_look(a.report, a.look)
+        for line in found:
+            print(f"WARNING {line}")
+        print(f"確認の表との照合: 食い違い {len(found)} 件")
         return 0
 
     if a.cmd == "locate":
