@@ -29,6 +29,8 @@ CLI（qmd を書かずに1枚の図にする）:
     python imgfig.py groups --table table.csv --thumbs thumbs/ --by true,pred --where result=wrong --out groups.png
     python imgfig.py matrix --table table.csv --thumbs thumbs/ --row true --col pred --out matrix.png
     python imgfig.py moved  --scores scores.csv --thumbs thumbs/ --normal-group dog --from-loss 0.01 --to-loss 0.05 --out moved.png
+    python imgfig.py sheet  --table table.csv --thumbs thumbs/ --where result=wrong --caption true,pred --credits credits.csv --out check.jpg
+                            （確認用。見せる画像を元の大きさで並べる。画像について書く前に Read で見る）
 表の列は自由（id 列が必須）。画像は <thumbs>/<id>.jpg。
 """
 from __future__ import annotations
@@ -609,6 +611,48 @@ def moved_figure(items, t_from: float, t_to: float, cols_each=None, caption=None
     return panels_figure([groups[n] for n in keep], cols_each=cols, caption=cap, **canvas_kw)
 
 
+# ---- 確認用のシート（スライドには載せない） --------------------------------------
+def review_sheet(items, out, caption=None, cols: int = 6, per_sheet: int = 24) -> list[Path]:
+    """画像を元の大きさ（長辺256pxまで）で並べ、#番号と説明を添えた確認用の画像を書く。
+
+    図の縮小画像やスライドのスクショでは、小さく写るもの（車の中の動物、遠くの群れ）や、よく似た種を見分けられない。
+    画像について書く前に、この画像を Read で開いて1枚ずつ確かめる。caption は Item → 文字列（改行可。ラベル・データ・
+    撮影者の題名など）。枚数が per_sheet を超えると、out の名前に -2, -3 … を付けて分ける。返り値は書いたファイル。
+    """
+    from PIL import ImageDraw, ImageFont
+
+    font = None
+    for path in ("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"):
+        if Path(path).exists():
+            font = ImageFont.truetype(path, 17)
+            break
+    font = font or ImageFont.load_default()
+    items, out = list(items), Path(out)
+    written = []
+    for k in range(0, max(1, len(items)), per_sheet):
+        chunk = items[k:k + per_sheet]
+        if not chunk:
+            break
+        c = min(cols, len(chunk))
+        rows = (len(chunk) - 1) // c + 1
+        cell, text_h = 262, 96
+        sheet = Image.new("RGB", (c * cell + 8, rows * (cell + text_h) + 8), "white")
+        d = ImageDraw.Draw(sheet)
+        for n, it in enumerate(chunk):
+            x, y = 4 + (n % c) * cell, 4 + (n // c) * (cell + text_h)
+            im = Image.open(it.path).convert("RGB")
+            im.thumbnail((256, 256))
+            sheet.paste(im, (x + (256 - im.width) // 2, y + (256 - im.height) // 2))
+            lines = [f"#{k + n + 1} {it.id}"]
+            for part in (str(caption(it)) if caption else "").split("\n"):
+                lines += [part[i:i + 15] for i in range(0, len(part), 15)] or [""]
+            d.multiline_text((x + 2, y + 258), "\n".join(lines[:5]), fill=INK, font=font, spacing=2)
+        name = out if k == 0 else out.with_name(f"{out.stem}-{k // per_sheet + 1}{out.suffix}")
+        sheet.save(name, quality=88)
+        written.append(name)
+    return written
+
+
 # ---- CLI ------------------------------------------------------------------
 def _where(items, conditions):
     for cond in conditions or []:
@@ -642,6 +686,15 @@ def main() -> int:
     mx.add_argument("--show-diagonal", action="store_true", help="行と列の値が同じマスにも画像を置く")
     mx.add_argument("--out", required=True)
 
+    sh = sub.add_parser("sheet", help="画像を元の大きさで並べた確認用の画像を書く（スライドには載せない）")
+    sh.add_argument("--table", required=True)
+    sh.add_argument("--thumbs", required=True)
+    sh.add_argument("--where", action="append", help="列=値 で絞り込む（複数可）")
+    sh.add_argument("--ids", help="画像IDをカンマ区切りで（前方一致）")
+    sh.add_argument("--caption", help="画像の下に書く列（カンマ区切りで複数）")
+    sh.add_argument("--credits", help="撮影者の題名を添える出典の表（id, title の列）")
+    sh.add_argument("--out", required=True)
+
     mv = sub.add_parser("moved", help="2つの閾値の間で判定が変わる画像を1枚にする")
     mv.add_argument("--scores", required=True)
     mv.add_argument("--thumbs", required=True)
@@ -667,6 +720,27 @@ def main() -> int:
         fig = flow_figure([(" → ".join(v), g) for v, g in groups], k=a.k, how=a.how, caption=cap)
         fig.savefig(a.out, dpi=200)
         print("; ".join(f"{' → '.join(v)}: {len(g)}" for v, g in groups), "->", a.out)
+        return 0
+
+    if a.cmd == "sheet":
+        items = _where(load_table(a.table, a.thumbs), a.where)
+        if a.ids:
+            want = [x.strip() for x in a.ids.split(",") if x.strip()]
+            items = [it for it in items if any(it.id.startswith(w) for w in want)]
+        titles = {}
+        if a.credits:
+            with open(a.credits, newline="", encoding="utf-8") as f:
+                titles = {r["id"]: r.get("title", "") for r in csv.DictReader(f)}
+        cols = a.caption.split(",") if a.caption else []
+
+        def cap(it):
+            parts = [" ".join(it.get(c, "") for c in cols)] if cols else []
+            if titles.get(it.id):
+                parts.append(f"題名「{titles[it.id]}」")
+            return "\n".join(parts)
+
+        files = review_sheet(items, a.out, caption=cap)
+        print(f"{len(items)} images -> {', '.join(str(f) for f in files)}")
         return 0
 
     if a.cmd == "matrix":

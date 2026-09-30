@@ -135,6 +135,15 @@ class Layout(unittest.TestCase):
         narrow = imgfig._flow_lines([12], [2.0], width=6)
         self.assertEqual(narrow[0][0][1], 6)                       # 幅より多い群は、群の中で折り返す
 
+    def test_review_sheet_splits_and_keeps_every_image(self):
+        items = self.photos([(256, 171)] * 30)
+        out = Path(tempfile.mkdtemp()) / "check.jpg"
+        files = imgfig.review_sheet(items, out, caption=lambda it: f"ラベル {it['n']}\n題名", per_sheet=24)
+        self.assertEqual([f.name for f in files], ["check.jpg", "check-2.jpg"])
+        from PIL import Image
+        self.assertEqual(Image.open(files[0]).width, 6 * 262 + 8)          # 1枚あたり元の大きさ（256px）＋余白
+        self.assertEqual(Image.open(files[1]).width, 6 * 262 + 8)          # 残り6枚
+
     def test_figures_report_their_size(self):
         items = self.photos([(256, 171)] * 12)
         report = Path(tempfile.mkdtemp()) / "report.jsonl"

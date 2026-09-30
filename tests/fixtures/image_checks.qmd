@@ -5,7 +5,7 @@ title: "画像の検査サンプル"
 <!-- audience: lint の検査 -->
 <!-- action: 画像の違反を検出する -->
 <!-- minutes: 3 -->
-<!-- budget: 3 -->
+<!-- budget: 4 -->
 <!-- status: approved -->
 <!-- decided-by: claude（検査用） -->
 
@@ -34,4 +34,13 @@ plt.plot([1, 2, 3])
 #| fig-alt: "画像を並べた図"
 imgfig.grid_figure(items, cols=8);
 ```
+
+## 鹿と答えた12枚は茶色い動物ばかりで、白い個体は1枚も写っていない
+
+```{python}
+#| fig-alt: "鹿と答えた12枚"
+imgfig.grid_figure(items);
+```
+
+[12枚をすべて表示]{.source}
 

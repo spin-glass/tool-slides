@@ -67,6 +67,8 @@ IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)")
 PLOT_RE = re.compile(r"\b(plt|imgfig|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
 IMGFIG_RE = re.compile(r"\bimgfig\.\w+_figure\(")
 PICK_RE = re.compile(r"すべて|全数|全部|全\d+枚|等間隔|上位|下位|大きい順|小さい順|無作為|抜粋|代表")
+# 画像の中身についての言い切り。縮小した画像では見落としやすい（小さく写るもの、よく似た種）ので、元の大きさで確かめさせる
+ABSOLUTE_RE = re.compile(r"ばかり|[1一]枚も|写っていない|写らない|だけが写|しか写|例外なく|全員|全頭")
 APPENDIX_RE = re.compile(r"<!--\s*appendix\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 QUOTE_RE = re.compile(r"「[^」]*」")
@@ -420,6 +422,13 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
         if image_figs and not any(PICK_RE.search(strip_md(t)) for _, t in s.body):
             issues.append(Issue("warning", image_figs[0], s, "pick-rule",
                                 "画像を並べた図に選び方の記載がない。「N枚をすべて表示」「N枚から等間隔でk枚」などを `{.source}` に書く"))
+        if image_figs or s.images:
+            hits = [(ln, m.group(0)) for ln, t in [(s.line, s.title)] + s.body for m in ABSOLUTE_RE.finditer(strip_md(t))]
+            if hits:
+                words = "、".join(dict.fromkeys(w for _, w in hits))
+                issues.append(Issue("warning", hits[0][0], s, "image-absolute",
+                                    f"画像について言い切っている（{words}）。`imgfig.py sheet` で該当する画像を元の大きさで"
+                                    "全枚見て、1枚も外れないことを確かめる"))
 
         if s.appendix:
             continue   # appendix は密度制限を免除
