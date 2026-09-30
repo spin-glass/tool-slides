@@ -17,7 +17,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 RESULTS = HERE / "results"
 MODEL_JA = {"fable": "Fable 5.1", "opus": "Opus 5.5", "sonnet": "Sonnet 5.5", "haiku": "Haiku 4.5"}
-SKILL_JA = {"S0": "なし", "S1": "初版", "S3": "検証時の版", "S4": "改訂版"}
+SKILL_JA = {"S0": "なし", "S1": "初版", "S3": "検証時の版", "S4": "改訂版", "S5": "規則を足した版"}
 SCORES = ["audience", "images", "titles", "economy", "layout", "action", "overall"]
 SCORE_JA = {"audience": "聴衆", "images": "画像", "titles": "タイトル", "economy": "量", "layout": "見た目",
             "action": "行動", "overall": "総合"}
@@ -132,8 +132,10 @@ def record(m: dict, rnd: str, number_errors: dict) -> dict:
 
 
 def records() -> list[dict]:
+    """盲検評価をした課題の実行。鳥の課題（独立した検証）は、指標が違うので birds_report.py がまとめる。"""
     number_errors = {r["run_id"]: int(r["errors"]) for r in read_csv(RESULTS / "number_errors.csv")}
-    return [record(m, round_of(m), number_errors) for m in sorted(read_csv(RESULTS / "metrics.csv"), key=order)]
+    return [record(m, round_of(m), number_errors) for m in sorted(read_csv(RESULTS / "metrics.csv"), key=order)
+            if m["task"] != "birds"]
 
 
 def label(r: dict) -> str:
