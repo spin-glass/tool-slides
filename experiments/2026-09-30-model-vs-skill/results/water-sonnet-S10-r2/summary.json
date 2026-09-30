@@ -1,0 +1,48 @@
+{
+  "run_id": "water-sonnet-S10-r2",
+  "task": "water",
+  "model": "sonnet",
+  "skill": "S10",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 794,
+  "num_turns": 121,
+  "cost_usd": 4.556,
+  "output_tokens": 94578,
+  "models_used": {
+    "claude-sonnet-5-5": 4.556
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/label_fix.csv",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 37,
+    "Read": 81,
+    "Write": 2
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.27,
+    "seven_day": 0.87,
+    "status": "allowed_warning"
+  },
+  "final_message": "10分・本編6枚・付録5枚のデッキを作り、`quarto render decks/water-errors/index.qmd` で HTML が出ることまで確認しました（出力は `_output/decks/water-errors/index.html`）。lint の block は 0 です。commit・push、Notion への保存、公開はしていません。\n\n## 任せていただいた項目（差し戻しできます）\n- **聴衆**: 画像分類を運用するチーム。正解率と混同行列は見ているが、誤った画像は見たことがない\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る\n- **持ち時間**: 10分。本編は 10÷1.5 の切り捨てで 6枚\n\n| 本編のタイトル | 見せるもの |\n|---|---|\n| 1. 正解率は78.8%で、誤り51枚はすべてカモ・ガン・ハクチョウの間で起きた | 誤りの6組から各2枚 |\n| 2. 誤り51枚のうち34枚は、ラベルのクラスが写っていない写真だ | 組ごとの内訳の棒グラフ |\n| 3. 最多のガン→ハクチョウ13枚は、12枚がガンの写っていない写真だ | 13枚の全数 |\n| 4. カモとガンの取り違え20枚も、17枚はラベルのクラスが写っていない | 各組から8枚 |\n| 5. モデルの誤り12枚のうち10枚は、黒いハクチョウをガンかカモと判定した | 12枚の全数 |\n| 6. 対策を決める前に、誤った画像を元の写真で見て、ラベルの誤りと分けよう | 拡大の実例（サギの陰にカモ） |\n\n## 分かったこと\n誤り51枚を元の写真と4区画の拡大で1枚ずつ確かめると、ラベルの誤りが34枚、モデルの誤りが12枚でした。ほかに、ラベルの鳥も予測の鳥も写る1枚と、決められない4枚があります。ガン→ハクチョウ13枚には、ガンが写る写真が1枚もありませんでした。モデルの誤りの大半は、黒いハクチョウをガンかカモと判定したものです。\n\n## 確認してください\n- **34枚の判定は私の目視です。** 6種のどれも写らない10枚は「対象外」としました。\n- **正解189枚のラベルは見ていません。** ラベルを直したあとの正解率はまだ出せません。付録とノートにも書きました。\n- **lint の警告が6件残っています。** 「写っていない」「ラベルの誤り」と書いた枚への注意で、該当写真はすべて元の写真で確認済みです。\n- **図1は1枚が約103px で、目安の150pxに届きません。** 6組を1枚で見せる構成を優先しました。\n- **`.gitignore` が変わっています。** Quarto が `/.quarto/` などの2行を自動で足したもので、私の編集ではありません。\n\n## 作ったファイル（`decks/water-errors/`）\n- `index.qmd`\n- `data/look.csv`: 51枚の確認結果\n- `data/label_fix.csv`: ラベルの誤り34枚の直し方\n- `make_credits.py` と `credits.html`: 写真の出典一覧"
+}

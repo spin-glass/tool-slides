@@ -1,0 +1,49 @@
+{
+  "run_id": "water-opus-S10-r1",
+  "task": "water",
+  "model": "opus",
+  "skill": "S10",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 995,
+  "num_turns": 135,
+  "cost_usd": 7.399,
+  "output_tokens": 85001,
+  "models_used": {
+    "claude-opus-5-5": 7.399
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/label_fix.csv",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/figs.py",
+    "decks/water-errors/index.qmd"
+  ],
+  "tools": {
+    "Bash": 28,
+    "Read": 94,
+    "Write": 4,
+    "Edit": 8
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.28,
+    "seven_day": 0.87,
+    "status": "allowed_warning"
+  },
+  "final_message": "I've built the deck at `decks/water-errors/index.qmd`. `quarto render decks/water-errors/index.qmd` produces `_output/decks/water-errors/index.html`. Lint shows 0 blocks and 0 warnings, the check against the photo table shows 0 mismatches, and I looked at screenshots of all 12 slides. Nothing was committed, pushed, published or saved to Notion.\n\n**What I decided (you delegated these):**\n- **Audience and action:** your wording as given.\n- **Length:** 10 minutes → 6 main slides, plus 5 appendix slides.\n- **Outline (titles):**\n  1. 誤り51枚はすべて鳥3種の取り違えで、ボート・灯台・アザラシは0枚だ\n  2. 最多の「ガン→ハクチョウ」13枚のうち7枚は、ハクチョウの写真だ\n  3. 「ハクチョウ→ガン」10枚のうち9枚は、黒いハクチョウだ\n  4. カモとガンの取り違え20枚のうち13枚は、ラベルのほうが逆だ\n  5. 誤り51枚を写真で分けると、ラベルの誤り34枚・モデルの誤り12枚だ\n  6. 対策を決める前に、誤った写真を開いてラベルとモデルの誤りを分けよう\n  - Appendix: the 8 duck⇄swan errors, the 4 undecidable photos (zoomed in), label errors among photos counted as correct, a table of proposed label fixes, and how I checked the photos.\n\n**What the photos showed** (the numbers are checked in code, so the render stops if the data changes):\n- **Most errors are label errors.** I opened each of the 51 misclassified photos at full size and found 34 label errors (the labelled bird isn't in the photo anywhere). There are 12 model errors, 1 photo showing both birds, and 4 I couldn't decide.\n- **In 23 of the 34 label errors, the model's prediction matches the photo.** 8 show none of the 6 classes: they're other birds such as herons, gulls and pelicans.\n- **The model's own weak spot is black swans.** 10 of the 12 model errors are black swans. The model got 13 of the 23 black swans labelled \"swan\" right, against 8 of the 9 white ones.\n- **\"Correct\" results contain label errors too.** I checked only the 26 photos both labelled and predicted as swan: 4 of them show no swan. I didn't check the other 163 correct photos. The slide says this; the speaker notes add that accuracy should be measured again after the labels are fixed.\n\n**Things you might trip over:**\n- **Label errors are my own visual judgement.** I recorded every photo in `data/look.csv` and the proposed fixes in `data/label_fix.csv`. An annotator should confirm them before anything is corrected.\n- **Why black swans get mistaken is only a guess.** It's in the speaker notes, marked as a guess, not on the slides.\n- **Some thumbnails are small.** A few grids come out at about 118–149px per photo, a little under the 150px target. They're readable in the screenshots, but I didn't reduce them further, because every slide shows all its photos.\n- **Quarto edited `.gitignore` during the render.** It added `/.quarto/` and `**/*.quarto_ipynb`. I didn't change it; revert it if you don't want it.\n\n**New files** (all in `decks/water-errors/`):\n- `index.qmd`\n- `figs.py` (draws the figures)\n- `data/look.csv`\n- `data/label_fix.csv`\n- `credits.html` (photo authors and licences, linked from each slide)"
+}

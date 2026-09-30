@@ -1,0 +1,49 @@
+{
+  "run_id": "water-opus-S10-r2",
+  "task": "water",
+  "model": "opus",
+  "skill": "S10",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 987,
+  "num_turns": 157,
+  "cost_usd": 7.537,
+  "output_tokens": 90044,
+  "models_used": {
+    "claude-opus-5-5": 7.537
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/label_fix.csv",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/figs.py",
+    "decks/water-errors/index.qmd"
+  ],
+  "tools": {
+    "Bash": 34,
+    "Read": 96,
+    "Write": 4,
+    "Edit": 22
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.28,
+    "seven_day": 0.87,
+    "status": "allowed_warning"
+  },
+  "final_message": "I built the deck and confirmed that `quarto render decks/water-errors/index.qmd` writes `_output/decks/water-errors/index.html`. The lint shows 0 blocks and 0 warnings. I took screenshots of all 12 slides and looked at each one. The check comparing figure captions against my record of what's in each photo found 0 mismatches. Nothing was saved to Notion, committed, pushed or published.\n\n## What I decided for you\n- **Audience**: your ops team (engineers and annotators), who see the accuracy and confusion-matrix numbers but have never seen the misclassified images.\n- **Action**: look at the misclassified images before deciding the next fix.\n- **Length**: 10 minutes, so 6 main slides plus 5 in the appendix.\n\n## Slide titles\n1. 誤った51枚はすべて、カモ・ガン・ハクチョウの取り違えだ\n2. 写真を見ると、51枚のうちモデル自身の誤りは13枚だ\n3. 23枚は予測のほうが写真と合い、直すべきはラベルだ\n4. ラベルも予測も写真と合わない12枚のうち、9枚は6種以外の鳥だ\n5. モデル自身の誤り13枚のうち10枚は、黒いハクチョウだ\n6. 対策を決める前に、誤った51枚を開いて1枚ずつ見てほしい\n\nAppendix: all photos behind slide 3; the 1 photo with both birds and the 2 I couldn't judge; a table of proposed label fixes; method.\n\n## What I found\n- **Where the errors are**: all 51 are mix-ups among duck, goose and swan. Boat, lighthouse and seal (120 images) are all correct.\n- **Most are not model mistakes**: I opened every one of the 51 original photos. For the 37 where the labelled bird seemed missing, I also checked zoomed-in quarters of the photo. The breakdown:\n\n  | What the photo shows | Images |\n  |---|---|\n  | Labelled bird present, model named another (model errors) | 13 |\n  | Predicted bird present, labelled bird absent | 23 |\n  | Neither bird present | 12 (9 are birds outside the six classes, e.g. pigeons, gulls, herons, pelicans) |\n  | Both birds present | 1 |\n  | Couldn't judge | 2 |\n\n- **The real model errors**: 10 of the 13 are black swans. The model still gets 14 of 24 black-swan photos labelled 'swan' right. The idea that it relies on \"swans are white\" is a guess, and it's only in the speaker notes, marked as a guess.\n- **Correct results have the same problem**: two flamingos and one heron are labelled 'swan' and were counted as correct. This is also only in the notes.\n\n## Things to know\n- **This is one person's judgement**: all of this rests on my visual check. The records are in `data/look.csv` (what's in each photo) and `data/label_fix.csv` (35 proposed label fixes). Please have an annotator review them before anyone treats them as correct.\n- **Small thumbnails**: the thumbnails are about 104–128px on screen, below the 150px guideline. The confusion-matrix slide is about 86px. The matrix is meant as an overview, and the following slides show the same photos larger.\n- **New file for the figures**: I added `figs.py`, because the standard figure function's captions overlapped each other.\n- **Photo credits**: `credits.html` lists the photographers and licences and is published with the deck.\n- **`.gitignore` changed on its own**: rendering added two entries (`/.quarto/` and `**/*.quarto_ipynb`). I left them."
+}
