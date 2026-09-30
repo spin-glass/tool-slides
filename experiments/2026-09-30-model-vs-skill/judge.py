@@ -29,7 +29,7 @@ SCORES = ["audience", "images", "titles", "economy", "layout", "action", "overal
 
 
 def runs_with_shots() -> list[str]:
-    return sorted(d.name for d in (WORK / "runs").glob("image-*") if any((d / "shots").glob("slide-*.png")))
+    return sorted(d.name for d in (WORK / "runs").glob("*") if any((d / "shots").glob("slide-*.png")))
 
 
 def prepare() -> None:
@@ -59,8 +59,9 @@ def table() -> None:
     for f in sorted((RESULTS / "judge").glob("*.json")):
         for code, d in json.loads(f.read_text()).items():
             run = key[code]
-            _, model, skill, rep = run.split("-")
-            rows.append({"judge": f.stem, "code": code, "run_id": run, "model": model, "skill": skill, "rep": rep,
+            task, model, skill, rep = run.split("-")[:4]
+            rows.append({"judge": f.stem, "code": code, "run_id": run, "task": task, "model": model, "skill": skill,
+                         "rep": run.split("-")[-1],
                          **{k: d.get(k) for k in FACTS + SCORES}, "comment": d.get("comment", "")})
     with open(RESULTS / "judge_scores.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))

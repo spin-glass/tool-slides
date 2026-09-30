@@ -1,0 +1,219 @@
+---
+title: "「ヤギ→鹿 12件」は、どんな写真か"
+subtitle: "牧場の動物6クラス・評価240枚で、間違えた28枚を実際に見る"
+format:
+  revealjs:
+    css: farm-errors.css
+---
+
+## 誤り28件のうち12件は、ヤギを鹿と答えたものです
+
+```{python}
+#| output: asis
+import csv
+from html import escape
+
+CLASSES = ["羊", "ヤギ", "アルパカ", "鹿", "牛", "馬"]
+rows = list(csv.DictReader(open("data/predictions.csv", encoding="utf-8")))
+credits = {r["id"]: r for r in csv.DictReader(open("data/credits.csv", encoding="utf-8"))}
+by_prefix = lambda p: next(r for r in rows if r["id"].startswith(p))
+used = []  # スライドに載せた写真（末尾の出典一覧に使う）
+
+
+def raw(html):
+    print("```{=html}\n" + html + "\n```\n")
+
+
+def figure(r, caption):
+    if r["id"] not in used:
+        used.append(r["id"])
+    alt = f"正解 {r['true_ja']}、予測 {r['pred_ja']} の写真"
+    return (f'<figure><img src="data/thumbs/{r["id"]}.jpg" alt="{alt}">'
+            f"<figcaption>{caption}</figcaption></figure>")
+
+
+def photos(items, cols, caption, extra=""):
+    body = "".join(figure(r, caption(r)) for r in items)
+    return f'<div class="photos c{cols} {extra}">{body}</div>'
+
+
+conf = lambda r: f"確信度 <b>{float(r['prob']):.2f}</b>"
+errors = [r for r in rows if r["true"] != r["pred"]]
+n_ok = len(rows) - len(errors)
+
+# 混同行列（行＝正解、列＝予測）
+count = {(t, p): 0 for t in CLASSES for p in CLASSES}
+for r in rows:
+    count[(r["true_ja"], r["pred_ja"])] += 1
+peak = max(v for (t, p), v in count.items() if t != p)
+
+html = '<div class="cm-wrap"><table class="cm">'
+html += f'<tr><th></th><th class="axis" colspan="{len(CLASSES)}">モデルの予測</th></tr>'
+html += "<tr><th class='axis'>正解</th>" + "".join(f"<th>{c}</th>" for c in CLASSES) + "</tr>"
+for t in CLASSES:
+    html += f"<tr><th>{t}</th>"
+    for p in CLASSES:
+        v = count[(t, p)]
+        if t == p:
+            html += f'<td class="diag">{v}</td>'
+        elif v == 0:
+            html += '<td class="zero">0</td>'
+        elif v == peak:
+            html += f'<td class="hot" style="background:#c2410c">{v}</td>'
+        else:
+            html += f'<td style="background:rgba(194,65,12,{0.10 + 0.5 * v / peak:.2f})">{v}</td>'
+    html += "</tr>"
+html += "</table>"
+html += (f'<div class="cm-side"><div class="big">{n_ok / len(rows):.0%}'
+         f"<small>正解率（{n_ok} / {len(rows)}枚）</small></div>"
+         f"<p>誤りは{len(errors)}件。いちばん多いマスは<b>正解がヤギ、予測が鹿の{peak}件</b>です。</p>"
+         "<p>ここまでは、いつも見ている数字です。この12件がどんな写真なのかは、表からは分かりません。</p></div></div>")
+raw(html)
+```
+
+::: {.source}
+評価用の写真は各クラス40枚。CLIP ViT-B/32 の zero-shot 分類、正解は Open Images V7 のラベル。
+:::
+
+::: {.notes}
+（1分）いつもの混同行列です。正解率88%、誤り28件。そのうち12件がヤギ→鹿の1マスに集まっています。
+ふだんはここで「ヤギと鹿の区別を強化しよう」と対策の話に入ります。今日はその前に、この12枚を全部見ます。
+:::
+
+## 鹿と答えた12枚は、岩場や山にいる茶色い野生のヤギでした
+
+```{python}
+#| output: asis
+goat_deer = sorted((r for r in errors if r["true_ja"] == "ヤギ" and r["pred_ja"] == "鹿"),
+                   key=lambda r: -float(r["prob"]))
+raw(photos(goat_deer, 6, conf))
+n_sure = sum(float(r["prob"]) >= 0.7 for r in goat_deer)
+print(f"{len(goat_deer)}枚のうち{n_sure}枚は確信度0.7以上です。迷って外したのではなく、**自信を持って「鹿」と答えています**。")
+```
+
+::: {.source}
+ヤギ→鹿の12枚すべて、確信度の高い順。写真: Open Images V7 収録、各作者が CC BY 2.0 で公開（作者は最後のスライド）。
+:::
+
+::: {.notes}
+（2分）12枚すべてです。少し時間を取って見てもらう。
+アイベックスやシャモアのような野生のヤギが、山の斜面や岩場に立っている写真ばかりです。毛は茶色で、遠くから撮っています。
+もう一つ、確信度を見てください。12枚中10枚が0.7以上、いちばん高いものは0.99です。迷って外したのではなく、自信を持って鹿と答えています。
+右下の1枚（確信度0.43）はオリックスに見えます。これは後で出てくる「ラベルのほうが疑わしい」話につながります。
+:::
+
+## モデルが自信を持って「ヤギ」と答えるのは、近くで撮った家畜のヤギです
+
+```{python}
+#| output: asis
+goat_ok = sorted((r for r in rows if r["true_ja"] == "ヤギ" and r["pred_ja"] == "ヤギ"),
+                 key=lambda r: -float(r["prob"]))
+raw('<div class="pair">'
+    f'<div><h3>ヤギと正しく答えた写真（{len(goat_ok)}枚のうち確信度の上位6枚）</h3>'
+    + photos(goat_ok[:6], 3, conf)
+    + f'</div><div class="wrong"><h3>鹿と答えた写真（{len(goat_deer)}枚のうち確信度の上位6枚）</h3>'
+    + photos(goat_deer[:6], 3, conf)
+    + "</div></div>")
+```
+
+確信度はどちらも0.9前後です。確信度の低い予測だけを見直す運用では、右の誤りは拾えません。
+
+::: {.source}
+どちらも正解ラベルは「ヤギ」。写真: Open Images V7 収録、CC BY 2.0（作者は最後のスライド）。
+:::
+
+::: {.notes}
+（1分半）左は、正しくヤギと答えた23枚のうち確信度の上位6枚。右は、鹿と答えた12枚の上位6枚。どちらも正解ラベルはヤギで、確信度も0.9前後で同じくらいです。
+左は牧場や小屋で近くから撮った家畜のヤギ。右は山にいる野生のヤギ。
+つまり「ヤギと鹿の区別が弱い」というより、「野生のヤギを、ヤギの仲間として見ていない」。確信度が高いので、確信度で足切りしてもこの誤りは拾えません。
+この違いは、混同行列の「12」からは読み取れませんでした。
+:::
+
+## 動物が小さく写った5枚では、確信度0.44〜0.71で外しています
+
+```{python}
+#| output: asis
+label = lambda r: f"正解 <b>{r['true_ja']}</b> → 予測 <b>{r['pred_ja']}</b>（{float(r['prob']):.2f}）"
+far = [by_prefix(p) for p in ["5c4643", "f462a8", "a7178f", "241670", "54fd0a"]]
+raw(photos(far, 3, label, "narrow"))
+```
+
+::: {.source}
+写真: Open Images V7 収録、CC BY 2.0（作者は最後のスライド）。
+:::
+
+::: {.notes}
+（1分半）残り16件のうちの5枚。こちらは種類の違う誤りです。
+湖の風景の手前に羊が2頭、薪の山と人の横にヤギが1頭。画面の大半は背景で、動物は小さい。
+さっきの12枚と違って確信度は低めです。モデルは迷っています。
+ここで効きそうなのは、クラスの区別の強化ではなく、動物を切り出してから分類することです。
+:::
+
+## 7枚は、正解ラベルのほうが疑わしい写真でした
+
+```{python}
+#| output: asis
+doubt = [by_prefix(p) for p in ["5b5e56", "30d58f", "59ee2f", "68d16e", "851c43", "bb3445", "13ee91"]]
+
+
+def doubt_caption(r):
+    title = credits[r["id"]]["title"]
+    # 題が手がかりにならない1枚は、見た目の所見を書く
+    hint = "写っているのはヤギに見える" if r["id"].startswith("59ee2f") else f"撮影者の題「{escape(title)}」"
+    return f"ラベル <b>{r['true_ja']}</b> ／ 予測 {r['pred_ja']}<br>{hint}"
+
+
+raw(photos(doubt, 4, doubt_caption, "mid"))
+```
+
+::: {.source}
+題は撮影者が写真に付けたもの（credits.csv）。Gemsbok・Oryx はオリックス、Bighorn Sheep は野生の羊、capre はイタリア語でヤギ。写真: Open Images V7 収録、CC BY 2.0。
+:::
+
+::: {.notes}
+（2分）ここはアノテーターの皆さんに特に見てほしい7枚です。
+1枚目。ラベルは牛、モデルは羊と答えて「誤り」に数えられています。撮影者の題は Bighorn Sheep。モデルのほうが合っていそうです。
+牛→羊の誤りは3件ありますが、3枚とも牛は見当たりません（上段の左から3枚）。
+ラベルがヤギで題が Bighorn sheep、ラベルが羊で題が Baby Goats、という写真もあります。
+判定は私の目と撮影者の題によるもので、確定ではありません。ただ、この7件はモデルを直しても減らない可能性が高い。直すとしたらラベルです。
+:::
+
+## 対策を決める前に、間違えた画像を並べて見てください
+
+```{python}
+#| output: asis
+n_rest = len(errors) - len(goat_deer) - len(far) - len(doubt)
+thumb = lambda p: f'<img src="data/thumbs/{by_prefix(p)["id"]}.jpg" alt="">'
+raw('<table class="kinds">'
+    "<tr><th></th><th>件数</th><th>写真を見て分かったこと</th><th>対策の候補</th></tr>"
+    f'<tr><td>{thumb("580667")}</td><td class="n">{len(goat_deer)}件</td>'
+    "<td>野生のヤギを、自信を持って鹿と答える</td><td>野生のヤギを対象に含めるかを決める</td></tr>"
+    f'<tr><td>{thumb("5c4643")}</td><td class="n">{len(far)}件</td>'
+    "<td>動物が小さく写ると、迷って外す</td><td>動物を切り出してから分類する</td></tr>"
+    f'<tr><td>{thumb("5b5e56")}</td><td class="n">{len(doubt)}件</td>'
+    "<td>正解ラベルのほうが疑わしい</td><td>ラベルを見直す（モデルは変えない）</td></tr>"
+    f'<tr class="rest"><td></td><td class="n">{n_rest}件</td><td colspan="2">その他（野生の羊→鹿、荷を積んだラバ→牛 など）</td></tr>'
+    "</table>")
+```
+
+同じ「誤り28件」でも、中身は3種類で、効く対策がそれぞれ違いました。次の改善では、混同行列のいちばん大きいマスから、画像を全部並べて見るところから始めましょう。
+
+::: {.notes}
+（1分半）まとめです。28件の中身は3種類に分かれ、対策は3つとも別物でした。
+数字だけ見て「ヤギと鹿の学習データを増やす」と決めていたら、遠景の5件にもラベルの7件にも効きません。12件についても、まず決めるべきは「野生のヤギは牧場の分類の対象なのか」です。
+お願いは一つです。次の改善で対策を決める前に、間違えた画像を並べて見てください。いちばん大きいマスからで十分です。今日の12枚は1画面に収まりました。
+:::
+
+## 写真の出典
+
+```{python}
+#| output: asis
+items = "".join(
+    f'<p>{escape(credits[i]["title"])} — {escape(credits[i]["author"])}<br>'
+    f'<a href="{credits[i]["source"]}">{credits[i]["source"].replace("https://www.", "")}</a></p>'
+    for i in used)
+raw("<p style='font-size:0.6em'>スライドに載せた写真は Open Images V7 に収録されたもので、各作者が "
+    "<a href='https://creativecommons.org/licenses/by/2.0/'>CC BY 2.0</a> で公開しています。"
+    "長辺256pxに縮小して表示しています（掲載順）。</p>"
+    f'<div class="credits">{items}</div>')
+```

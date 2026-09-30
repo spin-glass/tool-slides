@@ -121,21 +121,21 @@ def parse_slides(html_path: Path) -> list[dict]:
 
 
 # ---- 描画とスクショ --------------------------------------------------------
-def render(ws: Path) -> tuple[bool, str]:
+def render(ws: Path, deck: str) -> tuple[bool, str]:
     for d in ("_freeze", "_output", ".quarto"):
         shutil.rmtree(ws / d, ignore_errors=True)
     env = {k: v for k, v in os.environ.items() if not k.startswith("CLAUDE")}
     env["QUARTO_PYTHON"] = str(ws / ".venv/bin/python")
-    r = subprocess.run(["quarto", "render", f"{DECK}/index.qmd", "--to", "revealjs"], cwd=ws, env=env,
+    r = subprocess.run(["quarto", "render", f"{deck}/index.qmd", "--to", "revealjs"], cwd=ws, env=env,
                        capture_output=True, text=True, timeout=900)
-    html = ws / "_output" / DECK / "index.html"
+    html = ws / "_output" / deck / "index.html"
     return r.returncode == 0 and html.exists(), (r.stderr or r.stdout)[-1500:]
 
 
-def shots(ws: Path, slides: list[dict], out: Path) -> None:
+def shots(ws: Path, deck: str, slides: list[dict], out: Path) -> None:
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
-    html = ws / "_output" / DECK / "index.html"
+    html = ws / "_output" / deck / "index.html"
     procs = []
     for n, s in enumerate(slides):
         url = f"file://{html}?fragments=false#/" + "/".join(str(i) for i in s["path"])
@@ -237,11 +237,15 @@ def numeric_claims(slides: list[dict], t: dict) -> list[dict]:
 
 def score(run_dir: Path) -> dict | None:
     summary = json.loads((run_dir / "summary.json").read_text())
-    if summary["task"] != "image":
-        return None
     ws = run_dir / "ws"
-    qmd = ws / DECK / "index.qmd"
-    row = {k: summary[k] for k in ("run_id", "model", "skill", "rep", "followups", "num_turns", "wall_s", "cost_usd")}
+    if summary["task"] == "gate":          # ゲートの依頼で質問せずにデッキまで作った実行は、under として採点する
+        made = [p for p in (ws / "decks").glob("*/index.qmd") if p.parent.name != "_template"]
+        if not made or summary["stop_reasons"] != ["success"]:
+            return None
+        summary = summary | {"task": "under", "deck_path": str(made[0].relative_to(ws))}
+    deck = str(Path(summary.get("deck_path") or f"{DECK}/index.qmd").parent)
+    qmd = ws / deck / "index.qmd"
+    row = {k: summary[k] for k in ("run_id", "task", "model", "skill", "rep", "followups", "num_turns", "wall_s", "cost_usd")}
     row |= {"skill_calls": "|".join(summary["skill_calls"]), "stop_hook_blocks": summary["stop_hook_blocks"],
             "deck_exists": qmd.exists(), "renders": False}
     out = RESULTS / summary["run_id"]
@@ -250,13 +254,13 @@ def score(run_dir: Path) -> dict | None:
     if not qmd.exists():
         return row
     shutil.copy(qmd, out / "index.qmd")
-    ok, log = render(ws)
+    ok, log = render(ws, deck)
     row["renders"] = ok
     if not ok:
         (out / "render_error.txt").write_text(log)
         return row
-    slides = parse_slides(ws / "_output" / DECK / "index.html")
-    shots(ws, slides, run_dir / "shots")
+    slides = parse_slides(ws / "_output" / deck / "index.html")
+    shots(ws, deck, slides, run_dir / "shots")
     contact_sheet(run_dir / "shots", out / "sheet.jpg", summary["run_id"])
     body = [s for s in slides if not s["is_title_slide"]]
     n_main = n_main_slides(qmd, slides)

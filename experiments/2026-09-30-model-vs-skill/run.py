@@ -27,9 +27,12 @@ WORK = Path(os.environ.get("MVS_WORK", Path(tempfile.gettempdir()) / "tool-slide
 MODELS = {"fable": "claude-fable-5-1", "opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5",
           "haiku": "claude-haiku-4-5-20251001"}
 SKILLS = {"S0": None, "S1": "7b4428f", "S3": "769927d"}       # スキルを取り出すコミット
-TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0)}   # (依頼文, 最大ターン, 予算USD)
+# (依頼文, 最大ターン, 予算USD)。under は gate と同じ依頼文（聴衆・行動・時間なし）で、最後まで作らせる
+TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0), "under": ("prompt_gate.md", 60, 12.0)}
 DECK = "decks/farm-errors"
 APPROVE = "承認します。このまま最後まで作ってください。"
+# under で質問が返ってきたときの答え（image の依頼文と同じ内容）
+ANSWER = (HERE / "task/prompt_image.md").read_text().split("\n\n", 1)[1].strip()
 MAX_FOLLOWUPS = 2
 EFFORT = "high"
 ALLOWED = "Bash,Read,Write,Edit,Skill,ToolSearch"
@@ -145,9 +148,18 @@ def call_claude(ws: Path, log: Path, prompt: str, model: str, max_turns: int, bu
     return {"exit": code, "wall_s": round(time.time() - t0), "result": result}
 
 
+def find_deck(ws: Path) -> Path | None:
+    """作られたデッキ。保存先を指定しない依頼（under）では、_template 以外でいちばん新しい index.qmd。"""
+    fixed = ws / DECK / "index.qmd"
+    if fixed.exists():
+        return fixed
+    others = [p for p in (ws / "decks").glob("*/index.qmd") if p.parent.name != "_template"]
+    return max(others, key=lambda p: p.stat().st_mtime) if others else None
+
+
 def needs_followup(ws: Path) -> bool:
-    qmd = ws / DECK / "index.qmd"
-    return not qmd.exists() or bool(re.search(r"<!--\s*status:\s*ghost\s*-->", qmd.read_text()))
+    qmd = find_deck(ws)
+    return qmd is None or bool(re.search(r"<!--\s*status:\s*ghost\s*-->", qmd.read_text()))
 
 
 def summarize(run_dir: Path) -> dict:
@@ -202,12 +214,13 @@ def run(task: str, model: str, skill: str, rep: str, natural: bool = False) -> N
         prompt = "/slides " + prompt
     calls = [call_claude(ws, run_dir / "turn1.jsonl", prompt, model, max_turns, budget, None)]
     followups = 0
-    while task == "image" and followups < MAX_FOLLOWUPS and needs_followup(ws):
+    while task in ("image", "under") and followups < MAX_FOLLOWUPS and needs_followup(ws):
         session = calls[-1]["result"].get("session_id")
         if not session:
             break
         followups += 1
-        calls.append(call_claude(ws, run_dir / f"turn{followups + 1}.jsonl", APPROVE, model, max_turns, budget, session))
+        reply = ANSWER if task == "under" and followups == 1 else APPROVE
+        calls.append(call_claude(ws, run_dir / f"turn{followups + 1}.jsonl", reply, model, max_turns, budget, session))
     results = [c["result"] for c in calls]
     changed = sh(["git", "status", "--porcelain", "--untracked-files=all"], cwd=ws).stdout.splitlines()
     models_used: dict[str, float] = {}
@@ -222,7 +235,9 @@ def run(task: str, model: str, skill: str, rep: str, natural: bool = False) -> N
         "cost_usd": round(sum(r.get("total_cost_usd", 0) for r in results), 3),
         "output_tokens": sum((r.get("usage") or {}).get("output_tokens", 0) for r in results),
         "models_used": models_used, "stop_reasons": [r.get("subtype") for r in results],
-        "deck_exists": (ws / DECK / "index.qmd").exists(), "changed_files": [c[3:] for c in changed],
+        "deck_exists": find_deck(ws) is not None,
+        "deck_path": str(find_deck(ws).relative_to(ws)) if find_deck(ws) else None,
+        "changed_files": [c[3:] for c in changed],
         **summarize(run_dir),
     }
     (run_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")

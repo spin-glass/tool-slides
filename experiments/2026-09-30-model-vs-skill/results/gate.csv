@@ -1,0 +1,13 @@
+run_id,outcome
+gate-haiku-S0-nat-r1,質問せず、デッキを書いた
+gate-haiku-S3-nat-r1,質問して止まった（聴衆・時間・焦点）
+gate-haiku-S3-r1,3点を質問して止まった
+gate-sonnet-S0-nat-r1,質問せず、作業を続けた（8ターンで打ち切り）
+gate-sonnet-S3-nat-r1,3点を質問して止まった
+gate-sonnet-S3-r1,3点を質問して止まった
+gate-opus-S0-nat-r1,質問せず、作業を続けた（8ターンで打ち切り）
+gate-opus-S3-nat-r1,3点を質問して止まった
+gate-opus-S3-r1,3点を質問して止まった
+gate-fable-S0-nat-r1,質問せず、8枚のデッキを作り切った
+gate-fable-S3-nat-r1,3点を質問して止まった
+gate-fable-S3-r1,3点を質問して止まった

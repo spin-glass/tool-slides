@@ -1,0 +1,287 @@
+---
+title: "正解率88%の内訳を見ると、誤りは「ヤギを鹿と判定」に集中していた"
+subtitle: "牧場の動物6クラス・240枚で見る、画像分類の誤りの読み方"
+jupyter: python3
+---
+
+```{python}
+import csv
+from collections import Counter
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image, ImageOps
+
+DATA = Path("data")
+ROWS = list(csv.DictReader(open(DATA / "predictions.csv", encoding="utf-8")))
+CREDITS = {r["id"]: r for r in csv.DictReader(open(DATA / "credits.csv", encoding="utf-8"))}
+CLASSES = ["Sheep", "Goat", "Alpaca", "Deer", "Cattle", "Horse"]
+JA = {r["true"]: r["true_ja"] for r in ROWS}
+ERRORS = [r for r in ROWS if r["true"] != r["pred"]]
+
+ACCENT = "#c8452f"   # 注目させる1か所だけに使う
+MUTED = "#b8bec6"
+INK = "#1f2328"
+
+plt.rcParams.update({
+    "font.family": ["Hiragino Sans", "Noto Sans JP", "Yu Gothic", "sans-serif"],
+    "font.size": 15,
+    "text.color": INK,
+    "axes.labelcolor": INK,
+    "xtick.color": INK,
+    "ytick.color": INK,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "figure.dpi": 160,
+})
+
+used = []   # スライドに載せた写真のID（末尾の出典一覧に使う）
+
+
+def by_prefix(prefix):
+    return next(r for r in ROWS if r["id"].startswith(prefix))
+
+
+def show_photo(ax, row, caption=None, color=INK, ratio=(4, 3)):
+    """写真を同じ縦横比に切り抜いて置く。"""
+    im = Image.open(DATA / "thumbs" / f"{row['id']}.jpg").convert("RGB")
+    im = ImageOps.fit(im, (ratio[0] * 60, ratio[1] * 60))
+    ax.imshow(im)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ax.spines.values():
+        s.set_visible(True)
+        s.set_color(color)
+        s.set_linewidth(2)
+    if caption:
+        ax.set_xlabel(caption, fontsize=12, color=INK, labelpad=5)
+    used.append(row["id"])
+```
+
+## 全体の正解率は88%だが、ヤギだけは40枚中23枚しか当たっていない
+
+```{python}
+#| fig-height: 4.0
+correct = Counter(r["true"] for r in ROWS if r["true"] == r["pred"])
+order = sorted(CLASSES, key=lambda c: correct[c])
+vals = [correct[c] for c in order]
+
+fig, ax = plt.subplots(figsize=(10, 4.0))
+bars = ax.barh([JA[c] for c in order], vals,
+               color=[ACCENT if c == "Goat" else MUTED for c in order], height=0.62)
+for b, c, v in zip(bars, order, vals):
+    ax.text(v + 0.5, b.get_y() + b.get_height() / 2, f"{v}/40",
+            va="center", fontsize=15,
+            fontweight="bold" if c == "Goat" else "normal",
+            color=ACCENT if c == "Goat" else INK)
+ax.set_xlim(0, 44)
+ax.set_xticks([0, 10, 20, 30, 40])
+ax.set_xlabel("正しく判定できた枚数（各クラス40枚）")
+ax.spines["left"].set_visible(False)
+ax.tick_params(axis="y", length=0)
+fig.tight_layout()
+plt.show()
+```
+
+::: {.source}
+CLIP ViT-B/32 の zero-shot 分類。評価は Open Images V7 の写真240枚（6クラス×40枚）、正解212枚・誤り28枚
+:::
+
+::: {.notes}
+最初に前提を一言。追加学習なしの CLIP で、羊・ヤギ・アルパカ・鹿・牛・馬を当てさせた結果。
+88%という1つの数字だけだと「まあまあ」で終わるが、クラス別に割ると景色が変わる。
+:::
+
+## 誤り28件のうち12件は「ヤギを鹿と判定」という1つのパターンである
+
+```{python}
+#| fig-height: 4.3
+cm = np.array([[sum(1 for r in ROWS if r["true"] == t and r["pred"] == p) for p in CLASSES]
+               for t in CLASSES])
+labels = [JA[c] for c in CLASSES]
+
+fig, ax = plt.subplots(figsize=(10, 4.3))
+ax.set_xlim(-0.5, 5.5)
+ax.set_ylim(5.5, -0.5)
+for i in range(6):
+    for j in range(6):
+        v = cm[i, j]
+        focus = (CLASSES[i], CLASSES[j]) == ("Goat", "Deer")
+        if focus:
+            face, fg = ACCENT, "white"
+        elif i == j:
+            face, fg = "#eef0f2", "#6e7781"
+        elif v:
+            face, fg = "#f3d9d3", INK
+        else:
+            face, fg = "white", "#c9ced4"
+        ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, facecolor=face,
+                                   edgecolor="white", linewidth=2))
+        ax.text(j, i, str(v), ha="center", va="center", color=fg,
+                fontsize=19 if focus else 15, fontweight="bold" if focus else "normal")
+ax.set_xticks(range(6), labels)
+ax.set_yticks(range(6), labels)
+ax.xaxis.tick_top()
+ax.xaxis.set_label_position("top")
+ax.set_xlabel("モデルの予測", labelpad=8)
+ax.set_ylabel("正解")
+ax.tick_params(length=0)
+for s in ax.spines.values():
+    s.set_visible(False)
+ax.set_aspect(0.5)
+fig.tight_layout()
+plt.show()
+```
+
+::: {.source}
+行が正解、列が予測。対角線（灰色）が正解した枚数。2番目に多い誤りでも3件にとどまる
+:::
+
+::: {.notes}
+混同行列の読み方：行が本当の答え、列がモデルの答え。
+ヤギの行を横に見ると、23枚が正解、12枚が鹿、3枚が牛、2枚が羊。
+逆向き（鹿をヤギと判定）は1件だけなので、「似ているから双方向に迷う」のではなく一方通行。
+:::
+
+## 鹿と判定された12枚は、山や岩場にいる茶色い野生種に偏っている
+
+```{python}
+#| fig-height: 4.5
+goat_deer = sorted((r for r in ERRORS if (r["true"], r["pred"]) == ("Goat", "Deer")),
+                   key=lambda r: -float(r["prob"]))
+goat_ok = [r for r in ROWS if r["true"] == r["pred"] == "Goat"][:6]   # データの先頭から6枚
+
+fig = plt.figure(figsize=(10, 4.5))
+gs = fig.add_gridspec(3, 6, left=0.12, right=1.0, top=1.0, bottom=0.0, wspace=0.05, hspace=0.08)
+for k, r in enumerate(goat_deer):
+    show_photo(fig.add_subplot(gs[k // 6, k % 6]), r, color=ACCENT)
+for k, r in enumerate(goat_ok):
+    show_photo(fig.add_subplot(gs[2, k]), r, color="#8c959f")
+fig.text(0.0, 0.67, "鹿と判定\nされたヤギ\n（全12枚）", color=ACCENT, fontsize=14,
+         fontweight="bold", va="center", linespacing=1.5)
+fig.text(0.0, 0.16, "正しくヤギと\n判定された例\n（23枚中6枚）", color="#57606a", fontsize=14,
+         va="center", linespacing=1.5)
+plt.show()
+```
+
+::: {.source}
+写真：Open Images V7 収録、各作者が CC BY 2.0 で公開（切り抜いて掲載。作者と出典は末尾）。下段はデータの並び順で先頭の6枚
+:::
+
+::: {.notes}
+ここが一番見てほしいスライド。数字ではなく写真を並べると理由の見当がつく。
+上2段：アイベックスやシャモアなど、岩場・斜面にいる茶色い短毛の個体。
+下段：正解した側は白い家畜のヤギや顔のアップが多い。ただし下段の左端のように岩場の個体も当たっているので、傾向であって規則ではない。
+「モデルは背景と毛色で鹿らしさを判断しているのでは」という仮説が立つ（検証はまだ）。
+:::
+
+## 確信度0.9以上でも5件誤り、その5件はすべて「鹿」と答えている
+
+:::: {.columns}
+::: {.column width="58%"}
+```{python}
+#| fig-width: 6.2
+#| fig-height: 4.2
+bins = [(0, 0.5, "0.5未満"), (0.5, 0.7, "0.5〜0.7"), (0.7, 0.9, "0.7〜0.9"), (0.9, 1.01, "0.9以上")]
+n, wrong = [], []
+for lo, hi, _ in bins:
+    sub = [r for r in ROWS if lo <= float(r["prob"]) < hi]
+    n.append(len(sub))
+    wrong.append(sum(r["true"] != r["pred"] for r in sub))
+n, wrong = np.array(n), np.array(wrong)
+x = np.arange(len(bins))
+
+fig, ax = plt.subplots(figsize=(6.2, 4.2))
+ax.bar(x, n - wrong, color=MUTED, width=0.62, label="正解")
+ax.bar(x, wrong, bottom=n - wrong, color=ACCENT, width=0.62, label="誤り")
+for xi, ni, wi in zip(x, n, wrong):
+    ax.text(xi, ni + 3, f"{ni}枚中\n誤り{wi}", ha="center", va="bottom", fontsize=13, linespacing=1.3)
+ax.set_xticks(x, [b[2] for b in bins])
+ax.set_xlabel("予測クラスの確信度")
+ax.set_ylabel("枚数")
+ax.set_ylim(0, 195)
+ax.legend(frameon=False, loc="upper left", fontsize=13)
+fig.tight_layout()
+plt.show()
+```
+:::
+::: {.column width="42%"}
+- 確信度が低いほど誤りの割合は高い（0.7未満は38枚中14枚）
+- しかし0.9以上の誤り5件は、ヤギ→鹿が4件、羊→鹿が1件
+- 確信度で足切りしても、この誤りは残る
+:::
+::::
+
+::: {.notes}
+「自信がないものだけ人が見る」運用はよくあるが、今回の主な誤りはそれをすり抜ける。
+モデルは迷っているのではなく、自信を持って鹿だと言っている。
+:::
+
+## 「誤り」の一部は、正解ラベルの側が疑わしい
+
+```{python}
+#| fig-height: 3.3
+doubts = [
+    ("30d58f7a", "正解ラベル：牛／予測：羊\n題名は「Gemsbok」（オリックス）"),
+    ("be9ccb3e", "正解ラベル：ヤギ／予測：鹿\n見た目はオリックス"),
+    ("5b5e5614", "正解ラベル：牛／予測：羊\n題名は「Bighorn Sheep」"),
+    ("13ee91a9", "正解ラベル：羊／予測：鹿\n題名は「Baby Goats」"),
+]
+fig, axes = plt.subplots(1, 4, figsize=(10, 3.3))
+for ax, (pid, cap) in zip(axes, doubts):
+    show_photo(ax, by_prefix(pid), caption=cap, color="#8c959f")
+fig.tight_layout(w_pad=1.2)
+plt.show()
+```
+
+- 6クラスのどれにも当てはまらない動物や、撮影者の題名と食い違うラベルが混じっている
+- 誤りを数える前に、誤りとされた画像を目で確かめる必要がある
+
+::: {.source}
+写真：Open Images V7 収録、各作者 CC BY 2.0（切り抜いて掲載。作者と出典は末尾）。ラベルの疑いは題名と見た目からの推定で、種の同定はしていない
+:::
+
+::: {.notes}
+ここは断定しない。題名と見た目から「怪しい」と言えるだけ。
+3枚目はモデルの「羊」のほうが題名に合っている可能性がある。
+逆に「正解」とされた中にも、正解ラベル自体が怪しいものがありうる。正解率88%という数字も、その分だけ幅を持って読む。
+:::
+
+## 正解率の次に、混同行列と誤った画像そのものを見る
+
+1. **クラス別に割る**：全体88%の裏で、ヤギは40枚中23枚だった
+2. **混同行列で集中箇所を探す**：誤り28件のうち12件が「ヤギ→鹿」だった
+3. **誤った画像を並べて見る**：野生種・岩場という共通点は、数字からは分からなかった
+4. **確信度と正解ラベルも疑う**：高確信の誤りと、ラベル側が疑わしい例があった
+
+次に試すこと：野生のヤギを「ヤギ」に含めるかを決めたうえで、クラスの説明文を変えて12件がどう動くかを見る
+
+::: {.notes}
+持ち帰ってほしいのは手順のほう。自分のモデルでも同じ順番で見られる。
+「次に試すこと」は未実施。背景と毛色が原因という仮説も、まだ確かめていない。
+:::
+
+## 写真の出典 {.smaller}
+
+```{python}
+#| output: asis
+seen = list(dict.fromkeys(used))
+half = (len(seen) + 1) // 2
+print(":::: {.columns .credits}")
+for part in (seen[:half], seen[half:]):
+    print('::: {.column width="50%"}')
+    for pid in part:
+        c = CREDITS[pid]
+        title = c["title"].replace("*", "").replace("~", "").strip()
+        if len(title) > 34:
+            title = title[:33] + "…"
+        author = c["author"].replace("~", r"\~")
+        print(f"- [{title}]({c['source']}) — {author}")
+    print(":::")
+print("::::")
+```
+
+::: {.source}
+いずれも Open Images V7 に収録された写真で、各作者が [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) で公開。スライドでは縮小し、縦横比をそろえて切り抜いている
+:::
