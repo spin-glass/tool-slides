@@ -33,7 +33,7 @@ class Fixtures(unittest.TestCase):
 
     def test_images(self):
         self.assertEqual(rules("image_checks.qmd", "block"), ["image-missing"])
-        self.assertEqual(sorted(rules("image_checks.qmd", "warning")), ["fig-alt", "image-alt"])
+        self.assertEqual(sorted(rules("image_checks.qmd", "warning")), ["fig-alt", "image-alt", "pick-rule"])
 
     def test_decided_by_is_optional_meta(self):
         deck = lint.parse_deck(ROOT / "tests/fixtures/image_checks.qmd")

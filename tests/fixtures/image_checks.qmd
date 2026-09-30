@@ -5,7 +5,7 @@ title: "画像の検査サンプル"
 <!-- audience: lint の検査 -->
 <!-- action: 画像の違反を検出する -->
 <!-- minutes: 3 -->
-<!-- budget: 2 -->
+<!-- budget: 3 -->
 <!-- status: approved -->
 <!-- decided-by: claude（検査用） -->
 
@@ -27,3 +27,11 @@ plt.plot([1, 2, 3])
 import matplotlib.pyplot as plt
 plt.plot([1, 2, 3])
 ```
+
+## 画像を並べた図に選び方が無いと警告が出る
+
+```{python}
+#| fig-alt: "画像を並べた図"
+imgfig.grid_figure(items, cols=8);
+```
+

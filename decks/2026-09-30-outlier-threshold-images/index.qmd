@@ -178,6 +178,8 @@ imgfig.moved_figure(ev, T[5], T[10], cols_each=[6, 4], caption=cap,
                     outlier_title="見本：5%→10%で外れ値に移る 犬以外", normal_title="失う犬", max_height_in=2.9);
 ```
 
+[見本は4枚目と同じ図で、線の間の20枚をすべて表示]{.source}
+
 ::: {.notes}
 コマンドは `python .claude/skills/slides/scripts/imgfig.py moved --scores scores.csv --thumbs thumbs/ --normal-group dog --from-loss 0.01 --to-loss 0.05 --out moved.png`。今日の3枚目と4枚目の図は、この関数で描いている。
 :::

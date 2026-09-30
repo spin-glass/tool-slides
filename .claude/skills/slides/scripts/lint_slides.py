@@ -10,6 +10,7 @@
 
 画像: `![代替テキスト](パス)` のファイルが無ければ block、代替テキストが空なら warning。
       図を描くコードセル（plt. / imgfig. など）に `#| fig-alt:` が無ければ warning。
+      画像を並べた図（imgfig.*_figure）のスライドに選び方（すべて・等間隔・上位…）の記載が無ければ warning。
 
 終了コード（通常モード）: 0=block違反なし / 2=block違反あり
 閾値は下の LIMITS。最初の2〜3デッキで較正する（references/evidence.md）。
@@ -64,6 +65,8 @@ BULLET_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+\S")
 META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status|decided-by)\s*:\s*(.*?)\s*-->")
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)")
 PLOT_RE = re.compile(r"\b(plt|imgfig|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
+IMGFIG_RE = re.compile(r"\bimgfig\.\w+_figure\(")
+PICK_RE = re.compile(r"すべて|全数|全部|全\d+枚|等間隔|上位|下位|大きい順|小さい順|無作為|抜粋|代表")
 APPENDIX_RE = re.compile(r"<!--\s*appendix\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 QUOTE_RE = re.compile(r"「[^」]*」")
@@ -138,7 +141,7 @@ class Slide:
     notes: list[tuple[int, str]] = field(default_factory=list)     # speaker notes
     comments: list[tuple[int, str]] = field(default_factory=list)  # HTMLコメント（evidence 等）
     images: list[tuple[int, str, str]] = field(default_factory=list)   # markdown 画像 (行番号, 代替テキスト, パス)
-    figures: list[tuple[int, bool]] = field(default_factory=list)      # 図を描くコードセル (行番号, fig-alt の有無)
+    figures: list[tuple[int, bool, bool]] = field(default_factory=list)  # 図を描くセル (行番号, fig-alt の有無, 画像を並べる図か)
 
 
 @dataclass
@@ -206,7 +209,8 @@ def parse_deck(path: Path) -> Deck:
                     if not executable or echo:
                         cur.code.extend(body)
                     if executable and not hidden and any(PLOT_RE.search(l) for _, l in body):
-                        cur.figures.append((code_start, any(re.match(r"#\|\s*fig-alt\s*:\s*\S", o.strip()) for o in opts)))
+                        cur.figures.append((code_start, any(re.match(r"#\|\s*fig-alt\s*:\s*\S", o.strip()) for o in opts),
+                                            any(IMGFIG_RE.search(l) for _, l in body)))
                 in_code = None
                 code_buf = []
             else:
@@ -408,10 +412,14 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
             if not alt:
                 issues.append(Issue("warning", ln, s, "image-alt",
                                     f"画像 `{src}` に代替テキストがない。`![何が写っていて何を見てほしいか](…)` と書く"))
-        for ln, has_alt in s.figures:
+        for ln, has_alt, _ in s.figures:
             if not has_alt:
                 issues.append(Issue("warning", ln, s, "fig-alt",
                                     "図を描くセルに `#| fig-alt:` がない。図が何を示すかを1〜2文で書く"))
+        image_figs = [ln for ln, _, is_images in s.figures if is_images]
+        if image_figs and not any(PICK_RE.search(strip_md(t)) for _, t in s.body):
+            issues.append(Issue("warning", image_figs[0], s, "pick-rule",
+                                "画像を並べた図に選び方の記載がない。「N枚をすべて表示」「N枚から等間隔でk枚」などを `{.source}` に書く"))
 
         if s.appendix:
             continue   # appendix は密度制限を免除

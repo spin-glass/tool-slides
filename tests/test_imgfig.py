@@ -40,6 +40,53 @@ class Thresholds(unittest.TestCase):
 
 
 @unittest.skipUnless(imgfig, "matplotlib / pillow が必要")
+class Generic(unittest.TestCase):
+    """切り口と選び方（閾値に限らない部分）。"""
+
+    def rows(self):
+        table = [("a", "cat", "cat", 0.9), ("b", "cat", "dog", 0.6), ("c", "dog", "dog", 0.8),
+                 ("d", "dog", "cat", 0.55), ("e", "cat", "dog", 0.7), ("f", "dog", "dog", 0.95)]
+        return [imgfig.Item(i, Path("none.jpg"), score=p, attrs={"true": t, "pred": q, "prob": str(p)})
+                for i, t, q, p in table]
+
+    def test_attrs(self):
+        it = self.rows()[1]
+        self.assertEqual((it["true"], it["pred"], it.num("prob"), it.get("missing", "-")), ("cat", "dog", 0.6, "-"))
+
+    def test_split_by_orders_by_size_or_given_order(self):
+        wrong = [it for it in self.rows() if it["true"] != it["pred"]]
+        groups = imgfig.split_by(wrong, lambda it: (it["true"], it["pred"]))
+        self.assertEqual([(k, len(g)) for k, g in groups], [(("cat", "dog"), 2), (("dog", "cat"), 1)])
+        ordered = imgfig.split_by(self.rows(), lambda it: it["true"], order=["dog", "cat", "bird"])
+        self.assertEqual([(k, len(g)) for k, g in ordered], [("dog", 3), ("cat", 3), ("bird", 0)])
+
+    def test_cross_counts_every_cell(self):
+        cells = imgfig.cross(self.rows(), lambda it: it["true"], lambda it: it["pred"])
+        self.assertEqual({k: len(v) for k, v in cells.items()},
+                         {("cat", "cat"): 1, ("cat", "dog"): 2, ("dog", "dog"): 2, ("dog", "cat"): 1})
+
+    def test_pick_rules(self):
+        rows, prob = self.rows(), (lambda it: it.score)
+        self.assertEqual([i.id for i in imgfig.pick(rows, 2, "top", key=prob)], ["f", "a"])
+        self.assertEqual([i.id for i in imgfig.pick(rows, 2, "bottom", key=prob)], ["d", "b"])
+        self.assertEqual([i.id for i in imgfig.pick(rows, 3, "even", key=prob)], ["b", "c", "f"])   # 3等分した各区間の中央
+        self.assertEqual(imgfig.pick(rows, 3, "random", seed=1), imgfig.pick(rows, 3, "random", seed=1))
+        self.assertEqual(len(imgfig.pick(rows, None)), 6)
+        self.assertEqual(len(imgfig.pick(rows, 10, "even")), 6)
+
+    def test_pick_note(self):
+        self.assertEqual(imgfig.pick_note(12, 12), "12枚をすべて表示")
+        self.assertEqual(imgfig.pick_note(40, 8), "40枚からスコア順に等間隔で8枚を表示")
+        self.assertEqual(imgfig.pick_note(40, 5, "top", by="確信度"), "40枚から確信度の大きい順に5枚を表示")
+
+    def test_load_table_keeps_every_column(self):
+        deck = ROOT / "decks/2026-09-30-outlier-threshold-images"
+        items = imgfig.load_table(deck / "data/scores.csv", deck / "data/thumbs", score_col="score")
+        self.assertEqual(len(items), 600)
+        self.assertEqual(set(items[0].attrs), {"id", "role", "group", "label", "label_ja", "score"})
+
+
+@unittest.skipUnless(imgfig, "matplotlib / pillow が必要")
 class OutlierDeck(unittest.TestCase):
     """デッキのタイトルに書いた数字が、コミットしたスコアから再現できること。"""
 

@@ -1,0 +1,16 @@
+{
+  "dataset": "Open Images V7 (validation / test)",
+  "encoder": "openai/clip-vit-base-patch32",
+  "method": "zeroshot",
+  "classes": {
+    "Sheep": "羊",
+    "Goat": "ヤギ",
+    "Alpaca": "アルパカ",
+    "Deer": "鹿",
+    "Cattle": "牛",
+    "Horse": "馬"
+  },
+  "n_eval": 240,
+  "n_support_per_class": 0,
+  "n_excluded_by_eye": 6
+}
