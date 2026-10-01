@@ -3,6 +3,9 @@
 読み手のいない・言い訳の多い・枚数の多い AI 生成スライドを、指示ではなく構造で防ぐための Quarto スライド作成環境。
 Claude Code の `slides` スキルが「聴衆・行動・持ち時間の確認 → タイトルだけの骨子の承認 → 本文 → lint と全枚スクショ」の順で作り、Stop hook が lint 不合格のまま終わらせない。
 
+**公開ページ（Cloudflare）**: https://tool-slides.toshihiro-engineer.workers.dev （作ったデッキの一覧。revealjs・PDF・pptx）
+／ 検証の一覧: https://tool-slides.toshihiro-engineer.workers.dev/experiments/2026-09-30-model-vs-skill/
+
 設計の根拠: Notion「Claudeスライド作成｜実践事例と再現性の手法」（追記 2026-09-30）、要約は `.claude/skills/slides/references/evidence.md`。
 
 ## 使い方

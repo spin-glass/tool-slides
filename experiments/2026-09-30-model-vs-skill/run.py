@@ -27,9 +27,9 @@ WORK = Path(os.environ.get("MVS_WORK", Path(tempfile.gettempdir()) / "tool-slide
 
 MODELS = {"fable": "claude-fable-5-1", "opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5",
           "haiku": "claude-haiku-4-5-20251001"}
-SKILLS = {"S0": None, "S1": "7b4428f", "S3": "769927d", "S4": "4bf36be", "S5": "bb40768", "S6": "06a146c", "S7": "21252d1", "S8": "12b852f", "S9": "1068dee", "S10": "4b518b9", "S11": "38e6e11", "S12": "721f7a0", "S13": "bc96474"}       # スキルを取り出すコミット
+SKILLS = {"S0": None, "S1": "7b4428f", "S3": "1c3960f", "S4": "d7cce24", "S5": "810c258", "S6": "4043590", "S7": "0084230", "S8": "8c12b3d", "S9": "cb8055f", "S10": "a00709e", "S11": "7f0f7ab", "S12": "94a8a34", "S13": "54c22f1"}       # スキルを取り出すコミット
 REPO_THEME = {"S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13"}          # テーマとフィルタもそのコミットから取る版（付録の印はテーマとフィルタで出すため）
-BASE = "769927d"             # それ以外の条件で使う、共通のテーマの版
+BASE = "1c3960f"             # それ以外の条件で使う、共通のテーマの版
 # (依頼文, 最大ターン, 予算USD)。under は gate と同じ依頼文（聴衆・行動・時間なし）で、最後まで作らせる。
 # change は追試の課題（同じ240枚を新旧2つの版で判定した結果。切り口は「変更の前後」）
 TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0), "under": ("prompt_gate.md", 60, 12.0),
