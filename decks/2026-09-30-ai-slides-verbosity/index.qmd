@@ -12,6 +12,7 @@ subtitle: "書く前に決める3点と、タイトルだけの確認"
 ## AI資料が長く読みにくいのは偶然ではなく学習の癖だ
 
 <!-- evidence: 長さだけの報酬で RLHF 改善の大半が再現される（Singhal 2024） -->
+<!-- type: text -->
 
 ```{python}
 #| include: false
@@ -33,6 +34,7 @@ RLHF（人の好みによる追加学習）の報酬モデルが長さに引き�
 ## 自信のない箇所ほど、AIは前置きと言い訳で文章を水増しする
 
 <!-- evidence: verbosity compensation：GPT-4 の応答の50.40%、冗長な応答ほど精度が低い（Zhang 2024） -->
+<!-- type: text -->
 
 - GPT-4 の応答の`{python} f"{E['vc_gpt4']:.1f}%"`に、答えに要らない水増しが出た
 - 水増しした応答は、簡潔な応答より正答率が平均`{python} f"{E['vc_gap_qasper']:.0f}"`ポイント低い
@@ -47,6 +49,7 @@ RLHF（人の好みによる追加学習）の報酬モデルが長さに引き�
 ## 「簡潔に」と指示しても長さは安定して縮まない
 
 <!-- evidence: 長さ指示の違反率 GPT-4 Turbo 49.3%・GPT-4o 39.0%（Yuan 2024） -->
+<!-- type: text -->
 
 - 「◯語以内で」と長さを指示しても、GPT-4 Turbo は`{python} f"{E['li_violation_gpt4turbo']}%"`で守れなかった
 - 新しい GPT-4o でも`{python} f"{E['li_violation_gpt4o']}%"`で守れなかった
@@ -61,6 +64,7 @@ RLHF（人の好みによる追加学習）の報酬モデルが長さに引き�
 ## 理解を上げるには、足すより削る方が約2倍効く
 
 <!-- evidence: 効果量の図：coherence d=0.86、redundancy d=0.86、signaling d=0.41（Mayer & Fiorella 2014） -->
+<!-- type: chart -->
 
 ```{python}
 #| fig-alt: "理解テストの改善を比べた横棒グラフ。本題と関係ない素材を削る0.86、話す文をスライドから外す0.86、見出しや強調を足す0.41。"
@@ -95,6 +99,7 @@ plt.tight_layout()
 ## 成果を出す現場は、書く前に「誰に・何を・何分で」を決めている
 
 <!-- evidence: McKinsey ghost deck・Amazon 6-pager・段階生成（DocPres 読みやすさ3.90対2.30） -->
+<!-- type: text -->
 
 - McKinsey：本文の前に、タイトルだけの下書きで合意する
 - Amazon：幹部会議の資料を文章にし、論旨を先に固める
@@ -109,6 +114,7 @@ DocPres は論文5本・評価者2人の小規模な評価で、比較相手は 
 ## 型は3段階：書く前に3点を決め、タイトルで合意し、機械で検査する
 
 <!-- evidence: 3段階の流れ図（本人がやることは「3点を答える」「タイトルを見る」の2つ） -->
+<!-- type: chart -->
 
 ```{python}
 #| fig-alt: "3段階の流れ図。1 書く前に3点（あなたが答える）、2 タイトルで合意（あなたが見る）、3 機械で検査（AIと仕組みが行う）。"
@@ -142,6 +148,7 @@ plt.tight_layout()
 ## タイトルだけを縦に読めば、論旨は1分で確かめられる
 
 <!-- evidence: この資料自身のタイトル8本の連読（lint_slides.py --titles の出力） -->
+<!-- type: table -->
 
 ```{python}
 import sys
@@ -157,6 +164,7 @@ Markdown("\n".join(f"{i}. {t}" for i, t in enumerate(titles, 1))
 ## 次の資料1本で、書く前の3点とタイトル確認だけを試してほしい
 
 <!-- evidence: 依頼内容・追加の手間・終わった後に見る点 -->
+<!-- type: text -->
 
 - 書かせる前に「誰に・何をしてほしいか・何分で」をAIに伝える
 - タイトルだけの一覧が出たら、縦に読んでOKか直しを返す

@@ -67,7 +67,7 @@ HR_RE = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$")
 BULLET_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+\S")
 META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status|decided-by|kind)\s*:\s*(.*?)\s*-->")
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)")
-PLOT_RE = re.compile(r"\b(plt|imgfig|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
+PLOT_RE = re.compile(r"\b(plt|imgfig|figs|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
 IMGFIG_RE = re.compile(r"\bimgfig\.\w+_figure\(")
 PICK_RE = re.compile(r"すべて|全数|全部|全\d+枚|等間隔|上位|下位|大きい順|小さい順|無作為|抜粋|代表")
 # 画像の中身についての言い切り。縮小した画像では見落としやすい（小さく写るもの、よく似た種）ので、元の大きさで確かめさせる
@@ -85,6 +85,29 @@ CLAIMS_RE = re.compile(r"<!--\s*claims\s*:\s*([^>]*?)\s*-->")        # この枚
 CHECK_COMMENT_RE = re.compile(r"<!--\s*check\s*:\s*(.*?)\s*-->")     # ゴースト段階の確認点
 TBD_RE = re.compile(r"\[([^\]]*)\]\{[^}]*\.tbd\b[^}]*\}")               # まだ決めていない値（灰の点線の枠）
 UNDECIDED_WORDS_RE = re.compile(r"未決|未定|確認中|決めていない|要確認")
+# スライドの型（Claude Design「スライド型見本」。references/slide_types.md）。型ごとに、本文に必要な書き方
+TYPE_RE = re.compile(r"<!--\s*type\s*:\s*(.*?)\s*-->")
+MERMAID_RE = re.compile(r"^\{mermaid")
+SLIDE_TYPES = {
+    "text": lambda s: True,
+    "pair": lambda s: any(".pair" in a for a in s.divs),
+    "outcome": lambda s: any(".outcome" in a for a in s.divs),
+    "number": lambda s: any(re.search(r"\{[^}]*\.big\b", t) for _, t in s.body),
+    "roles": lambda s: any(".roles" in a for a in s.divs),
+    "timeline": lambda s: any("figs.timeline(" in c for _, c in s.cells),
+    "direction": lambda s: any("figs.direction(" in c for _, c in s.cells),
+    "chart": lambda s: any(PLOT_RE.search(c) and not IMGFIG_RE.search(c) for i, c in s.cells if not MERMAID_RE.match(i)),
+    "flow": lambda s: any(MERMAID_RE.match(i) for i, _ in s.cells),
+    "table": lambda s: any(re.match(r"\s*\|", t) for _, t in s.body) or any("Markdown(" in c for _, c in s.cells),
+    "images": lambda s: bool(s.images) or any(IMGFIG_RE.search(c) for _, c in s.cells),
+}
+TYPE_MARKUP = {
+    "pair": ":::: {.columns .pair}", "outcome": "::: {.outcome}", "number": "[値]{.big}",
+    "roles": ":::: {.columns .roles}", "timeline": "figs.timeline(...)", "direction": "figs.direction(...)",
+    "chart": "figs.bars(...) か図を描くセル", "flow": "{mermaid} のセル", "table": "Markdown の表",
+    "images": "imgfig.*_figure(...) か ![…](…)",
+}
+INLINE_STYLE_RE = re.compile(r"\bstyle\s*=\s*[\"']")
 
 
 # ---- 文字幅 ---------------------------------------------------------------
@@ -161,6 +184,9 @@ class Slide:
     check_divs: int = 0                                                # ::: {.check} の個数
     undecided: bool = False                                            # ::: {.undecided}（まだ決めていない点の一覧）がある
     claims: list[str] = field(default_factory=list)                    # <!-- claims: C1,C2 --> の主張ID
+    types: list[str] = field(default_factory=list)                     # <!-- type: pair --> のスライドの型
+    divs: list[str] = field(default_factory=list)                      # fenced div の属性（{.columns .pair} など）
+    cells: list[tuple[str, str]] = field(default_factory=list)        # 実行するセル (情報 {python}/{mermaid}, 中身)
 
 
 @dataclass
@@ -203,6 +229,7 @@ def parse_deck(path: Path) -> Deck:
     in_comment = False
     preamble_line = None
     code_start = 0
+    cell_info = ""
 
     def in_notes() -> bool:
         return any(".notes" in a or a == "notes" for _, a in div_stack)
@@ -230,6 +257,8 @@ def parse_deck(path: Path) -> Deck:
                             echo = m.group(1).lower() == "true"
                     if not executable or echo:
                         cur.code.extend(body)
+                    if executable and not hidden:
+                        cur.cells.append((cell_info, "\n".join(l for _, l in body)))
                     if executable and not hidden and any(PLOT_RE.search(l) for _, l in body):
                         cur.figures.append((code_start, any(re.match(r"#\|\s*fig-alt\s*:\s*\S", o.strip()) for o in opts),
                                             any(IMGFIG_RE.search(l) for _, l in body)))
@@ -242,6 +271,7 @@ def parse_deck(path: Path) -> Deck:
         if m:
             code_start = ln
             info = m.group(3).strip()
+            cell_info = info
             in_code = (m.group(2), info.startswith("{"), default_echo)
             continue
 
@@ -273,6 +303,8 @@ def parse_deck(path: Path) -> Deck:
         if m:
             attrs = m.group(2)
             div_stack.append((len(m.group(1)), attrs))
+            if cur:
+                cur.divs.append(attrs)
             if cur and ".check" in attrs:
                 cur.check_divs += 1
             if cur and ".undecided" in attrs:
@@ -312,6 +344,8 @@ def parse_deck(path: Path) -> Deck:
         for _, c in s.comments:
             for mm in CLAIMS_RE.finditer(c):
                 s.claims.extend(x for x in re.split(r"[,、\s]+", mm.group(1)) if x)
+            for mm in TYPE_RE.finditer(c):
+                s.types.extend(x for x in re.split(r"[,、\s]+", mm.group(1)) if x)
     return Deck(path, meta, slides, appendix_line, lines, preamble_line)
 
 
@@ -469,6 +503,26 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
                     issues.append(Issue("block", s.checks[0][0], s, "check-length",
                                         f"確認点 全角{n:g}字 > {LIMITS['check_chars_block']}字。確かめてほしい点だけを1行で"))
 
+        # スライドの型（references/slide_types.md）。骨子で選んだ型の書き方で本文を書く
+        unknown_types = [t for t in s.types if t not in SLIDE_TYPES]
+        if unknown_types:
+            issues.append(Issue("block", s.line, s, "type-unknown",
+                                f"知らない型 {', '.join(unknown_types)}。{'/'.join(SLIDE_TYPES)} から選ぶ（references/slide_types.md）"))
+        elif len(s.types) > 1:
+            issues.append(Issue("block", s.line, s, "type-multiple",
+                                f"型が{len(s.types)}つ（{', '.join(s.types)}）。1枚に1つ。主のほうを書くか、主張が2つなら枚を分ける"))
+        elif not s.types and not s.appendix and s.level == 2:
+            issues.append(Issue("warning", s.line, s, "type-missing",
+                                "`<!-- type: text -->` などで、この枚の型を選ぶ（pair・outcome・number・roles・timeline・"
+                                "direction・chart・flow・table・images。references/slide_types.md）"))
+        elif s.types and status != "ghost" and (s.body or s.cells) and not SLIDE_TYPES[s.types[0]](s):
+            issues.append(Issue("warning", s.line, s, "type-markup",
+                                f"型 {s.types[0]} なのに `{TYPE_MARKUP[s.types[0]]}` が無い。型の書き方で書くか、型を選び直す"))
+        styled = [ln for ln, t in s.body if INLINE_STYLE_RE.search(t)]
+        if styled:
+            issues.append(Issue("warning", styled[0], s, "inline-style",
+                                "本文に style= を直接書かない。theme/custom.scss の部品を使うか、足りなければ部品を足す"))
+
         # 主張の表（claims.csv）との対応。未決の主張を載せる枚は、未決と分かる形にする
         if claims is not None:
             unknown = [c for c in s.claims if c not in claims]
@@ -595,6 +649,8 @@ def title_list(deck: Deck) -> str:
             (CHECK_COMMENT_RE.search(c).group(1) for _, c in s.comments if CHECK_COMMENT_RE.search(c)), "")
         if chk:
             line += f"\n      確認点: {chk}"
+        if s.types:
+            line += f"\n      型: {', '.join(s.types)}"
         if s.claims:
             line += f"\n      主張: {', '.join(s.claims)}"
         out.append(line)

@@ -15,6 +15,16 @@ subtitle: "架空の題材（請求書を OCR で読み取る方式への切替�
 
 <!-- evidence: 2〜5枚目の見出し4本と、まだ決めていない点3つ（claims.csv の決定4件・未決3件） -->
 <!-- claims: C1,C2,C3,C4,C5,C6,C7 -->
+<!-- type: text -->
+
+```{python}
+#| include: false
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path("../../.claude/skills/slides/scripts").resolve()))
+import figs
+figs.setup()
+```
 
 :::: {.columns}
 ::: {.column width="64%"}
@@ -46,6 +56,7 @@ subtitle: "架空の題材（請求書を OCR で読み取る方式への切替�
 
 <!-- evidence: 現行と変更後の対照（運用・移行設計 §1–2）。紙で届く請求書の扱いは設計書の作成者に確認中 -->
 <!-- claims: C1,C10 -->
+<!-- type: pair -->
 
 :::: {.columns .pair}
 ::: {.column width="44%"}
@@ -85,6 +96,7 @@ OCR で読み取り、自信がない項目だけ人が確かめる
 
 <!-- evidence: 閾値と読み誤り・「保留」の関係（向きだけ。実測値は再集計待ち）と、手入力の誤り率・上限の2つの数字 -->
 <!-- claims: C2,C5,C6 -->
+<!-- type: direction -->
 
 :::: {.columns}
 ::: {.column width="58%"}
@@ -92,21 +104,8 @@ OCR で読み取り、自信がない項目だけ人が確かめる
 #| fig-alt: "閾値と読み誤り・「保留」の関係を向きだけ示した模式図。閾値を上げると読み誤りは減り「保留」は増える。下げると読み誤りは増え「保留」は減る。棒の長さは実測値ではない。"
 #| fig-width: 7.2
 #| fig-height: 3.1
-import matplotlib.pyplot as plt
-plt.rcParams["font.family"] = ["Hiragino Sans", "sans-serif"]
-plt.rcParams["font.size"] = 18
-rows = [("閾値を上げる", "読み誤り ↓", 0.6, "#0b5cad"), ("", "「保留」↑", 0.7, "#b35900"),
-        ("閾値を下げる", "読み誤り ↑", 0.8, "#0b5cad"), ("", "「保留」↓", 0.3, "#b35900")]
-fig, ax = plt.subplots()
-for i, (head, label, w, color) in enumerate(rows):
-    y = -i - (0.4 if i >= 2 else 0)
-    ax.barh(y, w, height=0.6, color=color)
-    ax.text(w + 0.03, y, label, va="center")
-    if head:
-        ax.text(-0.05, y - 0.5, head, ha="right", va="center", fontsize=20)
-ax.set_xlim(-0.75, 1.25)
-ax.axis("off")
-plt.tight_layout()
+figs.direction([("閾値を上げる", [("読み誤り ↓", 0.6), ("「保留」↑", 0.7, figs.ORANGE)]),
+                ("閾値を下げる", [("読み誤り ↑", 0.8), ("「保留」↓", 0.3, figs.ORANGE)])])
 ```
 
 [棒の長さは関係の向きを示す。実測値が入るまで比率は仮]{.small .muted}
@@ -134,6 +133,7 @@ plt.tight_layout()
 
 <!-- evidence: 切替の3条件と基準、満たす／満たさないときの扱い（精度検証 §4–5 の項目別の比較を3条件に具体化した案） -->
 <!-- claims: C3,C8,C9 -->
+<!-- type: outcome -->
 
 :::: {.columns}
 ::: {.column width="62%"}
@@ -174,27 +174,14 @@ plt.tight_layout()
 
 <!-- evidence: 移行の4段階（運用・移行設計 §6.1–6.4：試験1か月→並行1か月→切替1週→定常3週。3か月は想定）と3者の担当。確認作業の時間は未取得 -->
 <!-- claims: C4,C7,C9 -->
+<!-- type: timeline -->
 
 ```{python}
 #| fig-alt: "移行の4段階の工程表。1か月目に試験導入、2か月目に並行運用、3か月目の前半に本番切替、後半に定常運用。期間は想定。"
 #| fig-width: 12.4
 #| fig-height: 2.5
-stages = [("試験導入", 0.0, 0.9, "#0b5cad"), ("並行運用", 1.1, 0.8, "#b35900"),
-          ("本番切替", 2.0, 0.5, "#0b5cad"), ("定常運用", 2.55, 0.45, "#0b5cad")]
-fig, ax = plt.subplots()
-for i, (name, start, length, color) in enumerate(stages):
-    ax.broken_barh([(start, length)], (-i - 0.3, 0.6), color=color)
-ax.set_yticks([-i for i in range(len(stages))], [s[0] for s in stages])
-ax.set_xticks([0, 1, 2], ["1か月目", "2か月目", "3か月目"], ha="left", color="#57606a")
-ax.xaxis.tick_top()
-ax.set_xlim(0, 3)
-ax.set_ylim(-3.6, 0.5)
-for x in (0, 1, 2):
-    ax.axvline(x, color="#d0d7de", lw=1)
-for side in ("top", "right", "bottom", "left"):
-    ax.spines[side].set_visible(False)
-ax.tick_params(length=0)
-plt.tight_layout()
+figs.timeline([("試験導入", 0.0, 0.9), ("並行運用", 1.1, 0.8, figs.ORANGE),
+               ("本番切替", 2.0, 0.5), ("定常運用", 2.55, 0.45)], ["1か月目", "2か月目", "3か月目"])
 ```
 
 :::: {.columns .roles}
@@ -229,6 +216,7 @@ plt.tight_layout()
 
 <!-- evidence: claims.csv（主張ID・出所・状態）のうち、状態が決定の4件 -->
 <!-- claims: C1,C2,C3,C4 -->
+<!-- type: table -->
 
 ```{python}
 import csv
@@ -250,6 +238,7 @@ Markdown("\n".join(lines))
 
 <!-- evidence: claims.csv のうち、スライドに載せた未決の4件と決める担当 -->
 <!-- claims: C5,C6,C7,C10 -->
+<!-- type: table -->
 
 ```{python}
 pending = [r for r in rows if r["status"] == "未決" and r["id"] in ("C5", "C6", "C7", "C10")]
@@ -268,6 +257,7 @@ Markdown("\n".join(lines))
 
 <!-- evidence: 基本設計 §4.2 の規則（精度検証 §5.3 の「請求書の全項目が閾値以上なら採用」とは違う）。設計書の修正であり本編の話題にしない -->
 <!-- claims: C2,C14 -->
+<!-- type: flow -->
 
 ```{mermaid}
 %%| fig-width: 11

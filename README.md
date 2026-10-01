@@ -40,6 +40,12 @@ claude   # 「/slides 〜の発表資料を作って」
 - 写真の図は YAML に `fig-format: jpeg` と `fig-dpi: 200` を書く（PNG の約1/4の重さになり、図がスライドの空きに合わせて伸びる）。
 - 第三者の画像は、作者・出典の一覧（`credits.html`）を YAML の `resources:` で一緒に公開する。公開に向かない画像は目視で外し、`exclude.csv` に理由を残す。
 
+## スライドの型（Claude Design「スライド型見本」）
+
+各枚の証拠の形から型を1つ選び、骨子で `<!-- type: pair -->` のように書く。型は text・pair（前→後）・outcome（条件→結果）・number（大きな数字）・roles（体制）・timeline（工程表）・direction（関係の向き）・chart・flow（Mermaid）・table・images。
+見た目は Claude Design「スライド型見本」の部品で、CSS は `theme/custom.scss`、図は `.claude/skills/slides/scripts/figs.py`（`figs.timeline`・`figs.direction`・`figs.bars`）に実装した。書き方と使い分けは `.claude/skills/slides/references/slide_types.md`。
+lint は知らない型と1枚に2つ以上の型を止め、型が無い本編の枚・型の書き方が本文に無い枚・本文の `style=` を warning で知らせる。
+
 ## 設計書と、決めたことを確かめるスライド（design-doc スキル）
 
 設計書の改稿と意思決定者向けスライドを、同じ主張の表から作る。原資料 → `claims.csv`（主張ID・原文の箇所・状態: 事実／参考値／方針／想定／提案／決定／未決）→ 設計書（`design/*.md`、Markdown＋Mermaid。VSCode のプレビューと Notion で表示）／確認型スライド（`index.qmd`）→ 原文との照合。
@@ -61,16 +67,16 @@ Cloudflare Pages は Workers に統合されたため、`wrangler pages` では�
 
 ```
 _quarto.yml                       revealjs（既定）/ pptx / beamer(PDF, LuaLaTeX + ヒラギノ)
-theme/custom.scss                 Noto Sans JP、日本語の禁則
+theme/custom.scss                 Noto Sans JP、日本語の禁則、スライドの型の部品（.pair・.outcome・.big・.roles・.tbd・.check）
 filters/strip-comments.lua        lint 用の HTML コメントを出力から除く（空スライド防止）
 decks/<yyyy-mm-dd>-<name>/index.qmd   1発表 = 1フォルダ
-.claude/skills/slides/            スキル本体・規約・例・NG辞書・lint・スクショ・画像の図（imgfig.py）
+.claude/skills/slides/            スキル本体・規約・例・NG辞書・lint・スクショ・画像の図（imgfig.py）・型の図（figs.py）
 .claude/skills/design-doc/        設計書と確認型スライド: 主張の表（claims.py）・設計書の検査（check_doc.py）・規約・雛形
 decks/<name>/claims.csv, design/  （設計書の案件のみ）主張の表と、組み替えた設計書（Markdown＋Mermaid）
 decks/_template_confirm/          確認型スライドの雛形（kind: confirm）
 decks/<name>/prepare.py, data/    （画像のデッキのみ）前処理と、その結果のスコア・サムネイル・出典
 scripts/publish.sh, wrangler.jsonc  全デッキを出力して Cloudflare に公開
-tests/                            lint と imgfig のテスト、lint が block すべき違反サンプル（fixtures/）
+tests/                            lint・imgfig・figs のテスト、lint が block すべき違反サンプル（fixtures/）
 ```
 
 ## Stop hook
