@@ -73,7 +73,7 @@ fi
 
 # 図の写真ごとの説明・群の見出しを、確認の表（data/look.csv: id, classes, note）と照らす
 if [[ -s "$REPORT" && -f "$DECK_DIR/data/look.csv" ]]; then
-  "$PY" "$(dirname "$0")/imgfig.py" check-look --report "$REPORT" --look "$DECK_DIR/data/look.csv"
+  "$PY" "$(dirname "$0")/imgfig.py" check-look --report "$REPORT" --look "$DECK_DIR/data/look.csv" --html "$HTML"
 elif [[ -s "$REPORT" ]] && grep -q '"captions": \[{' "$REPORT"; then
   echo "WARNING 写真の図があるが data/look.csv が無い（元の写真で確かめた、写っている対象の表を作る）"
 fi

@@ -260,6 +260,22 @@ class Layout(unittest.TestCase):
         self.assertTrue(any("unsure 列が空" in f and "p2" in f for f in found))
         self.assertTrue(any("写っていない" in f and "p0" in f for f in found))
 
+    def test_check_counts_finds_label_counts_written_as_content(self):
+        d = Path(tempfile.mkdtemp())
+        rows = ["id,true_ja,pred_ja"] + [f"g{k},ヤギ,鹿" for k in range(5)] + [f"s{k},ヤギ,羊" for k in range(3)] + \
+               ["c0,牛,牛", "d0,鹿,鹿", "h0,羊,羊"]
+        (d / "predictions.csv").write_text("\n".join(rows) + "\n", encoding="utf-8")
+        look = ["id,label_class,classes,unsure,note,closeup"] + [f"g{k},ヤギ,ヤギ,,,yes" for k in range(5)] + \
+               [f"s{k},ヤギ,羊,,,yes" for k in range(3)]
+        (d / "look.csv").write_text("\n".join(look) + "\n", encoding="utf-8")
+        (d / "index.html").write_text(
+            '<section class="slide level2"><h2>誤り8枚のうち、8枚はヤギの写真だ</h2></section>'
+            '<section class="slide level2"><h2>ラベルがヤギの写真8枚のうち、5枚はヤギが写る</h2>'
+            '<aside class="notes">8枚はヤギの写真</aside></section>', encoding="utf-8")
+        found = imgfig.check_counts(d / "index.html", d / "look.csv")
+        self.assertEqual(len(found), 1, found)                  # 1枚目だけ（2枚目は「ラベルが」と書き、5枚は合う。ノートは見ない）
+        self.assertTrue(found[0].startswith("スライド1"))
+
     def test_figures_report_their_size(self):
         items = self.photos([(256, 171)] * 12)
         report = Path(tempfile.mkdtemp()) / "report.jsonl"

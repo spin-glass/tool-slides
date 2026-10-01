@@ -180,6 +180,80 @@ def needs_closeup(row: dict) -> bool:
     return not classes or bool(label and label not in classes)
 
 
+def slide_texts(html_path) -> list[str]:
+    """描画した revealjs の HTML から、スライドごとに見える文字（タイトル・本文・図の下の文字）を取り出す。ノートは除く。"""
+    import html as _html
+    import re as _re
+
+    s = Path(html_path).read_text(encoding="utf-8")
+    out = []
+    for part in _re.split(r"<section\b", s)[1:]:
+        part = _re.sub(r"<(script|style|aside)\b.*?</\1>", " ", part, flags=_re.S)
+        text = _html.unescape(_re.sub(r"<[^>]+>", " ", part))
+        out.append(_re.sub(r"\s+", " ", text).strip())
+    return out
+
+
+def label_table(data_dir, look_rows: list[dict]) -> dict[str, tuple[str, str]]:
+    """data/ の表から、写真ごとの（データのラベル, 予測）を探す。確認の表の label_class と一致する列をラベル、
+    クラス名を値にもつ別の列を予測とみなす。見つからなければ空。"""
+    labels = {r["id"]: (r.get("label_class") or "").strip() for r in look_rows if (r.get("label_class") or "").strip()}
+    for path in sorted(Path(data_dir).glob("*.csv")):
+        if path.name == "look.csv":
+            continue
+        with open(path, newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        if not rows or "id" not in rows[0]:
+            continue
+        by = {r["id"]: r for r in rows}
+        common = [i for i in labels if i in by]
+        if len(common) < 5:
+            continue
+        cols = [c for c in rows[0] if c != "id"]
+        lab = next((c for c in cols if sum(by[i][c] == labels[i] for i in common) >= 0.9 * len(common)), None)
+        vocab = {r[lab] for r in rows} if lab else set()
+        pred = next((c for c in cols if c != lab and sum(r[c] in vocab for r in rows) >= 0.9 * len(rows)
+                     and any(r[c] != r[lab] for r in rows)), None) if lab else None
+        if lab and pred:
+            return {r["id"]: (r[lab], r[pred]) for r in rows}
+    return {}
+
+
+def check_counts(html_path, look_csv, data_dir=None, id_col: str = "id") -> list[str]:
+    """スライドの文字の「N枚は〇〇の写真」「〇〇が写る N枚」が、ラベルで数えた枚数と同じで、確認の表で数えた枚数と
+    違うとき知らせる（ラベルの数を、写真に写っているものの数として書いている）。「ラベルが〇〇」と書いていれば数えない。"""
+    import re as _re
+
+    with open(look_csv, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    table = label_table(data_dir or Path(look_csv).parent, rows)
+    if not table:
+        return []
+    errs = {i for i, (lab, pred) in table.items() if lab != pred}
+    vocab = sorted({lab for lab, _ in table.values()}, key=len, reverse=True)
+    look = {r[id_col]: (set(_split(r.get("classes"))), set(_split(r.get("unsure")))) for r in rows}
+    out = []
+    for sn, text in enumerate(slide_texts(html_path), 1):
+        for cls in vocab:
+            label_n = {sum(1 for i in errs if table[i][0] == cls), sum(1 for lab, _ in table.values() if lab == cls)}
+            seen_n = {sum(1 for i, (c, u) in look.items() if cls in c and (i in errs or not errs)),
+                      sum(1 for c, u in look.values() if cls in c),
+                      sum(1 for i, (c, u) in look.items() if cls in c | u and i in errs)}
+            pats = [rf"(\d+)\s*枚(?!目)\s*(?:は|が|の|とも|すべて|全部)?\s*{_re.escape(cls)}(?:の写真|の画像|が写)",
+                    rf"{_re.escape(cls)}(?:の写真|の画像|が写る写真|が写る)\s*(?:は|が)?\s*(\d+)\s*枚(?!目)"]
+            for pat in pats:
+                for m in _re.finditer(pat, text):
+                    head = text[max(0, m.start() - 6):m.start()] + m.group(0)[:m.group(0).find(cls)]
+                    if _re.search(r"ラベル|正解|予測|答え|判定", head):
+                        continue
+                    n = int(m.group(1))
+                    if n in label_n and n not in seen_n:
+                        out.append(f"スライド{sn}: 「{m.group(0)}」の {n} 枚は、ラベルが{cls}の枚数と同じで、確認の表で{cls}が写る"
+                                   f"枚数（{'・'.join(str(x) for x in sorted(seen_n))}）と違う。ラベルの数なら「ラベルが{cls}の写真」と書き、"
+                                   "写っている数なら確認の表で数える")
+    return out
+
+
 def check_look(report, look_csv, id_col: str = "id") -> list[str]:
     """図に書いた写真ごとの説明と群の見出しを、確認の表と照らす。食い違いの文を返す（無ければ空）。
 
@@ -962,6 +1036,8 @@ def main() -> int:
     ck = sub.add_parser("check-look", help="図の説明・群の見出しを確認の表（data/look.csv）と照らす（render_check.sh が呼ぶ）")
     ck.add_argument("--report", required=True)
     ck.add_argument("--look", required=True)
+    ck.add_argument("--html", help="描画した HTML。スライドの文字の枚数を、ラベルの数・確認の表の数と照らす")
+    ck.add_argument("--data", help="データの表の置き場所（省略時は look.csv と同じフォルダ）")
 
     cu = sub.add_parser("closeup", help="写っていないとした写真を、全体と4区画の拡大で並べた確認用の画像にする（1枚ずつ）")
     cu.add_argument("--look", required=True, help="確認の表（data/look.csv）。classes が空か、label_class が classes に無い行を選ぶ")
@@ -1004,6 +1080,8 @@ def main() -> int:
 
     if a.cmd == "check-look":
         found = check_look(a.report, a.look)
+        if a.html and Path(a.html).exists():
+            found += check_counts(a.html, a.look, a.data)
         for line in found:
             print(f"WARNING {line}")
         print(f"確認の表との照合: 食い違い {len(found)} 件")
