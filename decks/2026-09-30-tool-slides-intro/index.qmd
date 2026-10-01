@@ -12,6 +12,7 @@ subtitle: "2026-09-30"
 ## 生成AIは長い回答を良いと学習しており「簡潔に」では縮まない
 
 <!-- evidence: Singhal 2024 の長さのみ報酬、verbosity compensation 50.40% -->
+<!-- type: text -->
 
 ```{python}
 #| include: false
@@ -35,6 +36,7 @@ effects = {"不要な素材の削除\n(coherence)": 0.86,
 ## 聴衆・行動・時間を先に決めると枚数は budget 内に収まる
 
 <!-- evidence: 持ち時間→budget の計算、lint の budget block -->
+<!-- type: text -->
 
 - 持ち時間`{python} minutes`分 → 本編`{python} budget`枚（1.5分/枚）
 - タイトルだけの骨子を承認してから本文を書く
@@ -43,6 +45,7 @@ effects = {"不要な素材の削除\n(coherence)": 0.86,
 ## 本文を削ると、見出しを足すより約2倍理解が上がる
 
 <!-- evidence: coherence / redundancy / signaling の効果量の図（Mayer & Fiorella 2014） -->
+<!-- type: chart -->
 
 ```{python}
 #| fig-alt: "効果量の横棒グラフ。不要な素材の削除0.86、話す文をスライドから外す0.86、見出しや強調を足す0.41。"
@@ -67,6 +70,7 @@ plt.tight_layout()
 ## 次のデッキを tool-slides で作り閾値を2〜3本で較正する
 
 <!-- evidence: 手順と較正対象の閾値 -->
+<!-- type: text -->
 
 - `/slides` で聴衆・行動・時間を答える
 - 骨子を承認し、lint と全枚スクショで検収する

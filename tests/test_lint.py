@@ -33,13 +33,28 @@ class Fixtures(unittest.TestCase):
 
     def test_images(self):
         self.assertEqual(sorted(rules("image_checks.qmd", "block")), ["hand-count", "image-missing"])
-        self.assertEqual(sorted(rules("image_checks.qmd", "warning")), ["fig-alt", "image-absolute", "image-alt", "pick-rule"])
+        warnings = [r for r in rules("image_checks.qmd", "warning") if r != "type-missing"]   # 型は test_slide_types で見る
+        self.assertEqual(sorted(warnings), ["fig-alt", "image-absolute", "image-alt", "pick-rule"])
 
     def test_hand_counts_in_image_decks(self):
         deck = lint.parse_deck(ROOT / "tests/fixtures/hand_counts.qmd")
         found = [i for i in lint.check_deck(deck, NG) if i.rule == "hand-count"]
         self.assertEqual(len(found), 1)                      # インライン式・「1枚ずつ」「1枚目」・タイトルは見ない
         self.assertIn("10枚", found[0].message)
+
+    def test_slide_types(self):
+        deck = lint.parse_deck(ROOT / "tests/fixtures/slide_types.qmd")
+        found = {(i.rule, i.slide.index) for i in lint.check_deck(deck, NG) if i.rule.startswith(("type-", "inline-"))}
+        self.assertEqual(found, {("type-markup", 2), ("type-unknown", 3), ("type-multiple", 4),
+                                 ("type-missing", 5), ("inline-style", 6)})
+        self.assertEqual(sorted(rules("slide_types.qmd", "block")), ["type-multiple", "type-unknown"])
+        self.assertIn("型: pair", lint.title_list(deck))
+
+    def test_committed_decks_choose_types(self):
+        for qmd in lint.all_decks(ROOT):
+            with self.subTest(deck=qmd.parent.name):
+                issues = lint.check_deck(lint.parse_deck(qmd), NG)
+                self.assertEqual([i.fmt(qmd) for i in issues if i.rule.startswith("type-")], [])
 
     def test_decided_by_is_optional_meta(self):
         deck = lint.parse_deck(ROOT / "tests/fixtures/image_checks.qmd")
