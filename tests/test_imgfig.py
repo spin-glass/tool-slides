@@ -276,6 +276,61 @@ class Layout(unittest.TestCase):
         self.assertEqual(len(found), 1, found)                  # 1枚目だけ（2枚目は「ラベルが」と書き、5枚は合う。ノートは見ない）
         self.assertTrue(found[0].startswith("スライド1"))
 
+    def test_claim_checks_each_count_and_titles_need_claims(self):
+        items = self.photos([(256, 171)] * 14)
+        geese = items[:6] + items[10:14]               # 文が指す範囲（ガンか黒いハクチョウ）の10枚
+        with self.assertRaises(AssertionError):        # 範囲を取り違えた数（8枚）は止まる
+            imgfig.claim("14枚のうち8枚は、ガンか黒いハクチョウの写真だ", {14: items, 8: geese})
+        with self.assertRaises(AssertionError):        # 文の数を渡し忘れても止まる
+            imgfig.claim("14枚のうち10枚は、ガンか黒いハクチョウの写真だ", {10: geese})
+        d = Path(tempfile.mkdtemp())
+        report = d / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.claim("14枚のうち10枚は、ガンか黒いハクチョウの写真だ", {14: items, 10: geese})
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+        (d / "index.html").write_text(
+            '<section id="title-slide" class="quarto-title-block"><h1>t</h1></section>'
+            '<section class="slide level2"><h2>14枚のうち10枚は、ガンか黒いハクチョウの写真だ</h2></section>'
+            '<section class="slide level2"><h2>誤り51枚のうち12枚はモデルの誤りだ</h2></section>'
+            '<section class="slide level2"><h2>1枚目は牧場の写真だ</h2></section>', encoding="utf-8")
+        found = imgfig.check_claims(d / "index.html", report)
+        self.assertEqual(len(found), 1, found)         # claim の無い3枚目だけ（「1枚目」は数えない）
+        self.assertTrue(found[0].startswith("スライド3"))
+
+    def test_claim_names_are_checked_against_the_look_table(self):
+        items = self.photos([(256, 171)] * 12)
+        d = Path(tempfile.mkdtemp())
+        rows = [f"p{n},犬,猫,," for n in range(5)] + [f"p{n},犬,オウム,," for n in (5, 6)] \
+            + [f"p{n},犬,猫,,白い猫" for n in (7, 8)] + ["p9,犬,,猫,遠くの影", "p10,犬,,,", "p11,犬,,,"]
+        (d / "look.csv").write_text("id,label_class,classes,unsure,note\n" + "\n".join(rows) + "\n", encoding="utf-8")
+        looked = imgfig.load_look(items, d / "look.csv")
+        report = d / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.claim("ラベルが犬の誤り12枚のうち7枚は、猫かオウムの写真だ", {12: looked, 7: looked[:7]})
+            imgfig.claim("ラベルが犬の誤り12枚のうち7枚は、猫かオウムの写真だ。", {12: looked, 7: looked[:7]},
+                         outside=looked[7:9])                      # 白い猫を形容で外したと明示すれば知らせない
+            imgfig.claim("誤り12枚は犬の写真だ", {12: looked})       # ラベルの数を中身として書いた
+            imgfig.claim("猫が写っていない3枚", {3: looked[9:]})      # 決めきれない1枚が入る
+            imgfig.claim("ラベルが犬の12枚", {12: looked})           # ラベルで範囲を言う部分は照らさない
+            imgfig.claim("猫かどうか決めきれない1枚", {1: looked[9:10]})
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+        warns = [json.loads(line)["warnings"] for line in open(report, encoding="utf-8")]
+        self.assertEqual(len(warns[0]), 1, warns[0])
+        self.assertIn("p7, p8", warns[0][0])                       # 範囲の残りにも猫が写る
+        self.assertEqual(warns[1], [])
+        self.assertEqual(len(warns[2]), 1, warns[2])
+        self.assertIn("12枚のうち12枚", warns[2][0])
+        self.assertEqual(len(warns[3]), 1, warns[3])
+        self.assertIn("p9", warns[3][0])
+        self.assertEqual(warns[4:], [[], []])
+        (d / "index.html").write_text('<section class="slide level2"><h2>誤り12枚は犬の写真だ</h2></section>', encoding="utf-8")
+        found = imgfig.check_claims(d / "index.html", report)
+        self.assertEqual(len(found), 3, found)                     # claim の食い違い3件（タイトルは claim 済み）
+
     def test_figures_report_their_size(self):
         items = self.photos([(256, 171)] * 12)
         report = Path(tempfile.mkdtemp()) / "report.jsonl"

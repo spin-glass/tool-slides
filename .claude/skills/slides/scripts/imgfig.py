@@ -46,6 +46,7 @@ import json
 import math
 import os
 import random
+import re
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -219,6 +220,129 @@ def label_table(data_dir, look_rows: list[dict]) -> dict[str, tuple[str, str]]:
     return {}
 
 
+COUNT_RE = re.compile(r"(?<![\d.,])(\d+)\s*枚(?!目|ずつ)")
+CLAIM_SCOPE_RE = re.compile(r"ラベル|予測|正解|答え|判定|間違え|取り違え|誤った|→|->|⇒")   # ラベル・予測で範囲を言う部分は照らさない
+CLAIM_UNSURE_RE = re.compile(r"決めきれ|決められ|かどうか|不明|[?？]|かもしれ")
+CLAIM_NEG_RE = re.compile(r"写っていない|写らない|写ってない|[がは]いない|[がは]無い|[がは]ない|以外|どれでもない")
+CLAIM_ALL_RE = re.compile(r"両方|ともに|一緒に")
+CLAIM_PRED_RE = re.compile(r"\s*(?:の(?:写真|画像))?\s*(?:は|が|とも|には|では|にも|すべて|全部|だけ)")
+
+
+def _claim_parts(text: str) -> list[tuple[int, str]]:
+    """文の「N枚」ごとに、その写真について言う部分を返す。「N枚は〜」なら後ろ、「〜が写るN枚」「〜の写真はN枚中」なら前。"""
+    ms = list(COUNT_RE.finditer(text))
+    out = []
+    for k, m in enumerate(ms):
+        before = text[ms[k - 1].end() if k else 0:m.start()]
+        after = text[m.end():ms[k + 1].start() if k + 1 < len(ms) else len(text)]
+        out.append((int(m.group(1)), after if CLAIM_PRED_RE.match(after) else before))
+    return out
+
+
+def _ids(items) -> list[str]:
+    return [getattr(it, "id", str(it)) for it in items]
+
+
+def _claim_warnings(text: str, counts: dict, outside) -> list[str]:
+    """claim の文の名前（確認の表のクラス）と、渡した写真を照らす。名前が写っていない写真と、「N枚のうちM枚」の
+    M枚に入れなかった写真にも名前が写るときを返す。ラベル・予測で範囲を言う部分と、決めきれないと言う部分は照らさない。"""
+    vocab = set()
+    for items in counts.values():
+        for it in items:
+            if hasattr(it, "get"):
+                for col in ("classes", "unsure", "label_class"):
+                    vocab |= set(_split(it.get(col)))
+    if not vocab:
+        return []
+    out, said = [], {}
+    for n, part in _claim_parts(text):
+        if n not in counts or CLAIM_SCOPE_RE.search(part) or CLAIM_UNSURE_RE.search(part):
+            continue
+        names = [c for c in sorted(vocab, key=len, reverse=True) if c in part]
+        if not names:
+            continue
+        both = bool(CLAIM_ALL_RE.search(part))
+
+        def has(it, names=names, both=both):
+            hits = [present(it, c) for c in names]
+            return all(hits) if both else any(hits)
+
+        if CLAIM_NEG_RE.search(part):
+            bad = [it for it in counts[n] if not all(absent(it, c) for c in names)]
+            what = "写っている（か決めきれない）"
+        else:
+            bad = [it for it in counts[n] if not has(it)]
+            what = "写っていない（か決めきれない）"
+            said[n] = has
+        if bad:
+            out.append(f"{n}枚のうち{len(bad)}枚は、確認の表で{'・'.join(names)}が{what}（{', '.join(_ids(bad)[:6])}）。"
+                       "文が指す写真を確認の表から選び直す")
+    skip = set(_ids(outside or []))
+    for n2, has in said.items():
+        inner = set(_ids(counts[n2]))
+        for n1, items in counts.items():
+            if n1 <= n2 or not inner <= set(_ids(items)):
+                continue
+            rest = [i for i, it in zip(_ids(items), items) if i not in inner and i not in skip and has(it)]
+            if rest:
+                out.append(f"{n1}枚のうち{n2}枚に入れなかった写真のうち{len(rest)}枚にも、文の名前が写る（{', '.join(rest[:6])}）。"
+                           "文が指す写真をすべて数えるか、文の形容（色・大きさなど）で外した写真なら outside= に渡す")
+    return out
+
+
+def claim(text: str, counts: dict, outside=None) -> str:
+    """タイトルなどで写真の枚数を言う文を、数ごとの写真で確かめる（描画のコードで呼ぶ。数が合わなければ止まる）。
+
+        imgfig.claim("ラベルが犬の誤り12枚のうち7枚は、猫かオウムの写真だ",
+                     {12: dog_wrong, 7: [it for it in dog_wrong if imgfig.present(it, "猫") or imgfig.present(it, "オウム")]})
+
+    数ごとに、文が指す範囲の写真を確認の表から選び直して渡す（図や前の計算の一部を流用しない）。文の「N枚」はすべて
+    counts に入れる。文の名前（確認の表のクラス）が写っていない写真や、「N枚のうちM枚」のM枚に入れなかった写真にも
+    名前が写るときは、render_check が知らせる。文の形容（「白い猫」の白いなど）で外した写真は outside に渡す。
+    render_check は、claim の無いタイトルの枚数も知らせる。返り値は text。"""
+    nums = [int(n) for n in COUNT_RE.findall(text)]
+    counts = {int(n): list(items) for n, items in counts.items()}
+    missing = sorted(set(nums) - set(counts))
+    if missing:
+        raise AssertionError(f"「{text}」の {'・'.join(map(str, missing))} 枚に当たる写真を渡していない")
+    for n, items in counts.items():
+        if len(items) != n:
+            raise AssertionError(f"「{text}」の {n} 枚は、渡した写真では {len(items)} 枚。文が指す範囲の写真を確認の表から"
+                                 "選び直し、数か文を直す")
+    if os.environ.get("IMGFIG_REPORT"):
+        with open(os.environ["IMGFIG_REPORT"], "a", encoding="utf-8") as f:
+            f.write(json.dumps({"claim": text, "counts": {str(n): _ids(items) for n, items in counts.items()},
+                                "outside": _ids(outside or []), "warnings": _claim_warnings(text, counts, outside)},
+                               ensure_ascii=False) + "\n")
+    return text
+
+
+def slide_titles(html_path) -> list[str]:
+    """描画した revealjs の HTML から、スライドごとのタイトル（h2 の文字。無ければ空）を取り出す。"""
+    import html as _html
+
+    s = Path(html_path).read_text(encoding="utf-8")
+    out = []
+    for part in re.split(r"<section\b", s)[1:]:
+        m = re.search(r"<h2[^>]*>(.*?)</h2>", part, flags=re.S)
+        out.append(re.sub(r"\s+", " ", _html.unescape(re.sub(r"<[^>]+>", "", m.group(1)))).strip() if m else "")
+    return out
+
+
+def check_claims(html_path, report) -> list[str]:
+    """claim の文と写真の食い違いと、タイトルで写真の枚数を言うのに imgfig.claim で確かめていないスライドを知らせる。"""
+    recs = [json.loads(line) for line in open(report, encoding="utf-8") if line.strip()] \
+        if report and Path(report).exists() else []
+    recs = [r for r in recs if "claim" in r]
+    out = [f"「{r['claim']}」: {w}" for r in recs for w in r.get("warnings", [])]
+    said = {"".join(r["claim"].split()) for r in recs}
+    for sn, title in enumerate(slide_titles(html_path), 1):
+        if COUNT_RE.search(title) and "".join(title.split()) not in said:
+            out.append(f"スライド{sn}: タイトル「{title}」の枚数を imgfig.claim で確かめていない。文が指す範囲の写真を確認の表から"
+                       "選び直し、`imgfig.claim(タイトル, {数: 写真, …})` で数える（合わなければタイトルを直す）")
+    return out
+
+
 def check_counts(html_path, look_csv, data_dir=None, id_col: str = "id") -> list[str]:
     """スライドの文字の「N枚は〇〇の写真」「〇〇が写る N枚」が、ラベルで数えた枚数と同じで、確認の表で数えた枚数と
     違うとき知らせる（ラベルの数を、写真に写っているものの数として書いている）。「ラベルが〇〇」と書いていれば数えない。"""
@@ -282,10 +406,8 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
     if vague:
         out.append(f"確認の表: note に「不明」などとあるのに unsure 列が空の写真 {len(vague)} 枚（{', '.join(vague[:8])}"
                    f"{' ほか' if len(vague) > 8 else ''}）。決めきれない分類の対象を unsure 列に書く（「写っていない」と数えないため）")
-    for n, line in enumerate(open(report, encoding="utf-8"), 1):
-        if not line.strip():
-            continue
-        rec = json.loads(line)
+    figs = [json.loads(line) for line in open(report, encoding="utf-8") if line.strip()]
+    for n, rec in enumerate((r for r in figs if "claim" not in r), 1):
         todo = list(dict.fromkeys(c["id"] for c in rec.get("captions", []) if c["id"] in unchecked))
         if todo:
             out.append(f"図{n}: 分類の対象またはラベルのクラスが写っていないとした写真のうち、拡大で確かめていない "
@@ -1082,6 +1204,7 @@ def main() -> int:
         found = check_look(a.report, a.look)
         if a.html and Path(a.html).exists():
             found += check_counts(a.html, a.look, a.data)
+            found += check_claims(a.html, a.report)
         for line in found:
             print(f"WARNING {line}")
         print(f"確認の表との照合: 食い違い {len(found)} 件")
