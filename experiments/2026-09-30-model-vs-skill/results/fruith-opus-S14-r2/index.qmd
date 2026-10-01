@@ -1,0 +1,271 @@
+---
+title: "果物と野菜6種の分類で、間違えた写真を見る"
+subtitle: "画像分類チーム（エンジニア・アノテーター）向け"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列の数字は毎回見ているが、間違えた画像は見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-10-01） -->
+
+```{python}
+#| include: false
+import sys
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import csv
+import imgfig
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.size"] = 16
+plt.rcParams["font.family"] = imgfig.japanese_fonts()
+
+items = imgfig.load_look(imgfig.load_table("data/predictions.csv", "data/thumbs"), "data/look.csv")
+wrong = [it for it in items if it["true"] != it["pred"]]
+right = [it for it in items if it["true"] == it["pred"]]
+
+
+def kind(it):
+    """確認の表から、誤り1枚の型を決める（ラベルのクラスと予測のクラスが写っているか）。"""
+    lab, pred = it["true_ja"], it["pred_ja"]
+    if imgfig.absent(it, lab):
+        return "ラベルの誤り"
+    if not imgfig.present(it, lab) or not (imgfig.present(it, pred) or imgfig.absent(it, pred)):
+        return "決めきれない"
+    if imgfig.present(it, pred):
+        return "両方写る"
+    return "モデルの誤り"
+
+
+# 写真の説明は3行（写っているクラス／ほかに目立つもの／予測と確信度）に分け、文字を少し小さくする。
+# 1行に全角10字ほど並ぶと、隣の写真の説明と重なるため
+imgfig.Canvas.thumb.__defaults__ = (0.92, None, None, 0.13)
+imgfig.CAPTION_LINE = 0.19
+
+
+def cap(it, last=None):
+    names = imgfig.seen(it, note=False)
+    note = f"（{it['note']}）" if it.get("note") else ""
+    last = last or f"→{it['pred_ja']} {it.num('prob'):.2f}"
+    return "\n".join(x for x in (names, note, last) if x)
+
+
+def ids(xs):
+    return [it.id for it in xs]
+
+
+by_kind = {k: [it for it in wrong if kind(it) == k] for k in ("ラベルの誤り", "決めきれない", "両方写る", "モデルの誤り")}
+apple_peach = [it for it in wrong if {it["true_ja"], it["pred_ja"]} == {"リンゴ", "モモ"}]
+momo_wrong = [it for it in wrong if it["true_ja"] == "モモ"]
+tomato_wrong = [it for it in wrong if it["true_ja"] == "トマト"]
+a2p = [it for it in wrong if (it["true_ja"], it["pred_ja"]) == ("リンゴ", "モモ")]
+shown_before = set(ids(momo_wrong + tomato_wrong + a2p))
+rest = [it for it in wrong if it.id not in shown_before]
+seen_of = {it.id: imgfig.seen(it) for it in wrong}
+
+# タイトルに書いた数字の検算（データが変われば描画が止まる）
+assert len(items) == 240 and len(wrong) == 23
+assert round(len(apple_peach) / len(wrong), 1) == 0.4
+assert sum(len(v) for v in by_kind.values()) == len(wrong)
+assert len(shown_before) + len(rest) == len(wrong)
+imgfig.claim("混同行列では、誤り23枚の4割がリンゴとモモの取り違えに見える", {23: wrong})
+imgfig.claim("ラベルを直す候補は、写真と題名がラベルと合わない5枚だ", {5: by_kind["ラベルの誤り"]})
+```
+
+## 混同行列では、誤り23枚の4割がリンゴとモモの取り違えに見える
+
+```{python}
+#| fig-alt: "ラベルと予測の組ごとの誤りの枚数の横棒グラフ。リンゴ→モモ5枚とモモ→リンゴ4枚を橙で強調し、ほかの9組は1〜3枚。"
+pairs = imgfig.split_by(wrong, lambda it: (it["true_ja"], it["pred_ja"]))
+pairs = sorted(pairs, key=lambda kv: len(kv[1]))
+fig, ax = plt.subplots(figsize=(13.3, 4.0))
+names = [f"ラベル {t} → 予測 {p}" for (t, p), _ in pairs]
+vals = [len(g) for _, g in pairs]
+colors = [imgfig.ORANGE if {t, p} == {"リンゴ", "モモ"} else "#9aa4ae" for (t, p), _ in pairs]
+ax.barh(names, vals, color=colors, height=0.7)
+for y, v in enumerate(vals):
+    ax.text(v + 0.06, y, f"{v}枚", va="center", color=imgfig.INK)
+ax.set_xlim(0, max(vals) + 0.8)
+ax.set_xticks([])
+for s in ("top", "right", "bottom"):
+    ax.spines[s].set_visible(False)
+ax.tick_params(axis="y", length=0, labelsize=14)
+fig.tight_layout()
+plt.show()
+```
+
+- 正解率 `{python} f"{len(right) / len(items):.0%}"`（評価用 `{python} len(items)`枚のうち `{python} len(right)`枚が正しい）
+- 誤り `{python} len(wrong)`枚のうち、リンゴとモモの間の取り違えが `{python} len(apple_peach)`枚
+
+[データ: Open Images V7 の評価用写真、CLIP ViT-B/32 の zero-shot 分類。ラベルは人手確認済み]{.source}
+
+::: {.notes}
+いつも見ている数字から始める。正解率は9割、誤りは23枚。混同行列を見ると、リンゴとモモの取り違えが両方向で9枚あり、ここが一番の弱点に見える。
+この数字だけを見ると「リンゴとモモの見分けを強化する」という対策になりがち。今日はこの23枚を全部、写真で見ていく。
+:::
+
+## ラベルがモモの誤り6枚のうち5枚は、モモが写っていない写真だ
+
+```{python}
+#| fig-alt: "ラベルがモモの誤り6枚。左の5枚はモモが写っていない：棚に並ぶリンゴ、山積みのリンゴ、リンゴ2個の大写し、木になる黄色い実、赤紫の実の山。右の1枚はかびの跡があるモモ。"
+momo_label_err = [it for it in momo_wrong if imgfig.absent(it, "モモ")]
+momo_model = [it for it in momo_wrong if imgfig.present(it, "モモ")]
+imgfig.claim("ラベルがモモの誤り6枚のうち5枚は、モモが写っていない写真だ", {6: momo_wrong, 5: momo_label_err})
+momo_label_err.sort(key=lambda it: (not imgfig.present(it, "リンゴ"), it["pred_ja"]))
+momo_apple = [it for it in momo_label_err if imgfig.present(it, "リンゴ")]
+momo_none = [it for it in momo_label_err if not imgfig.seen(it, note=False)]
+assert len(momo_apple) + len(momo_none) == len(momo_label_err)
+imgfig.panels_figure([("ラベルの誤り（ラベルのモモが写っていない）", momo_label_err, imgfig.ORANGE),
+                      ("モデルの誤り", momo_model, imgfig.BLUE)], caption=cap, counts=True);
+```
+
+- `{python} len(momo_apple)`枚はリンゴの写真で、予測はどれもリンゴ（モデルは合っている）
+- `{python} len(momo_none)`枚は題名が「jardin mirabelles」「Delicious Plums」の実で、6種のどれでもない
+
+[ラベルがモモの誤り`{python} len(momo_wrong)`枚をすべて表示。写っているものは元の写真を目視で確認。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+混同行列の「モモ→リンゴ 4枚」のうち3枚は、写真を見ると普通のリンゴ。撮影者の題名も apple や manzanas（スペイン語でリンゴ）で、ラベルのほうが違っている。モデルはリンゴと答えていて、正しい。
+ブドウと予測した2枚は、題名が mirabelles と Plums の実で、6種のどれにも当たらない。
+モデルが本当に間違えたのは、かびの跡があるモモの1枚だけ。この5枚はモデルを直しても減らない。ラベルを直す候補として付録に一覧を置いた。
+:::
+
+## ラベルがトマトの誤り9枚のうち8枚は、トマトがほかの食べ物と写る
+
+```{python}
+#| fig-alt: "ラベルがトマトの誤り9枚。サラダ、チーズと並ぶ薄切り、ピクルスの横のトマト、タコス、サラダ、パンに載せた角切り、ラザニアの横、野菜の麺の上のトマト。最後の1枚はオリーブの器で、トマトが写るか決めきれない。"
+tomato_seen = [it for it in tomato_wrong if imgfig.present(it, "トマト")]
+tomato_unsure = [it for it in tomato_wrong if not imgfig.present(it, "トマト")]
+imgfig.claim("ラベルがトマトの誤り9枚のうち8枚は、トマトがほかの食べ物と写る",
+             {9: tomato_wrong, 8: [it for it in tomato_seen if it["scene"] == "ほかの食べ物と一緒"]})
+imgfig.grid_figure(tomato_seen + tomato_unsure, cols=5, caption=cap, color=imgfig.ORANGE);
+```
+
+- 予測は`{python} len({it['pred_ja'] for it in tomato_wrong})`クラスに分かれ、混同行列では1組`{python} max(sum(x['pred_ja'] == it['pred_ja'] for x in tomato_wrong) for it in tomato_wrong)`枚以下になる
+
+[ラベルがトマトの誤り`{python} len(tomato_wrong)`枚をすべて表示。説明の「?」は写っているかを写真から決めきれないもの]{.source}
+
+::: {.notes}
+トマトの誤り9枚は、混同行列では5つの予測に散らばるので目立たない。写真で見ると、8枚はサラダ、タコス、ラザニアの付け合わせなど、トマトがほかの食べ物と一緒に写っている。
+最後のオリーブの器は、赤い粒がトマトなのか、詰め物のパプリカなのかを写真からは決めきれなかった。
+ここからは推測：主役が料理なので、写真全体を1つのクラスに当てる分類では答えが揺れるのかもしれない。ただし正しく判定したトマトにもサラダの写真はある（付録）。料理の写真を評価の対象に含めるかは、モデルを変える前に決めることだと考えている。
+:::
+
+## リンゴ→モモの5枚のうち4枚は、モモが写らないモデルの誤りだ
+
+```{python}
+#| fig-alt: "ラベルがリンゴで予測がモモの5枚。モデルの誤り4枚は、木になる緑のリンゴ、木になる茶色のリンゴ、山積みのリンゴ、リンゴとブドウと柿の鉢。両方写る1枚は、リンゴとモモを盛った鉢。"
+a2p_model = [it for it in a2p if imgfig.absent(it, "モモ")]
+a2p_both = [it for it in a2p if imgfig.present(it, "モモ")]
+imgfig.claim("リンゴ→モモの5枚のうち4枚は、モモが写らないモデルの誤りだ", {5: a2p, 4: a2p_model})
+assert len(a2p_model) + len(a2p_both) == len(a2p)
+imgfig.panels_figure([("モデルの誤り（予測のモモは写っていない）", a2p_model, imgfig.ORANGE),
+                      ("両方写る（正解が2つある）", a2p_both, imgfig.BLUE)], caption=cap, counts=True);
+```
+
+- `{python} len(a2p_model)`枚は木になる緑と茶色のリンゴ、山積みのリンゴ、ブドウや柿と盛った鉢
+- 両方写る1枚は、リンゴとモモを一緒に盛った鉢で、予測のモモも写っている
+
+[ラベルがリンゴで予測がモモの`{python} len(a2p)`枚をすべて表示。写っているものは元の写真を目視で確認]{.source}
+
+::: {.notes}
+逆向きのリンゴ→モモは、モモ→リンゴと違ってラベルの誤りではない。どの写真にもリンゴが写っていて、うち4枚にはモモが写っていないのに、モデルがモモと答えている。
+木になる緑のリンゴ（題名 Dorsett Golden）と茶色のリンゴ（題名 Manzanos）、山積みのリンゴ、柿やレモンと一緒の鉢。
+残る1枚はリンゴとモモを盛った鉢で、どちらを答えても写っているものとしては正しい。1枚に1クラスという正解の付け方そのものの問題。
+混同行列では「リンゴとモモ」が1つの問題に見えたが、写真で分けると、ラベルの誤り・モデルの誤り・両方写る写真が混ざっている。
+:::
+
+## 残る3枚も、イチゴやリンゴがほかの食べ物と一緒に写る写真だ
+
+```{python}
+#| fig-alt: "残りの誤り3枚。イチゴ→モモはイチゴと紫の皮の果物、オレンジ色の角切りを載せたピザ。イチゴ→リンゴは鶏肉とオレンジとイチゴの皿。リンゴ→バナナは野菜と食料品の山の手前にリンゴ。"
+imgfig.claim("残る3枚も、イチゴやリンゴがほかの食べ物と一緒に写る写真だ",
+             {3: [it for it in rest if it["scene"] == "ほかの食べ物と一緒"]})
+imgfig.grid_figure(rest, cols=len(rest), caption=lambda it: cap(it, f"{it['true_ja']}→{it['pred_ja']}"), color=imgfig.ORANGE);
+```
+
+- イチゴはピザと鶏肉の皿に、リンゴは野菜や食料品の山の手前に写る
+- ピザのオレンジ色の角切りがモモかは、写真から決めきれない
+
+[残る`{python} len(rest)`枚をすべて表示。説明の3行目はラベル→予測。ここまでのスライドで誤り`{python} len(wrong)`枚をすべて見せた]{.source}
+
+::: {.notes}
+最後の3枚。ピザにはイチゴのほか、紫の皮の果物の薄切りとオレンジ色の角切りが載っている。角切りがモモかメロンかは写真からは決められなかった。
+鶏肉の皿のイチゴ、食料品の山の手前のリンゴも、主役はほかの食べ物。
+:::
+
+## 次の対策を決める前に、誤った写真を見て型に分けよう
+
+```{python}
+#| output: asis
+model = by_kind["モデルの誤り"]
+model_mixed = [it for it in model if it["scene"] == "ほかの食べ物と一緒"]
+model_main = [it for it in model if it["scene"] == "果物が主役"]
+assert len(model_mixed) + len(model_main) == len(model)
+rows = [
+    ("ラベルの誤り", len(by_kind["ラベルの誤り"]), "ラベルを直す。モデルは変えない"),
+    ("両方写る・決めきれない", len(by_kind["両方写る"]) + len(by_kind["決めきれない"]), "1枚1クラスの正解でよいかを決める"),
+    ("モデルの誤り：ほかの食べ物と写る", len(model_mixed), "料理の写真を対象に含めるか決める"),
+    ("モデルの誤り：果物が主役", len(model_main), "モデル側の対策を考える"),
+]
+print("| 誤りの型 | 枚数 | 対策の向き |\n|---|--:|---|")
+for name, n, todo in rows:
+    print(f"| {name} | {n}枚 | {todo} |")
+```
+
+- 混同行列の数字だけでは、この4つの型は見分けられない
+
+[型は元の写真を1枚ずつ見て分けた（確認の表 data/look.csv）。合計 `{python} len(wrong)`枚]{.source}
+
+::: {.notes}
+23枚を写真で分けると、型ごとに必要な対策が違う。ラベルの誤りはモデルを変えても減らない。両方写る写真は、正解の決め方の問題。料理の中のトマトは、そもそも評価の対象にするかを決める話。モデル側の対策が効くのは、果物が主役なのに間違えた4枚が中心になる。
+お願いしたいのは1つ：次の改善で対策を決める前に、間違えた写真を実際に見て、この表のように型に分けること。正解率と混同行列は、そのあとで見る。
+:::
+
+<!-- appendix -->
+
+## ラベルを直す候補は、写真と題名がラベルと合わない5枚だ
+
+```{python}
+#| output: asis
+fix = list(csv.DictReader(open("data/label_fix.csv", encoding="utf-8")))
+assert {r["id"] for r in fix} == set(ids(by_kind["ラベルの誤り"]))
+print("| ラベル → 直す先 | 写真 | 撮影者の題名 |\n|---|---|---|")
+for r in fix:
+    title = r["reason"].split("題名")[1].strip("「」")
+    print(f"| {r['label']} → {r['fixed_label']} | {seen_of[r['id']]} | {title} |")
+```
+
+[data/label_fix.csv。ラベルのクラスが写真のどこにも写っていないことを、全体と4区画の拡大で確認した]{.source}
+
+## 正しく判定したトマト31枚にも、サラダやパンに載せた料理の写真がある
+
+```{python}
+#| fig-alt: "正しく判定したトマト31枚から等間隔に選んだ12枚。市場の野菜、パンに載せたトマト、サラダ、卵料理の横のトマト、山積みや枝についたトマトなど。"
+tomato_ok = [it for it in right if it["true_ja"] == "トマト"]
+imgfig.claim("正しく判定したトマト31枚にも、サラダやパンに載せた料理の写真がある", {31: tomato_ok})
+tomato_show = imgfig.pick(tomato_ok, 12, how="even")
+imgfig.grid_figure(tomato_show, color=imgfig.BLUE);
+```
+
+[正しく判定したトマト`{python} len(tomato_ok)`枚から、表の順に等間隔で`{python} len(tomato_show)`枚を表示。比べる相手として示す]{.source}
+
+::: {.notes}
+料理の写真だから必ず間違えるわけではない。正しく判定したトマトにも、パンに載せたものやサラダがある。誤りの原因を料理と決めつけないための比較。
+:::
+
+## 誤りの型は、元の写真を1枚ずつ見て確認の表に記録して数えた
+
+- 分類: CLIP ViT-B/32 の zero-shot、6クラス。評価用写真は Open Images V7
+- 確認: 誤り`{python} len(wrong)`枚を元の写真（長辺1024px）で見て、写っているクラスをすべて data/look.csv に記録
+- ラベルのクラスが写っていないとした写真は、全体と4区画の拡大で探し直した
+- 写っているか決めきれないクラスは「?」とし、写っていない側に数えていない
+
+[メタデータ: data/meta.json。写真の出典の一覧: credits.html（各作者 CC BY 2.0）]{.source}

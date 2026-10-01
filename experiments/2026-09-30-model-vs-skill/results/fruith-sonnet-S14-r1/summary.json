@@ -1,0 +1,48 @@
+{
+  "run_id": "fruith-sonnet-S14-r1",
+  "task": "fruith",
+  "model": "sonnet",
+  "skill": "S14",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 701,
+  "num_turns": 66,
+  "cost_usd": 2.478,
+  "output_tokens": 75549,
+  "models_used": {
+    "claude-sonnet-5-5": 2.478
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/fruit-hidden-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/fruit-hidden-errors/credits.html",
+    "decks/fruit-hidden-errors/data/look.csv",
+    "decks/fruit-hidden-errors/index.qmd",
+    "decks/fruit-hidden-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 30,
+    "Read": 31,
+    "Write": 1,
+    "Edit": 3
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.58,
+    "seven_day": 0.14,
+    "status": "allowed"
+  },
+  "final_message": "`decks/fruit-hidden-errors/index.qmd` を作り、`quarto render` で `_output/decks/fruit-hidden-errors/index.html` が出ることを確かめました。lint の block は0件です。\n\n## 決めた前提(差し戻せます)\n- **聴衆**: 画像分類を運用するチーム(エンジニアとアノテーター)。数字は毎回見ているが、間違えた写真は見たことがない。\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間と枚数**: 10分。本編は6枚、付録は3枚(budget は私が 10÷1.5 で決めました)。\n- **承認**: 「途中の確認や承認は要らない」という委任で、骨子の承認待ちは省きました。委任の原文は `decided-by` に記録してあります。\n\n## タイトル一覧\n1. 誤り23枚のうち21枚は、ラベルがトマト・リンゴ・モモの写真だ\n2. ラベルがトマトの誤り9枚のうち8枚は、トマトがほかの食材と一緒に写る写真だ\n3. リンゴをモモと誤った5枚は、枝の実・密集した実・盛り合わせの写真だ\n4. ラベルがモモの誤り6枚のうち5枚には、モモが写っていない\n5. 誤り23枚のうち13枚は食べ物が複数写る写真で、5枚はラベルのクラスが写らない\n6. 次の改善で対策を決める前に、誤り23枚の写真を全員で見よう\n\n付録は、残りの誤り3枚、混同行列の数字の表、写真の確かめ方の3枚です。\n\n## 分かったこと\n- 正解率90.4%の裏の誤り23枚は、**全数を写真で見せています**(本編20枚、付録3枚)。\n- **ラベルがモモの誤り6枚のうち5枚には、モモが写っていません。** 3枚はリンゴだけが写っていて、モデルの予測のほうが写真に合います。残る2枚は、題名が mirabelles と Plums の実です。\n- **トマトの誤り9枚のうち8枚は、料理などほかの食材の中にトマトが写る写真です。** 残る1枚はオリーブの器で、赤い実がトマトか決めきれず、枚数には入れていません。\n\n## 確かめた方法\n- 誤り23枚を元の写真(長辺1024px)で1枚ずつ見て、写っているクラスを `data/look.csv` に記録しました。\n- ラベルのクラスが写らない、または決めきれないとした6枚は、全体と4区画の拡大でも探し直しました。\n- タイトルの枚数はコードで検算しています。`render_check.sh` の照合は食い違い0件でした。\n\n## 残っている点\n- lint の警告が1件あります。4枚目の「写っていない」という言い切りへの注意です。該当5枚は拡大で全数確認済みなので、そのままにしています。\n- 「ラベルの誤り」とは断定していません。元データの作成者への確認が要るため、ノートにもそう書きました。\n- 型の分け方(複数の食べ物・単独など)は私の目視で、`look.csv` の kind 列に残してあります。\n- 5枚目の「最初に確かめること」は私の提案で、対策そのものではありません。\n- Notion への保存、git の commit・push、公開はしていません。\n- `quarto render` が `.gitignore` に2行(`/.quarto/` と `**/*.quarto_ipynb`)を自動で足しました。コミットはしていないので、不要なら戻してください。\n- 第三者の写真なので、作者・出典の一覧(`credits.html`)をデッキに添えています。顔や読めるナンバープレートが写る写真は、見た範囲ではありませんでした。"
+}
