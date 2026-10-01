@@ -5,8 +5,9 @@ Claude Code の `slides` スキルが「聴衆・行動・持ち時間の確認 
 
 **公開ページ（Cloudflare）**: https://tool-slides.toshihiro-engineer.workers.dev （作ったデッキの一覧。revealjs・PDF・pptx）
 ／ 検証の一覧: https://tool-slides.toshihiro-engineer.workers.dev/experiments/2026-09-30-model-vs-skill/
+／ 設計の根拠にした調査（Notion、公開）: https://app.notion.com/p/Claude-3e6600398c038173abdcef9a34be981f
 
-設計の根拠: Notion「Claudeスライド作成｜実践事例と再現性の手法」（追記 2026-09-30）、要約は `.claude/skills/slides/references/evidence.md`。
+設計の根拠: Notion「[Claudeスライド作成｜実践事例と再現性の手法](https://app.notion.com/p/Claude-3e6600398c038173abdcef9a34be981f)」（追記 2026-09-30）、要約は `.claude/skills/slides/references/evidence.md`。
 
 ## 使い方
 
