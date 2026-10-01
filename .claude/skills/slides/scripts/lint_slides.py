@@ -43,10 +43,13 @@ LIMITS = {
     "hedge_per_slide_warn": 2,  # 1枚でヘッジ語 >= 2 で warning
     "hedge_ratio_warn": 0.3,   # デッキ全体でヘッジ語数 / 本編枚数 > 0.3 で warning
     "hook_max_blocks": 3,      # 同一セッションで連続 block する上限（無限ループ防止）
+    "confirm_title_chars_block": 56,   # 確認型（kind: confirm）のタイトルは2行まで（40px で1行約28字）
+    "check_chars_block": 40,   # 確認点（::: {.check}）は1行
 }
 
 REQUIRED_META = ("audience", "action", "minutes", "budget", "status")
 STATUSES = ("ghost", "approved")
+KINDS = ("", "confirm")        # confirm = 確認型（決めたことを伝えて齟齬を確かめる。design-doc スキル）
 
 # 体言止め・ラベル型タイトル
 LABEL_TITLE_RE = re.compile(
@@ -62,7 +65,7 @@ DIV_CLOSE_RE = re.compile(r"^\s*(:{3,})\s*$")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 HR_RE = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$")
 BULLET_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+\S")
-META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status|decided-by)\s*:\s*(.*?)\s*-->")
+META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status|decided-by|kind)\s*:\s*(.*?)\s*-->")
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)")
 PLOT_RE = re.compile(r"\b(plt|imgfig|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
 IMGFIG_RE = re.compile(r"\bimgfig\.\w+_figure\(")
@@ -77,6 +80,11 @@ HAND_COUNT_RE = re.compile(r"(?<![\d.,])\d+\s*枚")
 APPENDIX_RE = re.compile(r"<!--\s*appendix\s*-->")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 QUOTE_RE = re.compile(r"「[^」]*」")
+# 確認型と主張の表（design-doc スキル）
+CLAIMS_RE = re.compile(r"<!--\s*claims\s*:\s*([^>]*?)\s*-->")        # この枚の主張ID（claims.csv の id）
+CHECK_COMMENT_RE = re.compile(r"<!--\s*check\s*:\s*(.*?)\s*-->")     # ゴースト段階の確認点
+TBD_RE = re.compile(r"\[([^\]]*)\]\{[^}]*\.tbd\b[^}]*\}")               # まだ決めていない値（灰の点線の枠）
+UNDECIDED_WORDS_RE = re.compile(r"未決|未定|確認中|決めていない|要確認")
 
 
 # ---- 文字幅 ---------------------------------------------------------------
@@ -149,6 +157,10 @@ class Slide:
     comments: list[tuple[int, str]] = field(default_factory=list)  # HTMLコメント（evidence 等）
     images: list[tuple[int, str, str]] = field(default_factory=list)   # markdown 画像 (行番号, 代替テキスト, パス)
     figures: list[tuple[int, bool, bool]] = field(default_factory=list)  # 図を描くセル (行番号, fig-alt の有無, 画像を並べる図か)
+    checks: list[tuple[int, str]] = field(default_factory=list)      # ::: {.check} の中の行（確認型の確認点）
+    check_divs: int = 0                                                # ::: {.check} の個数
+    undecided: bool = False                                            # ::: {.undecided}（まだ決めていない点の一覧）がある
+    claims: list[str] = field(default_factory=list)                    # <!-- claims: C1,C2 --> の主張ID
 
 
 @dataclass
@@ -187,13 +199,16 @@ def parse_deck(path: Path) -> Deck:
     appendix_line = None
     in_code = None            # (fence, executable, echo)
     code_buf: list[tuple[int, str]] = []
-    div_stack: list[tuple[int, bool]] = []   # (colon数, notesか)
+    div_stack: list[tuple[int, str]] = []    # (colon数, 属性)
     in_comment = False
     preamble_line = None
     code_start = 0
 
     def in_notes() -> bool:
-        return any(n for _, n in div_stack)
+        return any(".notes" in a or a == "notes" for _, a in div_stack)
+
+    def in_check() -> bool:
+        return any(".check" in a for _, a in div_stack)
 
     for i in range(start, len(lines)):
         ln = i + 1
@@ -256,7 +271,12 @@ def parse_deck(path: Path) -> Deck:
         # fenced div
         m = DIV_OPEN_RE.match(raw)
         if m:
-            div_stack.append((len(m.group(1)), ".notes" in m.group(2) or m.group(2) == "notes"))
+            attrs = m.group(2)
+            div_stack.append((len(m.group(1)), attrs))
+            if cur and ".check" in attrs:
+                cur.check_divs += 1
+            if cur and ".undecided" in attrs:
+                cur.undecided = True
             continue
         m = DIV_CLOSE_RE.match(raw)
         if m and div_stack:
@@ -282,11 +302,32 @@ def parse_deck(path: Path) -> Deck:
 
         if cur and raw.strip():
             cur.body.append((ln, raw))
+            if in_check():
+                cur.checks.append((ln, raw))
             cur.images.extend((ln, mm.group(1).strip(), mm.group(2)) for mm in IMAGE_RE.finditer(raw))
         elif cur is None and raw.strip() and preamble_line is None:
             preamble_line = ln
 
+    for s in slides:
+        for _, c in s.comments:
+            for mm in CLAIMS_RE.finditer(c):
+                s.claims.extend(x for x in re.split(r"[,、\s]+", mm.group(1)) if x)
     return Deck(path, meta, slides, appendix_line, lines, preamble_line)
+
+
+def load_claims_for(deck_dir: Path):
+    """デッキのフォルダの claims.csv（主張の表。design-doc スキルの claims.py が正本）。無ければ (None, [])。"""
+    f = deck_dir / "claims.csv"
+    if not f.exists():
+        return None, []
+    try:
+        sys.path.insert(0, str(SKILL_DIR.parent / "design-doc" / "scripts"))
+        import claims as claims_mod  # type: ignore
+    except Exception:
+        return None, [f"claims.csv があるが design-doc スキルの claims.py を読めない: {f}"]
+    rows = claims_mod.load(f)
+    errors = [f"claims.csv: {e}" for e in claims_mod.validate(rows)]
+    return {r["id"]: r for r in rows}, errors
 
 
 # ---- 検査 -----------------------------------------------------------------
@@ -306,7 +347,7 @@ class Issue:
         return f"{self.severity.upper():7} {where} {self.rule}: {self.message}"
 
 
-def check_title(s: Slide) -> list[Issue]:
+def check_title(s: Slide, title_limit: float = LIMITS["title_chars_block"]) -> list[Issue]:
     out: list[Issue] = []
     if s.level == 0 or not s.title:
         out.append(Issue("block", s.line, s, "title-missing",
@@ -320,9 +361,9 @@ def check_title(s: Slide) -> list[Issue]:
                              f"タイトル{words}語 > {LIMITS['title_words_block']}語。結論だけ残して縮める"))
         return out
     n = zen_len(plain)
-    if n > LIMITS["title_chars_block"]:
+    if n > title_limit:
         out.append(Issue("block", s.line, s, "title-length",
-                         f"タイトル全角{n:g}字 > {LIMITS['title_chars_block']}字。so-whatと数字だけ残して縮める"))
+                         f"タイトル全角{n:g}字 > {title_limit:g}字。so-whatと数字だけ残して縮める"))
     if s.level == 1:
         return out   # セクション扉はラベル可（本編枚数には数える）
     core = plain.rstrip(SENTENCE_END_STRIP)
@@ -365,6 +406,16 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
         issues.append(Issue("block", deck.meta["status"][0], None, "gate-status",
                             f"status は {'/'.join(STATUSES)} のどれか: {status!r}"))
 
+    kind = deck.meta.get("kind", (0, ""))[1]
+    if kind not in KINDS:
+        issues.append(Issue("block", deck.meta["kind"][0], None, "gate-kind", f"kind は confirm（確認型）だけ: {kind!r}"))
+    confirm = kind == "confirm"
+    title_limit = LIMITS["confirm_title_chars_block"] if confirm else LIMITS["title_chars_block"]
+    has_undecided = any(s.undecided for s in deck.slides)
+    claims, claim_errors = load_claims_for(deck.path.parent)
+    for e in claim_errors:
+        issues.append(Issue("block", 1, None, "claims-file", e))
+
     if deck.preamble_line:
         issues.append(Issue("block", deck.preamble_line, None, "preamble",
                             "最初の `##` より前の本文・コードセルは空のスライドになる。1枚目の中へ移す（計算だけのセルは `#| include: false` なら可）"))
@@ -376,11 +427,20 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
 
     hedge_total = 0
     for s in deck.slides:
-        issues.extend(check_title(s))
+        issues.extend(check_title(s, title_limit))
 
-        # placeholder はどこにあっても block（タイトル・本文・ノート・コード）
+        # placeholder はどこにあっても block（タイトル・本文・ノート・コード）。
+        # まだ決めていない値 `[…]{.tbd}` は、1枚目に「まだ決めていない点」の一覧があるときだけ許す（未決を隠さず示す型）
         texts = [(s.line, s.title)] + s.body + s.notes + s.code
+        tbd_lines = [ln for ln, t in texts if TBD_RE.search(t)]
         for ln, t in texts:
+            if TBD_RE.search(t):
+                if not has_undecided:
+                    issues.append(Issue("block", ln, s, "tbd-without-list",
+                                        "まだ決めていない値 `[…]{.tbd}` を置くなら、1枚目に `::: {.undecided}` で"
+                                        "「まだ決めていない点」の一覧も置く（design-doc/references/confirm_deck.md）"))
+                    continue
+                t = TBD_RE.sub("", t)
             for p in ng.get("placeholder", []):
                 if p.search(t):
                     issues.append(Issue("block", ln, s, "placeholder",
@@ -394,6 +454,36 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
 
         visible = [(ln, strip_md(t)) for ln, t in s.body]
         visible = [(ln, t) for ln, t in visible if t]
+
+        # 確認型: 1枚＝決めたこと1つ＋確認点1つ（ゴースト段階は <!-- check: --> のコメントでよい）
+        if confirm and not s.appendix and status != "ghost":
+            if s.check_divs == 0:
+                issues.append(Issue("block", s.line, s, "check-missing",
+                                    "確認型は各枚に確認点を1つ置く: `::: {.check}` 聴衆に確かめてほしい点を1行 `:::`"))
+            elif s.check_divs > 1:
+                issues.append(Issue("block", s.checks[0][0] if s.checks else s.line, s, "check-multiple",
+                                    f"確認点が{s.check_divs}個。1枚に1つにする（決めたことが2つなら枚を分ける）"))
+            else:
+                n = sum(zen_len(strip_md(t)) for _, t in s.checks)
+                if n > LIMITS["check_chars_block"]:
+                    issues.append(Issue("block", s.checks[0][0], s, "check-length",
+                                        f"確認点 全角{n:g}字 > {LIMITS['check_chars_block']}字。確かめてほしい点だけを1行で"))
+
+        # 主張の表（claims.csv）との対応。未決の主張を載せる枚は、未決と分かる形にする
+        if claims is not None:
+            unknown = [c for c in s.claims if c not in claims]
+            if unknown:
+                issues.append(Issue("block", s.line, s, "claims-unknown", f"claims.csv にない主張ID: {', '.join(unknown)}"))
+            pending = [c for c in s.claims if c in claims and claims[c]["status"] == "未決"]
+            shown = bool(tbd_lines) or s.undecided or any(
+                UNDECIDED_WORDS_RE.search(strip_md(t)) for _, t in [(s.line, s.title)] + s.body)
+            if pending and not shown:
+                issues.append(Issue("block", s.line, s, "claims-undecided-hidden",
+                                    f"未決の主張（{', '.join(pending)}）を載せる枚は、未決と分かる形にする"
+                                    "（`[…]{.tbd}`、`::: {.undecided}`、または「確認中」「未決」の語）"))
+            if confirm and not s.appendix and not s.claims and status != "ghost":
+                issues.append(Issue("warning", s.line, s, "claims-missing",
+                                    "`<!-- claims: C1,C2 -->` で、この枚の主張の出所（claims.csv の id）を記録する"))
         # 「」内は語の引用（例示）なので NG 語検査から外す
         unquoted = [(ln, QUOTE_RE.sub("", t)) for ln, t in visible + [(s.line, strip_md(s.title))]]
         for ln, t in unquoted:
@@ -489,6 +579,8 @@ def title_list(deck: Deck) -> str:
     out.append(f"本編 {len(main)} / budget {budget}")
     if "decided-by" in deck.meta:
         out.append(f"決めた人: {deck.meta['decided-by'][1]}")
+    if deck.meta.get("kind", (0, ""))[1]:
+        out.append(f"型: {deck.meta['kind'][1]}（1枚＝決めたこと1つ＋確認点1つ）")
     in_appendix = False
     for s in deck.slides:
         if s.appendix and not in_appendix:
@@ -499,6 +591,12 @@ def title_list(deck: Deck) -> str:
         line = f"{s.index:2}. {s.title or '(タイトルなし)'}"
         if ev:
             line += f"\n      証拠予定: {ev}"
+        chk = " ".join(strip_md(t) for _, t in s.checks) or next(
+            (CHECK_COMMENT_RE.search(c).group(1) for _, c in s.comments if CHECK_COMMENT_RE.search(c)), "")
+        if chk:
+            line += f"\n      確認点: {chk}"
+        if s.claims:
+            line += f"\n      主張: {', '.join(s.claims)}"
         out.append(line)
     return "\n".join(out)
 

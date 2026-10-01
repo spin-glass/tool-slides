@@ -28,8 +28,8 @@ format:
     width: 1280
     height: 720
     margin: 0.06
-    fig-width: 10
-    fig-height: 4.2
+    fig-width: 13.3   # 幅いっぱい（写真8列×2段で1枚153px）。文字＋図のスライドは max_height_in で高さだけ縮める
+    fig-height: 4.4
     embed-resources: false
   pptx:
     slide-level: 2

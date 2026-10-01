@@ -1,0 +1,13 @@
+---
+title: "一覧なしで tbd を使う"
+---
+
+<!-- audience: 上司 -->
+<!-- action: 承認する -->
+<!-- minutes: 5 -->
+<!-- budget: 3 -->
+<!-- status: approved -->
+
+## 上限は [要確認]{.tbd}% にする
+
+- 本文

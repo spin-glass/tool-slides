@@ -23,6 +23,8 @@ claude   # 「/slides 〜の発表資料を作って」
 | 全枚スクショ | `.claude/skills/slides/scripts/render_check.sh decks/<name>` → `decks/<name>/_check/slide-NN.png` |
 | 出力 | `QUARTO_PYTHON=.venv/bin/python quarto render decks/<name>/index.qmd`（`--to revealjs` / `pptx` / `beamer`） |
 | 群ごとに画像を並べた図を作る | `.venv/bin/python .claude/skills/slides/scripts/imgfig.py groups --table table.csv --thumbs thumbs/ --by true,pred --out groups.png`（ほかに `matrix`、閾値用の `moved`） |
+| 設計書の検査（章参照・章ごとの図・Mermaid を PNG に） | `python3 .claude/skills/design-doc/scripts/check_doc.py --render decks/<name>/design/<doc>.md` → `design/_check/<doc>-fig-NN.png` |
+| 主張の表の検査 | `python3 .claude/skills/design-doc/scripts/claims.py decks/<name>/claims.csv` |
 | テスト | `.venv/bin/python -m unittest discover -s tests` |
 
 出力先は `_output/decks/<name>/`。新しいデッキは `decks/_template/` をコピーする。
@@ -37,6 +39,12 @@ claude   # 「/slides 〜の発表資料を作って」
   `uv run --no-project --python 3.12 --with torch==2.14.0 --with transformers==5.16.1 --with pillow --with numpy python decks/<name>/prepare.py all`
 - 写真の図は YAML に `fig-format: jpeg` と `fig-dpi: 200` を書く（PNG の約1/4の重さになり、図がスライドの空きに合わせて伸びる）。
 - 第三者の画像は、作者・出典の一覧（`credits.html`）を YAML の `resources:` で一緒に公開する。公開に向かない画像は目視で外し、`exclude.csv` に理由を残す。
+
+## 設計書と、決めたことを確かめるスライド（design-doc スキル）
+
+設計書の改稿と意思決定者向けスライドを、同じ主張の表から作る。原資料 → `claims.csv`（主張ID・原文の箇所・状態: 事実／参考値／方針／想定／提案／決定／未決）→ 設計書（`design/*.md`、Markdown＋Mermaid。VSCode のプレビューと Notion で表示）／確認型スライド（`index.qmd`）→ 原文との照合。
+意思決定者には「決めてもらう」のではなく「決めたことを伝えて齟齬を確かめる」（本人の決定 2026-10-01）。確認型は1枚＝決めたこと1つ＋確認点1つで、`<!-- kind: confirm -->` を書くと lint が確認点の帯（`::: {.check}`）・まだ決めていない値（`[要確認]{.tbd}`）・主張の表との対応を検査する。
+見本は `decks/2026-10-01-invoice-ocr-confirm/`（架空の題材: 請求書を OCR で読み取る方式への切替。確認型5枚＋付録3枚、運用・移行設計の組み替え案、主張19件）。設計ファイルは Claude Design「スライド型見本」（2026-10-01）。
 
 ## 公開（Cloudflare）
 
@@ -57,6 +65,9 @@ theme/custom.scss                 Noto Sans JP、日本語の禁則
 filters/strip-comments.lua        lint 用の HTML コメントを出力から除く（空スライド防止）
 decks/<yyyy-mm-dd>-<name>/index.qmd   1発表 = 1フォルダ
 .claude/skills/slides/            スキル本体・規約・例・NG辞書・lint・スクショ・画像の図（imgfig.py）
+.claude/skills/design-doc/        設計書と確認型スライド: 主張の表（claims.py）・設計書の検査（check_doc.py）・規約・雛形
+decks/<name>/claims.csv, design/  （設計書の案件のみ）主張の表と、組み替えた設計書（Markdown＋Mermaid）
+decks/_template_confirm/          確認型スライドの雛形（kind: confirm）
 decks/<name>/prepare.py, data/    （画像のデッキのみ）前処理と、その結果のスコア・サムネイル・出典
 scripts/publish.sh, wrangler.jsonc  全デッキを出力して Cloudflare に公開
 tests/                            lint と imgfig のテスト、lint が block すべき違反サンプル（fixtures/）
@@ -75,6 +86,7 @@ hook は git で未コミットの変更がある `decks/**/*.qmd` だけを検�
 
 ## 既知の制約
 
+- 文字の大きさ（本文28px・タイトル40px・表24px・注記16px）と図の幅（`fig-width: 13.3`）は、3デッキ28枚の棚卸し（Claude Design「スライド型見本」2026-09-30）で決めた値。確認型と設計書の組み替えの効果は未測定（実際に適用した題材は1件、見本は架空の題材）。
 - lint の日本語閾値（本文250字・タイトル40字・15行）は初期値。2デッキ作った時点ではどの枚も上限に届かず、据え置いている。タイトルは全角34字を超えると2行になる。
 - 画像の図は、サムネイルがスライド上で150px以上（1つの図に12〜16枚まで）が目安。100pxを下回ると中身が読めない。`render_check.sh` が図ごとの大きさの目安を表示する。当初の目安（約100px、48枚まで）では、盲検評価で「画像が小さい」と指摘された（`experiments/2026-09-30-model-vs-skill/`）。見本デッキの4枚目（線の間の46枚の全数、1枚約90px）は、全数を見せること自体が主張なので残してあるが、新しい目安より小さい。
 - pptx は、図のあとに文字があるスライドを pandoc が2枚に分ける。pptx が主目的のデッキでは出典をノートへ移す。

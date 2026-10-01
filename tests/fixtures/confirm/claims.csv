@@ -1,0 +1,4 @@
+id,doc,section,claim,status,evidence,owner,target,note
+C1,運用設計,§2,手入力から OCR に変える,決定,本人 2026-10-01,経理課,both,
+C2,運用設計,§8,3か月・4段階で移す,想定,,経理課,both,
+C3,,,「保留」の上限の数値,未決,,経理課長,both,

@@ -57,7 +57,7 @@ from matplotlib.patches import Rectangle
 from PIL import Image
 
 BLUE = "#0b5cad"
-ORANGE = "#d9480f"           # 青と橙は色覚の違いがあっても区別しやすい
+ORANGE = "#b35900"           # 青と橙は色覚の違いがあっても区別しやすい。theme/custom.scss の $accent-2 と同じ値
 TEAL = "#0c8599"
 PURPLE = "#862e9c"
 PALETTE = [BLUE, ORANGE, TEAL, PURPLE]

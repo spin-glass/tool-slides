@@ -7,13 +7,21 @@ $presentation-heading-font: $font-family-sans-serif;
 $presentation-heading-font-weight: 700;
 $presentation-heading-text-transform: none;
 $presentation-heading-line-height: 1.35;
-$presentation-font-size-root: 32px;
-$presentation-line-height: 1.6;
-$presentation-h2-font-size: 1.25em;   // アクションタイトル（完全文）が2行に収まる大きさ
 
-$body-color: #1f2328;
-$link-color: #0b5cad;
+// 値の出所: Claude Design「スライド型見本」（3デッキ28枚の棚卸し、2026-09-30）。
+// 本文 32px×行間1.6（51px/行）では、2行タイトル＋箇条書き5つで約500px になり図の入る余地がない。
+$presentation-font-size-root: 28px;   // 本文 28px
+$presentation-line-height: 1.5;       // 42px/行
+$presentation-h2-font-size: 40px;     // アクションタイトル（全角34字で2行の目安）。root を下げても据え置く
+
+$body-color: #1f2328;                 // 本文 15.8:1
 $presentation-heading-color: #111418;
+$link-color: #0b5cad;                 // 群A・強調 6.9:1
+$accent-2: #b35900;                   // 群B（橙）4.9:1。青と並べても色覚の違いで区別できる
+$accent-2-text: #8a4500;              // 橙の見出し文字
+$muted: #57606a;                      // 出典・付録・番号 6.4:1（旧 #6e7781 は16pxで4.6:1と下限すれすれ）
+$series-gray: #9aa4ae;                // 強調しない系列・枠線（図のみ。白地の文字には使わない: 2.6:1）
+$line: #d0d7de;                       // 表の横線・区切り
 
 /*-- scss:rules --*/
 .reveal {
@@ -27,33 +35,225 @@ $presentation-heading-color: #111418;
 .reveal h2 {
   text-align: left;
   letter-spacing: 0.01em;
+  margin: 0 0 32px;
+}
+
+.reveal h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: $muted;
+  margin: 0 0 12px;
 }
 
 .reveal .slides section {
   text-align: left;
 }
 
-.reveal ul li {
-  margin-bottom: 0.35em;
+.reveal ul,
+.reveal ol {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.reveal ul li,
+.reveal ol li {
+  margin-bottom: 14px;   // 0.5em
 }
 
 // 出典・注記は小さく下寄せ
 .reveal .source {
   position: absolute;
+  left: 56px;   // 左下のメニューアイコンと重ねない
   bottom: 0;
-  left: 1.8em;   // 左下のメニューアイコンと重ねない
-  font-size: 0.5em;
-  color: #6e7781;
+  font-size: 16px;
+  line-height: 1.4;
+  color: $muted;
 }
 
 // <!-- appendix --> より後のスライド（filters/strip-comments.lua が appendix クラスを付ける）。
-// 発表の流れの外であることが聴衆に分かるよう、タイトルの上に「付録」と出す
+// 発表の流れの外であることが聴衆に分かるよう、タイトルの上に「付録」と出す。
+// em だと .smaller のスライドでさらに縮んで約10px になり見えないため、px で固定する
 .reveal .slides section.appendix::before {
   content: "付録";
   display: block;
-  font-size: 0.5em;
+  font-size: 16px;
   font-weight: 700;
-  color: #6e7781;
+  color: $muted;
   letter-spacing: 0.1em;
-  margin-bottom: 0.1em;
+  margin-bottom: 4px;
+}
+
+// 表: 24px・行の高さ56px・横線1px
+.reveal table {
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+.reveal table th,
+.reveal table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid $line;
+}
+
+// 右下の枚数。帯や出典と同じ 16px の灰
+.reveal .slide-number {
+  font-size: 16px;
+  color: $muted;
+  background: none;
+  font-variant-numeric: tabular-nums;
+  right: 40px;
+  bottom: 14px;
+}
+
+// ---- 確認型（決めたことを伝えて齟齬を確かめる。1枚＝決めたこと1つ＋確認点1つ）----
+// 下端の「確認点」の帯。24px、左に青の縦線 4px
+.reveal .check {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 56px;
+  margin: 0;
+  border-left: 4px solid $link-color;
+  padding: 4px 0 4px 16px;
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+.reveal .check::before {
+  content: "確認点　";
+  font-weight: 700;
+  color: $link-color;
+}
+
+.reveal .check p {
+  display: inline;
+  margin: 0;
+}
+
+// まだ決めていない値。数字が取れるまで灰の点線の枠で残す（埋め忘れの placeholder とは区別する）
+.reveal .tbd {
+  display: inline-block;
+  border: 2px dashed $series-gray;
+  padding: 0 10px;
+  color: $muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.reveal .tbd::before {
+  content: "［";
+}
+
+.reveal .tbd::after {
+  content: "］";
+}
+
+.reveal .big {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+// まだ決めていない点の一覧（確認型の1枚目）。段落1つ＝1項目
+.reveal .undecided {
+  font-size: 20px;
+  line-height: 1.45;
+}
+
+.reveal .undecided::before {
+  content: "まだ決めていない点";
+  display: block;
+  font-weight: 700;
+  color: $muted;
+  margin-bottom: 10px;
+}
+
+.reveal .undecided p {
+  border: 2px dashed $series-gray;
+  padding: 6px 12px;
+  margin: 0 0 10px;
+  color: $muted;
+}
+
+// 現行→変更後の対比。右の列（変更後）に青の縦線
+.reveal .pair .column:last-child {
+  border-left: 4px solid $link-color;
+  padding-left: 20px;
+}
+
+.reveal .pair .column:last-child h3 {
+  color: $link-color;
+}
+
+.reveal .pair p {
+  margin: 0 0 12px;
+  font-size: 24px;
+  line-height: 1.45;
+}
+
+.reveal .arrow {
+  display: block;
+  text-align: center;
+  font-size: 40px;
+  color: $link-color;
+  padding-top: 60px;
+}
+
+// 条件を満たす／満たさないときの結果
+.reveal .outcome {
+  border-left: 4px solid $series-gray;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+.reveal .outcome p {
+  margin: 0;
+}
+
+.reveal .outcome p:first-child {
+  font-size: 18px;
+  font-weight: 700;
+  color: $muted;
+}
+
+.reveal .outcome p:last-child {
+  font-weight: 700;
+}
+
+.reveal .outcome.accent {
+  border-left-color: $link-color;
+}
+
+.reveal .outcome.accent p:first-child {
+  color: $link-color;
+}
+
+// 担当の札（上辺に青の線）
+.reveal .roles .column {
+  border-top: 3px solid $link-color;
+  padding-top: 8px;
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+.reveal .roles p {
+  margin: 0;
+}
+
+.reveal .roles .column p:first-child {
+  font-weight: 700;
+}
+
+.reveal .muted {
+  color: $muted;
+}
+
+.reveal .small {
+  font-size: 20px;
+  line-height: 1.45;
+}
+
+.reveal .accent-2 {
+  color: $accent-2;
 }
