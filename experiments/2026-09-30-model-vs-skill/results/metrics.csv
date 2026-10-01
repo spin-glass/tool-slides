@@ -21,6 +21,10 @@ change-opus-S0-r1,change,opus,S0,1,0,53,953,2.103,dataviz,0,True,True,10,2,4,0.7
 change-opus-S4-r1,change,opus,S4,1,0,53,670,2.141,,0,True,True,6,2,0,1.0,28.5,78,132,132,1.0,3,0,0,6,4,26,6
 change-sonnet-S0-r1,change,sonnet,S0,1,0,69,581,1.103,,0,True,True,9,2,3,0.89,32.0,202,297,202,1.7,5,0,0,9,4,54,6
 change-sonnet-S4-r1,change,sonnet,S4,1,0,47,523,1.527,,0,True,True,6,1,0,1.0,31.0,121,158,158,2.3,3,0,0,6,6,47,5
+farmh-opus-S12-r1,farmh,opus,S12,1,0,94,957,4.761,,0,True,True,5,4,0,1.0,30.5,99,116,116,2.0,3,0,0,5,5,35,6
+farmh-opus-S12-r2,farmh,opus,S12,2,0,111,1140,7.044,,0,True,True,6,5,0,1.0,32.0,105,140,140,1.8,3,0,0,6,5,39,9
+farmh-sonnet-S12-r1,farmh,sonnet,S12,1,0,86,1004,3.424,,0,True,True,6,4,0,1.0,31.5,125,153,153,2.3,3,0,0,6,6,49,6
+farmh-sonnet-S12-r2,farmh,sonnet,S12,2,0,100,718,3.474,,0,True,True,6,3,0,1.0,33.0,126,150,150,3.0,3,0,0,6,5,40,8
 gate-fable-S0-nat-r1,under,fable,S0,1,0,14,160,1.831,,0,True,True,6,1,0,1.0,31.5,90,184,184,1.5,4,0,0,6,5,25,2
 image-fable-S0-r1,image,fable,S0,1,0,30,246,2.874,dataviz,0,True,True,6,1,0,1.0,34.0,178,228,178,0.0,0,0,0,6,5,23,6
 image-fable-S0-r2,image,fable,S0,2,0,46,295,3.136,,0,True,True,7,2,1,1.0,31.0,197,310,310,0.4,3,0,0,7,4,28,1

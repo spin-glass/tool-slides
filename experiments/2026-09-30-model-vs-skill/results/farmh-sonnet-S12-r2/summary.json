@@ -1,0 +1,47 @@
+{
+  "run_id": "farmh-sonnet-S12-r2",
+  "task": "farmh",
+  "model": "sonnet",
+  "skill": "S12",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 718,
+  "num_turns": 100,
+  "cost_usd": 3.474,
+  "output_tokens": 87681,
+  "models_used": {
+    "claude-sonnet-5-5": 3.474
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-hidden-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-hidden-errors/credits.html",
+    "decks/farm-hidden-errors/data/look.csv",
+    "decks/farm-hidden-errors/index.qmd",
+    "decks/farm-hidden-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 33,
+    "Read": 65,
+    "Write": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.19,
+    "seven_day": 0.94,
+    "status": "allowed_warning"
+  },
+  "final_message": "`decks/farm-hidden-errors/index.qmd` ができました。lint は block 0・warning 0 で、`quarto render` で HTML が出ます（`_output/decks/farm-hidden-errors/index.html`）。全10枚（タイトル、本編6、付録3）を画像にして目で確認しました。Notion・git の commit/push・公開はしていません。`.gitignore` に Quarto が2行（`.quarto/`、`*.quarto_ipynb`）を自動で足しており、未コミットで残っています。\n\n## 決めた前提（差し戻す場合はここ）\n\n- **聴衆**: 画像分類を運用するエンジニアとアノテーター。混同行列の数字は見ているが、間違えた画像は見ていない。\n- **行動**: 次の改善で対策を決める前に、間違えた画像を実際に見る。\n- **持ち時間**: 10分。本編は 10÷1.5 で 6枚にしました。\n\n## タイトル（本編6枚）\n\n1. 誤り40枚のうちモデルの誤りは15枚で、8枚は正解の動物が写っていない\n2. ヤギを鹿と間違えた10枚は、牧場のヤギではなく野生種の写真だ\n3. ヤギ→羊の6枚は、ヤギが1枚、羊の群れが2枚、決めきれない写真が3枚だ\n4. 牛→羊の5枚に牛は写っておらず、羊4枚とヤギ1枚の写真だ\n5. 馬を牛と間違えた4枚は、群れの中か柵越しに写る馬だ\n6. 次の改善を決める前に、間違えた画像40枚を並べて実際に見よう\n\n付録3枚は、本編で見せなかった誤り13枚（2枚に分割）と、確認方法です。\n\n## 分かったこと\n\n- 誤り40枚のうちヤギが21枚で、最多のヤギ→鹿の10枚は、牧場のヤギではなく野生種でした。\n- 牛→羊の5枚には牛が写っていません。ラベルを見直す対象で、モデルを直しても牛とは判定されません。\n- 「決めきれない」は17枚です。ヤギ・羊・鹿のどれか、写真からは決めきれないものです。\n- 誤り40枚のうち、正解の動物が写っていない（8枚）と決めきれない（17枚）を除いた、モデルの誤りは15枚です。\n\n## 注意点\n\n- 写っている動物の判定は、私が元の写真（長辺1024px）を1枚ずつ見て付けた目視です。40枚すべてを、全体と4区画の拡大でも確認しました。結果は `data/look.csv` に残してあります。\n- 種の名前は見た目から当てていません。撮影者の題名にある名前（ibex、chamois など）を、そのまま出しています。\n- 区別がつきにくい動物は「ヤギ?」のように「決めきれない」として数えています。そのぶん「モデルの誤り」は少なめです。\n- 馬→牛の1枚は、右端の柵の奥に小さく白い動物が写っていました。ヤギか牛か決めきれないので、その1枚はモデルの誤りに数えていません。\n- 誤りの原因についての推測は、スライドに書かず、ノートに推測と断って書いています。\n- 写真は CC BY 2.0 です。作者と出典の一覧 `credits.html` は、`resources:` に登録してあります。\n- 顔やナンバープレートの確認は、公開しない前提なので行っていません。\n\n作ったのは次の4つです。\n\n- `decks/farm-hidden-errors/index.qmd`\n- `decks/farm-hidden-errors/data/look.csv`\n- `decks/farm-hidden-errors/credits.html`\n- `decks/farm-hidden-errors/make_credits.py`"
+}

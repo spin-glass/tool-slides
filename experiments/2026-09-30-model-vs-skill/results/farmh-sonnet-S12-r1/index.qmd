@@ -1,0 +1,295 @@
+---
+title: "誤りの画像を見ると、混同行列の数字の中身が分かる"
+subtitle: "牧場の6種を分類した240枚のうち、誤った40枚を実際の写真で見る"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列の数字は毎回見ているが、どんな画像で間違えているかは見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-10-01。聴衆・行動・持ち時間は本人の指定。budget は持ち時間÷1.5の目安で6、骨子は自分で決めた） -->
+
+```{python}
+#| include: false
+import csv
+import sys
+from collections import Counter
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import imgfig
+
+items = imgfig.load_table("data/predictions.csv", "data/thumbs")
+items = imgfig.load_look(items, "data/look.csv")          # 元の写真で確かめた表（誤り40枚）
+with open("data/credits.csv", newline="", encoding="utf-8") as f:
+    photo_title = {r["id"]: r["title"] for r in csv.DictReader(f)}   # 撮影者の題名（原文）
+
+wrong = [it for it in items if it["true"] != it["pred"]]
+right = [it for it in items if it["true"] == it["pred"]]
+N, n_wrong, n_right = len(items), len(wrong), len(right)
+by_true = Counter(it["true_ja"] for it in right)
+goat = [it for it in wrong if it["true_ja"] == "ヤギ"]
+goat_ok = [it for it in right if it["true_ja"] == "ヤギ"]
+g_pairs = imgfig.split_by(goat, lambda it: it["pred_ja"])           # ヤギ→予測クラス（枚数の多い順）
+pairs = imgfig.split_by(wrong, lambda it: (it["true_ja"], it["pred_ja"]))
+by_prob = lambda g: sorted(g, key=lambda it: -it.num("prob"))        # 確信度の高い順
+
+
+def has_title(it, words):
+    return any(w in photo_title[it.id].lower() for w in words)
+
+
+def cap(it):
+    """写真の下: 写っている対象 / 見た目の一言 / →予測クラスと確信度"""
+    names = imgfig.seen(it, note=False) or "6種なし"
+    return f"{names}\n{it['note']}\n→{it['pred_ja']} {it.num('prob'):.2f}"
+
+
+def cap2(it):
+    """群の見出しに予測クラスがあるときの、2行の説明"""
+    return f"{imgfig.seen(it, note=False) or '6種なし'}\n{it['note']}"
+
+
+# ---- タイトルに書いた数字の検算 ----
+assert (N, n_right, n_wrong) == (240, 200, 40) and round(100 * n_right / N) == 83
+assert len(goat) == 21 and len(goat) > n_wrong / 2                    # 誤りの過半数はヤギ
+g_deer = dict(g_pairs)["鹿"]
+g_other = [it for it in goat if it["pred_ja"] in ("羊", "牛", "馬")]
+assert len(g_deer) == 10 and sum(it["scene"] in ("斜面", "岩場") for it in g_deer) == 9
+assert len(g_other) == 11 and sum(has_title(it, ("sheep", "bighorn")) for it in g_other) == 3
+cattle = sorted((it for it in wrong if it["true_ja"] == "牛"), key=lambda it: not imgfig.absent(it, "牛"))
+no_cattle = [it for it in cattle if imgfig.absent(it, "牛")]
+assert len(cattle) == 6 and len(no_cattle) == 5
+rest = [it for it in wrong if it["true_ja"] in ("馬", "羊", "ブタ", "鹿")]
+outside = [it for it in rest if it["scene"] == "牧場外"]
+assert len(rest) == 13 and len(outside) == 5 and len(goat_ok) == 19
+k_shown = 1                                                          # 組ごとに見せる枚数
+assert len(g_pairs) == 4 and k_shown == 1
+rest_in = [it for it in rest if it not in outside]
+assert len(rest_in) == 8
+n_goat_all = len(goat) + len(goat_ok)
+others = [v for k, v in by_true.items() if k != "ヤギ"]
+top_pair, top_group = pairs[0]
+```
+
+## 正解率83%の裏で、誤り40枚の過半数21枚は正解がヤギの写真だ
+
+<!-- evidence: 正解クラス別の誤りの枚数。ヤギの組ごとに確信度が最も高い誤り1枚 -->
+
+```{python}
+#| fig-alt: "正解がヤギなのに誤った4つの組（鹿・羊・牛・馬と予測）から、確信度が最も高い写真を1枚ずつ並べた図。山の斜面の動物、羊の群れ、白黒のまだらの子、柵の中の動物が写っている。"
+imgfig.flow_figure([(f"ヤギ→{p} {len(g)}枚", by_prob(g)) for p, g in g_pairs], k=k_shown, how="top",
+                   counts=False, caption=cap);
+```
+
+- 正解率 `{python} f"{n_right}/{N}"`枚（`{python} f"{n_right / N:.0%}"`）。ヤギの正解は `{python} f"{len(goat_ok)}/{n_goat_all}"`枚で、ほかの5種は `{python} f"{min(others)}〜{max(others)}"`枚
+- 誤りは `{python} len(pairs)`組。最多は `{python} "→".join(top_pair)` の `{python} len(top_group)`枚
+
+[組ごとの代表として、確信度が最も高い `{python} k_shown`枚を表示（ヤギの `{python} len(g_pairs)`組 `{python} len(goat)`枚から `{python} len(g_pairs) * k_shown`枚）。「→」は予測クラスと確信度。写真: Open Images V7（作者は credits.html、CC BY 2.0）]{.source}
+
+::: {.notes}
+【1分】正解率83%、混同行列は毎回見ているはずです。今日は数字の裏の「どんな写真で間違えたか」を、240枚中の誤り40枚を全部見た結果で話します。
+誤りの過半数の21枚は、正解ラベルがヤギの写真です。ヤギの正解は40枚中19枚だけで、ほかの5種は34〜39枚当たっています。
+図は、ヤギの誤りの4組から確信度が最も高い写真を1枚ずつ選んだものです。ヤギが鹿・羊・牛・馬に間違われています。
+写真の下の「?」は、写真だけではヤギかどうか決めきれない対象です。題名は撮影者が付けた原文のままです。
+:::
+
+## ヤギを鹿と誤った10枚のうち9枚は、岩場や斜面に立つ動物だ
+
+<!-- evidence: ヤギ→鹿の全10枚。場面（斜面・岩場）の枚数、確信度、題名の種名 -->
+
+::::: {.columns}
+:::: {.column width="68%"}
+```{python}
+#| fig-alt: "ヤギと付いているのに鹿と予測された10枚を、確信度の高い順に並べた図。山の斜面や岩場に立つ動物が大半で、1枚だけ柵の中の写真が混じる。"
+imgfig.grid_figure(by_prob(g_deer), cols=5, caption=cap, color=imgfig.OUTLIER_COLOR);
+```
+::::
+:::: {.column width="32%"}
+- 鹿と答えた確信度が0.9以上の誤りが `{python} sum(it.num("prob") >= 0.9 for it in g_deer)`枚
+- 題名に種名（ibex、chamois、Sitatunga、Sheep など）があるのは `{python} sum(has_title(it, ("ibex", "capricorne", "chamois", "rebeco", "sitatunga", "sheep")) for it in g_deer)`枚
+::::
+:::::
+
+[ヤギ→鹿の `{python} len(g_deer)`枚をすべて表示（確信度の高い順）。英字は撮影者の題名の原文、「→」は予測クラスと確信度。写真: Open Images V7（CC BY 2.0）]{.source}
+
+::: {.notes}
+【2分】ヤギを鹿と答えた10枚は、9枚が山の斜面か岩場に立つ動物の写真です。残る1枚は柵の中にいる動物の写真です。
+10枚のうち6枚は、確信度0.9以上で鹿と答えています。自信を持って間違えているので、確信度の閾値では拾えません。
+題名を見ると、ibex、chamois、Sitatunga、Sheep など、撮影者は別の種名を付けています。ヤギのラベルで合っているのか、アノテーターが基準を決める必要がある写真です。写真だけでは決めきれないので、キャプションには「ヤギ?」と付けています。
+付録に、正しく当てたヤギ19枚を置いています。野生種（題名 markhor）も含まれるので、「野生だから間違える」とは言えません。
+なぜ鹿と答えたかは推測ですが、体が細く、茶色の体に角が小さいことが、鹿の写真に近いのかもしれません。
+:::
+
+## ヤギを羊・牛・馬と誤った11枚のうち3枚は、題名が sheep か bighorn だ
+
+<!-- evidence: ヤギ→羊・牛・馬の全11枚。題名に sheep か bighorn がある枚数 -->
+
+```{python}
+#| fig-alt: "ヤギと付いているのに、羊・牛・馬と予測された11枚を予測クラスごとに並べた図。羊の群れ、白黒のまだらの子、柵の中や岩場の動物が写っている。"
+imgfig.panels_figure([(f"予測 {p} {len(g)}枚", by_prob(g)) for p, g in g_pairs if p in ("羊", "牛", "馬")],
+                     cols_each=[3, 2, 1], caption=cap2, counts=False);
+```
+
+- 牛と答えた白黒のまだらの子（題名 Little Tiny Goat）の確信度は `{python} f"{[it for it in g_other if it.id.startswith('15ad1a8c')][0].num('prob'):.2f}"`
+
+[ヤギ→羊・牛・馬の `{python} len(g_other)`枚をすべて表示。英字は撮影者の題名の原文。写真: Open Images V7（CC BY 2.0）]{.source}
+
+::: {.notes}
+【1.5分】羊・牛・馬と間違えた11枚です。題名が sheep か bighorn の3枚は、ヤギのラベルが合っているか、アノテーターに見直してほしい写真です。羊の群れが写る2枚は、モデルの答え（羊）のほうが写真に近いと見えます。ただし群れの中にヤギがいないかは、写真から決めきれません。
+牛と答えた中に、白黒のまだらの子がいます。題名は Little Tiny Goat で、確信度0.84で牛と答えています。牛柄に見えたのかもしれません（推測）。
+:::
+
+## 牛と付いた誤り6枚のうち5枚には、牛が写っていない
+
+<!-- evidence: 正解が牛の誤り全6枚。元の写真の全区画で牛を探した結果 -->
+
+```{python}
+#| fig-alt: "牛と付いているのに誤った6枚。左から、動物園の囲いのヤギ、柵ごしの子羊、丘を走る羊の群れ、羊の親子、羊の群れと鹿、そして手前の動物の奥に小さな牛が写る1枚。"
+imgfig.grid_figure(cattle, cols=6, caption=cap, color=imgfig.OUTLIER_COLOR);
+```
+
+- 牛が写っていない5枚に写るのは、`{python} "、".join(f"{k.replace('＋', 'と')}{v}枚" for k, v in Counter(imgfig.seen(it, note=False) for it in no_cattle).items())`
+- 予測の羊が写真に写っているのは `{python} sum(imgfig.present(it, it["pred_ja"]) for it in cattle)`枚。ラベルの牛のほうが違う
+- 6枚目は右上に小さな牛が写る（付録で拡大）
+
+[正解が牛の誤り `{python} len(cattle)`枚をすべて表示（牛が写っていない写真が先）。元の写真の4区画ずつで牛を探して確認。「→」は予測クラスと確信度。写真: Open Images V7（CC BY 2.0）]{.source}
+
+::: {.notes}
+【1.5分】正解が牛の誤りは6枚あります。元の写真を全部、4つの区画に分けて牛を探しました。5枚には牛が写っていません。ヤギが1枚、羊が3枚、羊と鹿が1枚です。
+このうち羊の4枚は、モデルの答え（羊）のほうが写真に合っています。これはモデルの誤りではなく、ラベルの誤りです。モデルを改善しても減りません。
+残る1枚は、手前の動物の奥、右上に小さく牛が写っています。モデルは目立つ手前の動物を見て鹿と答えました。付録に拡大を置いています。
+:::
+
+## 残る13枚のうち5枚は、ラマや博物館の展示など牧場の外の写真だ
+
+<!-- evidence: 正解が馬・羊・ブタ・鹿の誤り全13枚。牧場の外と判断した枚数 -->
+
+```{python}
+#| fig-alt: "牧場の外の写真と判断した5枚。ラマの顔、博物館の展示の角の大きな動物、草原の親子のブタ、草原に立つブタ、縞のある2頭の動物が写っている。"
+imgfig.grid_figure(outside, cols=5, caption=cap, color=imgfig.OUTLIER_COLOR);
+```
+
+- 牧場の外の `{python} len(outside)`枚は、`{python} "、".join(f"{t}のラベル{len(g)}枚" for t, g in imgfig.split_by(outside, lambda it: it["true_ja"]))`
+- ラマの写真に付いた羊のラベルは、牛の5枚に続く6枚目のラベルの誤りだ
+- 残る `{python} len(rest_in)`枚は付録に全数を置いた
+
+[牧場の外と判断した `{python} len(outside)`枚をすべて表示（残る `{python} len(rest_in)`枚は付録）。目視で分けた。英字は題名の原文、「→」は予測と確信度。写真: Open Images V7（CC BY 2.0）]{.source}
+
+::: {.notes}
+【1.5分】残りは馬4枚、羊5枚、ブタ3枚、鹿1枚の13枚です。
+5枚は牧場の外の写真です。図はその5枚です。羊のラベルが付いたラマの写真（題名 Cute llama）では、元の写真にラマしか写っていません。これもラベルの誤りで、牛の5枚と合わせて、ラベルの誤りは6枚になります。
+博物館の展示の写真、草原のブタ（題名 Warthog が1枚）、題名 Nyala の縞のある動物もあります。牧場の6種とどう対応づけるか、基準が要ります。
+残る8枚は付録にあります。馬4枚は、どれも馬が写っていて、2枚は柵や鉄棒ごしの写真です。
+:::
+
+## 対策を決める前に、混同行列の大きい組から誤りの画像を見よう
+
+<!-- evidence: 40枚の内訳（ラベルの誤り・決めきれない・モデルの誤り）と、最初に見る3組の枚数 -->
+
+```{python}
+#| include: false
+label_err = [it for it in wrong if imgfig.absent(it, it["true_ja"])]
+undecided = [it for it in wrong if it not in label_err and it.get("unsure")]
+model_err = [it for it in wrong if it not in label_err and it not in undecided]
+assert (len(label_err), len(undecided), len(model_err)) == (6, 23, 11)
+assert len(label_err) + len(undecided) + len(model_err) == n_wrong
+top3 = pairs[:3]
+assert [(k, len(g)) for k, g in top3] == [(("ヤギ", "鹿"), 10), (("ヤギ", "羊"), 6), (("牛", "羊"), 5)]
+```
+
+```{python}
+#| fig-alt: "誤り40枚の3つの内訳から、確信度が最も高い写真を1枚ずつ並べた図。ラベルの誤りは丘を走る羊の群れ、決めきれないのは岩場の動物、モデルの誤りは白黒のまだらの子。"
+imgfig.flow_figure([(f"ラベルの誤り {len(label_err)}枚", by_prob(label_err), imgfig.ORANGE),
+                    (f"決めきれない {len(undecided)}枚", by_prob(undecided), imgfig.PURPLE),
+                    (f"モデルの誤り {len(model_err)}枚", by_prob(model_err), imgfig.BLUE)],
+                   k=k_shown, how="top", counts=False, caption=cap);
+```
+
+- 最初に見る3組: `{python} "、".join(f"{t}→{p} {len(g)}枚" for (t, p), g in top3)`（計 `{python} sum(len(g) for _, g in top3)`枚）
+- 誤り `{python} n_wrong`枚の内訳: ラベルの誤り `{python} len(label_err)`枚、写真から決めきれない `{python} len(undecided)`枚、モデルの誤り `{python} len(model_err)`枚
+- ラベルの誤り `{python} len(label_err)`枚は、モデルを直しても減らない
+
+[内訳ごとの代表として、確信度が最も高い `{python} k_shown`枚を表示。「→」は予測クラスと確信度。写真: Open Images V7（CC BY 2.0）]{.source}
+
+::: {.notes}
+【1.5分】お願いは1つです。次の改善で対策を決める前に、間違えた画像を実際に見てください。
+混同行列の大きいセルから見るのがおすすめです。今回なら、ヤギ→鹿の10枚、ヤギ→羊の6枚、牛→羊の5枚で21枚になります。
+今回の40枚を元の写真で確かめると、ラベルの誤りが6枚、写真から決めきれないものが23枚、モデルの誤りと言えるものが11枚でした。混同行列の数字だけでは、この3つを分けられません。
+ラベルの誤りはモデルを直しても減りません。決めきれない23枚は、アノテーターがヤギ・羊・鹿の境界の基準を決めると判断できるようになります。
+モデルの誤り11枚は、柵ごしの馬のように、写り方の難しい写真です。対策を決めるのはそれからで遅くありません。
+「決めきれない」の内訳は、野生のヤギ類に見える動物、羊の群れ、博物館の展示などです。
+:::
+
+<!-- appendix -->
+
+## 残る8枚のうち6枚は、ラベルのクラスが写っていて、モデルの誤りだ
+
+<!-- evidence: 牧場の外と判断しなかった8枚の全数。ラベルのクラスが写り、決めきれない対象が無い枚数 -->
+
+```{python}
+#| include: false
+rest_model = [it for it in rest_in if it in model_err]
+assert len(rest_model) == 6
+```
+
+::::: {.columns}
+:::: {.column width="62%"}
+```{python}
+#| fig-alt: "牧場の外ではない残り8枚。柵ごしの馬、草地の馬の群れ、納屋の前の馬、柵の牧草地の羊、ピンクの羊、木に登るヤギ、囲いの中のブタが写っている。"
+imgfig.grid_figure(rest_in, cols=4, caption=cap, color=imgfig.OUTLIER_COLOR);
+```
+::::
+:::: {.column width="38%"}
+- ラベルのクラスが写り、決めきれない対象が無いのは `{python} len(rest_model)`枚（`{python} "、".join(f"{t}{len(g)}枚" for t, g in imgfig.split_by(rest_model, lambda it: it["true_ja"]))`）
+- 残る `{python} len(rest_in) - len(rest_model)`枚は、木に登るヤギ（ラベルは羊）と、囲いの中のブタ
+::::
+:::::
+
+[牧場の外ではない `{python} len(rest_in)`枚をすべて表示。英字は撮影者の題名の原文、「→」は予測クラスと確信度。写真: Open Images V7（CC BY 2.0）]{.source}
+
+## 牛ラベルの6枚目は、手前の動物の奥に小さな牛が写る
+
+<!-- evidence: 正解が牛で、ヤギ・鹿ではなく牛が写る1枚の拡大 -->
+
+```{python}
+#| fig-alt: "左が写真全体で、右上の赤い枠が拡大の範囲。右が拡大で、白い牛が斜面を歩いている。手前には角のある動物が大きく写る。"
+cow = [it for it in cattle if it.id.startswith("c07d8514")]
+assert len(cow) == 1
+imgfig.zoom_figure([(cow[0], (0.74, 0.0, 0.93, 0.2))], caption=cap, cols=1);
+```
+
+[正解が牛の `{python} len(cow)`枚（題名 not so timid chamoix）を、すべて表示。赤い枠を元の写真から切り出して拡大。「→」は予測クラスと確信度。写真: Open Images V7（CC BY 2.0）]{.source}
+
+## 正しく当てたヤギ19枚にも、題名が markhor か Capra の写真がある
+
+<!-- evidence: 正解ヤギ・予測ヤギの全19枚。題名に markhor か Capra がある枚数 -->
+
+```{python}
+#| fig-alt: "ヤギと正しく予測された19枚を確信度の低い順に並べた図。柵の中の子ヤギ、雪の中のヤギ、岩場の野生種などが写る。"
+imgfig.grid_figure(sorted(goat_ok, key=lambda it: it.num("prob")), cols=7, color=imgfig.NORMAL_COLOR);
+```
+
+- 題名に markhor か Capra がある `{python} sum(has_title(it, ("markhor", "capra")) for it in goat_ok)`枚も、ヤギと正しく答えている
+- 野生種かどうかだけでは、ヤギ→鹿の誤りを説明できない
+
+[正解ヤギ・予測ヤギの `{python} len(goat_ok)`枚をすべて表示（確信度の低い順）。写真: Open Images V7（CC BY 2.0）]{.source}
+
+## 写真の確認は、元の写真の全区画を見て、1枚ずつ表に残した
+
+<!-- evidence: data/look.csv の作り方と、数え方の定義 -->
+
+- 誤り `{python} n_wrong`枚を、元の写真（長辺1024px）で1枚ずつ見た。結果は data/look.csv
+- ラベルの誤り: ラベルのクラスが元の写真のどこにも写っていないと確かめた写真だけ
+- 決めきれない: 種や展示かどうかを写真から言えず、題名にも頼れなかった対象
+- 写真は Open Images V7（各作者 CC BY 2.0）。作者と出典は [credits.html](credits.html)
+
+::: {.notes}
+ラベルと予測の両方が写る写真は「両方写る」として別に扱い、ラベルの誤りには数えていません。
+種名は見た目から当てず、撮影者の題名の原文を添えています。
+:::
