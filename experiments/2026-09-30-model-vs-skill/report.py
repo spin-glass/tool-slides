@@ -137,7 +137,7 @@ def records() -> list[dict]:
     """盲検評価をした課題の実行。鳥の課題（独立した検証）は、指標が違うので birds_report.py がまとめる。"""
     number_errors = {r["run_id"]: int(r["errors"]) for r in read_csv(RESULTS / "number_errors.csv")}
     return [record(m, round_of(m), number_errors) for m in sorted(read_csv(RESULTS / "metrics.csv"), key=order)
-            if m["task"] not in ("birds", "birds2", "water", "farmh")]
+            if m["task"] not in ("birds", "birds2", "water", "farmh", "fruith")]
 
 
 def label(r: dict) -> str:

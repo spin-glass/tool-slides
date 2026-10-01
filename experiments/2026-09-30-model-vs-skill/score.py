@@ -345,8 +345,8 @@ def truth_rows(rows: list[dict]) -> dict:
 def truth(task: str = "image") -> dict:
     if task == "change":
         return truth_change()
-    if task in ("water", "farmh"):
-        data = HERE / ("task4" if task == "water" else "task5") / "data"
+    if task in ("water", "farmh", "fruith"):
+        data = HERE / {"water": "task4", "farmh": "task5", "fruith": "task6"}[task] / "data"
         return truth_rows(list(csv.DictReader(open(data / "predictions.csv", encoding="utf-8"))))
     if task not in ("birds", "birds2"):
         return truth_rows(list(csv.DictReader(open(HERE / "task/data/predictions.csv", encoding="utf-8"))))

@@ -26,3 +26,5 @@ experiments/*/task5/data/images/
 experiments/*/site/
 # 写真と図の照合の切り出し（birdcheck.py が作り直す）
 experiments/*/results/*_planted/
+experiments/**/_cache_hard_fruit/
+experiments/*/task6/data/images/

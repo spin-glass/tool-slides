@@ -92,7 +92,8 @@ def bird_sections() -> list[str]:
 
 
 CONTENT_TASKS = {"water": ("写真の中身の検証（開発用）：水辺の6種", "decks/water-errors"),
-                 "farmh": ("写真の中身の検証（最終確認）：牧場の6種", "decks/farm-hidden-errors")}
+                 "farmh": ("写真の中身の検証（S12 の最終確認、のち開発用）：牧場の6種", "decks/farm-hidden-errors"),
+                 "fruith": ("写真の中身の検証（最終確認）：果物と野菜の6種", "decks/fruit-hidden-errors")}
 
 
 def content_sections() -> list[str]:

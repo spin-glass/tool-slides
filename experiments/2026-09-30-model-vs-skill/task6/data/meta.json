@@ -1,0 +1,15 @@
+{
+  "dataset": "Open Images V7 (validation / test)",
+  "encoder": "openai/clip-vit-base-patch32",
+  "method": "zeroshot",
+  "classes": {
+    "Apple": "リンゴ",
+    "Banana": "バナナ",
+    "Grape": "ブドウ",
+    "Strawberry": "イチゴ",
+    "Peach": "モモ",
+    "Tomato": "トマト"
+  },
+  "n_eval": 240,
+  "n_excluded_by_eye": 2
+}

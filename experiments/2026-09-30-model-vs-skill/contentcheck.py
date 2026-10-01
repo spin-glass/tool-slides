@@ -7,7 +7,7 @@
     python contentcheck.py collect <回>                   # 確認者の JSON を results/content_<回>/ に集める
     python contentcheck.py table <回>                     # 判定の表と、私が確かめる候補（「事実と違う」）を出す
 
-課題は water（task4）か farmh（task5）。確認用の資料（<MVS_EVAL>-content-<回>/<デッキ記号>/）:
+課題は water（task4）、farmh（task5）、fruith（task6）。確認用の資料（<MVS_EVAL>-content-<回>/<デッキ記号>/）:
   manifest.md               スライドごとのタイトル・画面の文字・確認用の画像の名前
   slide-NN-fig-K.jpg        スライドの図。誤りの写真が載っている位置に #番号
   slide-NN-fig-K-truth.jpg  同じ #番号の元の写真（人の枠つき）と、データのラベル・予測
@@ -40,7 +40,8 @@ EVAL = Path(os.environ.get("MVS_EVAL", WORK / "eval"))
 RESULTS = HERE / "results"
 PROMPTS = EVAL.parent / "prompts"
 TASKS = {"water": ("task4", "_cache_hard", "decks/water-errors"),
-         "farmh": ("task5", "_cache_hard_farm", "decks/farm-hidden-errors")}
+         "farmh": ("task5", "_cache_hard_farm", "decks/farm-hidden-errors"),
+         "fruith": ("task6", "_cache_hard_fruit", "decks/fruit-hidden-errors")}
 FONT = "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"
 MAX_W = 1600
 SEED = 20260930 + 11
