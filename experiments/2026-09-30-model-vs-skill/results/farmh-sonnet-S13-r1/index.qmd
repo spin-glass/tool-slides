@@ -1,0 +1,362 @@
+---
+title: "正解率83%の裏の誤り40枚を見る"
+subtitle: "牧場の6種（牛・馬・羊・ヤギ・鹿・ブタ）の分類結果"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+    include-in-header:
+      - text: |
+          <style>.reveal .cell-output-display { text-align: center; } .reveal .cell-output-display img { display: block; margin: 0 auto; }</style>
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列の数字は毎回見ているが、間違えた写真は見たことがない -->
+<!-- action: 次の改善で対策を決める前に、間違えた画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-10-01。聴衆・行動・持ち時間は本人の指定。枚数6と骨子は claude が決めた） -->
+
+```{python}
+#| include: false
+import sys
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import csv
+import imgfig
+import matplotlib.pyplot as plt
+import numpy as np
+
+CLASSES = ["牛", "馬", "羊", "ヤギ", "鹿", "ブタ"]
+items = imgfig.load_table("data/predictions.csv", "data/thumbs")
+items = imgfig.load_look(items, "data/look.csv")
+setting = {r["id"]: r["setting"] for r in csv.DictReader(open("data/setting.csv", encoding="utf-8"))}
+by_id = {it.id: it for it in items}
+
+wrong = [it for it in items if it["true"] != it["pred"]]
+wrong.sort(key=lambda it: (CLASSES.index(it["true_ja"]), CLASSES.index(it["pred_ja"])))
+n_all, n_wrong = len(items), len(wrong)
+n_right = n_all - n_wrong
+mat = {(t, p): 0 for t in CLASSES for p in CLASSES}
+for it in items:
+    mat[(it["true_ja"], it["pred_ja"])] += 1
+
+
+def kind(it):
+    """誤りの種類。ラベルの誤り = ラベルのクラスが写真のどこにも写っていない（拡大まで確かめた）。
+    決めきれない = ラベルか予測のクラスが写っているか、写真から決めきれない。モデルの誤り = ラベルのクラスが写り、予測のクラスは写らない。"""
+    lab, pred = it["true_ja"], it["pred_ja"]
+    if imgfig.absent(it, lab):
+        return "label"
+    if imgfig.present(it, lab):
+        if imgfig.present(it, pred):
+            return "both"
+        return "unsure" if not imgfig.absent(it, pred) else "model"
+    return "unsure"
+
+
+kinds = {k: [it for it in wrong if kind(it) == k] for k in ("label", "unsure", "model", "both")}
+goat_wrong = [it for it in wrong if it["true_ja"] == "ヤギ"]
+goat_deer = [it for it in wrong if it["true_ja"] == "ヤギ" and it["pred_ja"] == "鹿"]
+goat_deer.sort(key=lambda it: -it.num("prob"))
+goat_ok = [it for it in items if it["true_ja"] == "ヤギ" and it["pred_ja"] == "ヤギ"]
+cow_sheep = [it for it in wrong if it["true_ja"] == "牛" and it["pred_ja"] == "羊"]
+horse_cow = [it for it in wrong if it["true_ja"] == "馬" and it["pred_ja"] == "牛"]
+horse_all = [it for it in items if it["true_ja"] == "馬"]
+cow_deer = [it for it in wrong if it["true_ja"] == "牛" and it["pred_ja"] == "鹿"]
+rock_err = sum(setting[it.id] == "岩斜面" for it in goat_deer)
+rock_ok = sum(setting[it.id] == "岩斜面" for it in goat_ok)
+sheep_seen = sum(imgfig.present(it, "羊") for it in cow_sheep)
+goat_ok_n = sum(1 for it in items if it["true_ja"] == "ヤギ" and it["pred_ja"] == "ヤギ")
+horse_right = sum(1 for it in horse_all if it["pred_ja"] == "馬")
+horse_med = float(np.median([it.num("prob") for it in horse_all if it["pred_ja"] == "馬"]))
+pmin, pmax = min(it.num("prob") for it in horse_cow), max(it.num("prob") for it in horse_cow)
+label_sheep = [it for it in kinds["label"] if imgfig.present(it, "羊")]
+label_goat = [it for it in kinds["label"] if imgfig.present(it, "ヤギ")]
+
+# タイトルに書いた数字の検算（データが変われば描画が止まる）
+assert (n_all, n_wrong, n_right) == (240, 40, 200)
+assert round(n_right / n_all * 100) == 83
+assert len(goat_wrong) == 21 and all(it["true"] == "Goat" for it in goat_wrong)
+assert len(goat_deer) == 10 and rock_err == 9
+assert len(cow_sheep) == 5 and all(imgfig.absent(it, "牛") for it in cow_sheep)
+assert [len(kinds[k]) for k in ("label", "unsure", "model", "both")] == [7, 16, 17, 0]
+assert sum(len(v) for v in kinds.values()) == n_wrong
+assert len(horse_cow) == 4
+assert len(label_sheep) == 6 and len(label_goat) == 1
+
+
+KIND_COLOR = {"label": imgfig.ORANGE, "unsure": imgfig.PURPLE, "model": imgfig.BLUE, "both": imgfig.TEAL}
+LINE_H = 0.17     # 説明1行の行送り（サムネイル1枚の幅を1とした単位）
+
+
+def photo_lines(it, data=None):
+    """説明の行: 写っている対象（確認の表）、ほかの物、必要ならデータ。imgfig.seen と同じ内容を行に分ける。"""
+    lines = [imgfig.seen(it, note=False)]
+    if str(it.get("note", "") or "").strip():
+        lines.append(it["note"].strip())
+    return lines + ([data(it)] if data else [])
+
+
+def _caption_block(c, it, x, y, lines, size):
+    c.captions.append({"id": it.id, "caption": "\n".join(lines)})
+    for k, line in enumerate(lines):
+        c.text(x + 0.5, y + c.cell_h + 0.04 + size * 0.7 + k * LINE_H, line, size=size,
+               color=imgfig.INK if k else imgfig.MUTED)
+
+
+def photo_grid(items, cols, data=None, color=None, size=0.12):
+    """写真を並べ、下に確認の表の説明（写っている対象・ほかの物・データ）を小さく添える。枠の色は color か誤りの種類。"""
+    items = list(items)
+    ch = imgfig._cell_h(items, None)
+    n_lines = max(len(photo_lines(it, data)) for it in items)
+    cap_h = 0.1 + n_lines * LINE_H
+    rows = -(-len(items) // cols)
+    c = imgfig.Canvas(cols, rows * (ch + cap_h), cell_h=ch, kind="grid")
+    for n, it in enumerate(items):
+        x, y = n % cols, (n // cols) * (ch + cap_h)
+        c.thumb(it, x, y, color=color or KIND_COLOR[kind(it)])
+        _caption_block(c, it, x, y, photo_lines(it, data), size)
+    return c.finish()
+
+
+def photo_panels(groups, k, cols, data=None, size=0.11):
+    """群ごとに見出し・定義・k枚（等間隔）を並べる。groups = [(見出し, 定義, items, 色)]。"""
+    shown = [imgfig.pick(g[2], k, "even") for g in groups]
+    every = [it for s_ in shown for it in s_]
+    ch = imgfig._cell_h(every, None)
+    n_lines = max(len(photo_lines(it, data)) for it in every)
+    cap_h = 0.1 + n_lines * 0.15
+    head, gap = 0.85, 0.4
+    rows = -(-k // cols)
+    c = imgfig.Canvas(len(groups) * cols + (len(groups) - 1) * gap, head + rows * (ch + cap_h), cell_h=ch, kind="panels")
+    for g, (title, defn, items, color), s_ in zip(range(len(groups)), groups, shown):
+        x0 = g * (cols + gap)
+        c.text(x0 + 0.04, 0.17, f"{title} {len(items)}枚", size=0.17, ha="left", weight="bold", color=color)
+        c.text(x0 + 0.04, 0.4, defn, size=0.11, ha="left", color=imgfig.INK)
+        c.text(x0 + 0.04, 0.58, f"{len(s_)}枚を表示", size=0.11, ha="left", color=imgfig.MUTED)
+        c.hline(head - 0.06, x0 + 0.04, x0 + cols - 0.04, color=color, lw=0.02)
+        c.group(f"{title} {len(items)}枚", s_)
+        for n, it in enumerate(s_):
+            x, y = x0 + n % cols, head + (n // cols) * (ch + cap_h)
+            c.thumb(it, x, y, color=color)
+            _caption_block(c, it, x, y, photo_lines(it, data), size)
+    return c.finish()
+
+
+def owner_figure():
+    plt.rcParams["font.family"] = imgfig.japanese_fonts()
+    fig, ax = plt.subplots(figsize=(11, 1.5))
+    parts = [("ラベルの誤り", len(kinds["label"]), imgfig.ORANGE, "アノテーターが直す"),
+             ("決めきれない", len(kinds["unsure"]), imgfig.PURPLE, "クラスの決め方を話し合う"),
+             ("モデルの誤り", len(kinds["model"]), imgfig.BLUE, "エンジニアが引き取る")]
+    x = 0
+    for name, n, color, owner in parts:
+        ax.barh(0, n, left=x, color=color, edgecolor="white", height=0.8)
+        ax.text(x + n / 2, 0.12, f"{name} {n}枚", ha="center", va="center", color="white", fontsize=15, weight="bold")
+        ax.text(x + n / 2, -0.2, owner, ha="center", va="center", color="white", fontsize=12)
+        x += n
+    ax.set_xlim(0, x)
+    ax.set_ylim(-0.6, 0.6)
+    ax.axis("off")
+    fig.tight_layout(pad=0.2)
+    return fig
+
+
+def confusion_figure():
+    plt.rcParams["font.family"] = imgfig.japanese_fonts()
+    fig, ax = plt.subplots(figsize=(5.6, 4.6))
+    n = len(CLASSES)
+    for i, t in enumerate(CLASSES):
+        for j, p in enumerate(CLASSES):
+            v = mat[(t, p)]
+            if i == j:
+                ax.add_patch(plt.Rectangle((j, i), 1, 1, fc="#eef0f3", ec="white", lw=2))
+                ax.text(j + .5, i + .5, str(v), ha="center", va="center", color="#8a929b", fontsize=13)
+            else:
+                a = min(1.0, v / 10) if v else 0
+                ax.add_patch(plt.Rectangle((j, i), 1, 1, fc=(1, 1 - .55 * a, 1 - .85 * a) if v else "white",
+                                           ec="white", lw=2))
+                if v:
+                    ax.text(j + .5, i + .5, str(v), ha="center", va="center", color=imgfig.INK, fontsize=15,
+                            weight="bold" if v >= 5 else "normal")
+    gi = CLASSES.index("ヤギ")
+    ax.add_patch(plt.Rectangle((0, gi), n, 1, fc="none", ec=imgfig.ORANGE, lw=3))
+    ax.set_xlim(0, n)
+    ax.set_ylim(n, 0)
+    ax.set_xticks(np.arange(n) + .5, CLASSES, fontsize=13)
+    ax.set_yticks(np.arange(n) + .5, CLASSES, fontsize=13)
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position("top")
+    ax.set_xlabel("予測", fontsize=13)
+    ax.set_ylabel("ラベル", fontsize=13)
+    ax.tick_params(length=0)
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_aspect("equal")
+    fig.tight_layout()
+    return fig
+```
+
+## 誤り40枚のうち21枚は、ラベルがヤギの写真だ
+
+<!-- evidence: 混同行列（誤りの数）。ラベルがヤギの行に誤りの過半数が集まる -->
+
+:::: {.columns}
+::: {.column width="52%"}
+```{python}
+#| fig-alt: "6クラスの混同行列。対角線は灰色、誤りのマスは橙の濃淡で枚数を示す。ラベルがヤギの行を橙の枠で囲む。ヤギから鹿への誤りが10、羊が6、牛が3、馬が2。"
+confusion_figure();
+```
+:::
+::: {.column width="48%"}
+- 評価 `{python} n_all`枚のうち正解 `{python} n_right`枚（`{python} f"{n_right / n_all:.0%}"`）
+- 最多の誤りはヤギ→鹿の `{python} mat[("ヤギ", "鹿")]`枚
+- ラベルがヤギの `{python} sum(mat[("ヤギ", p)] for p in CLASSES)`枚のうち、当たったのは `{python} goat_ok_n`枚
+:::
+::::
+
+[出典: predictions.csv（CLIP ViT-B/32 の zero-shot 分類、評価用 `{python} n_all`枚）。ラベルは Open Images V7 の人手確認済みラベル]{.source}
+
+::: {.notes}
+いつも見ている正解率と混同行列です。240枚中200枚が正解で、83%。誤りは40枚。
+その40枚のうち21枚が、ラベルがヤギの写真です。ヤギの行だけ、色の濃いマスが並んでいます。
+ここまでは数字で分かります。今日見てもらいたいのは、この誤り40枚が、どういう写真なのかです。
+:::
+
+## ラベルがヤギで予測が鹿の10枚のうち9枚は、斜面か岩場の動物だ
+
+<!-- evidence: ヤギ→鹿の10枚の全数。斜面・岩場の数を、当たったヤギ19枚と比べる -->
+
+```{python}
+#| fig-alt: "ラベルがヤギで鹿と予測された10枚。山の斜面や岩場に立つ角のある動物が多く、斜面に小さく写る1頭、岩の上に伏せる1頭、金網の内側に立つ1頭などがある。ヤギか鹿か決めきれない写真には疑問符がつく。"
+photo_grid(goat_deer, cols=5);
+```
+
+- 斜面・岩場にいるのは、誤り10枚中 `{python} rock_err`枚、当たったヤギ `{python} len(goat_ok)`枚中 `{python} rock_ok`枚
+- 青の枠はヤギと言える `{python} sum(kind(it) == "model" for it in goat_deer)`枚、紫の枠はヤギか鹿か決めきれない `{python} sum(kind(it) == "unsure" for it in goat_deer)`枚
+
+[`{python} len(goat_deer)`枚をすべて表示（確信度の高い順）。「?」は写真から決めきれない対象。斜面・岩場は目視で付けた（data/setting.csv）。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+ヤギと予測されなかった中で、いちばん多いのが鹿との取り違えで10枚。全部並べました。
+共通しているのは背景です。山の斜面や岩場に立つ角のある動物が9枚。当たったヤギ19枚は、顔や体が大きく写る近い写真が多く、岩の上にいるのは4枚だけです。
+撮影者の題名には Ibex、chamois、nubian ibex、Sitatunga Buck などがあります。英語の題名のまま読んでください。
+ヤギか鹿か、写真から私にも決めきれない写真が5枚あります。小さく遠くに写る2枚や、金網の内側に立つ角のある1頭などです。
+推測ですが、モデルは「山の斜面にいる角のある動物」を鹿に寄せている可能性があります。これは確かめていません。
+:::
+
+## ラベルが牛で予測が羊の5枚に、牛は1頭も写っていない
+
+<!-- evidence: 牛→羊の5枚の全数。拡大で牛を探しても写っていない -->
+
+```{python}
+#| fig-alt: "ラベルが牛で羊と予測された5枚。柵の中のヤギ4頭、柵の奥の子羊、草地の羊の群れ、親子の羊、羊の群れの奥の鹿。どの写真にも牛は写っていない。"
+photo_grid(cow_sheep, cols=5, data=lambda it: f"予測 {it['pred_ja']} {it.num('prob'):.2f}", size=0.12);
+```
+
+- 5枚に写っているのは、羊が `{python} sheep_seen`枚、ヤギが `{python} sum(imgfig.present(it, "ヤギ") for it in cow_sheep)`枚（鹿は1枚の奥）
+- モデルが羊と答えた5枚のうち `{python} sheep_seen`枚は、羊が写っていて予測と合う
+
+[`{python} len(cow_sheep)`枚をすべて表示（元の写真を全体と4区画の拡大で確認。目視で付けた確認表は data/look.csv）。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+牛と羊の取り違え5枚です。元の写真を全体と4区画に拡大して、牛を探しました。1頭も写っていません。
+写っているのは、羊の群れ、親子の羊、柵の奥の子羊、羊の群れの奥にいる鹿、柵の中のヤギ4頭です。
+つまりこの5枚は、モデルが間違えたのではなく、ラベルのほうが写真と合っていません。正解率の数字では、この5枚もモデルの誤りに数えられています。
+ここはアノテーターの方に見てほしい点です。ラベルを付けるとき、近くの柵や遠景の動物を取り違えた可能性がありますが、原因は確かめていません。
+:::
+
+## 40枚の内訳は、ラベルの誤り7・決めきれない16・モデルの誤り17枚だ
+
+<!-- evidence: 40枚を目視で3つに分けた枚数。各群から等間隔に4枚 -->
+
+```{python}
+#| fig-alt: "誤り40枚を、ラベルの誤り7枚、決めきれない16枚、モデルの誤り17枚に分けて、各群から4枚ずつ並べた図。ラベルの誤りは牛のラベルの羊やヤギの写真など、決めきれない写真は遠くの1頭や角のある動物の顔のアップなど、モデルの誤りは馬やブタ、ヤギの写真など。"
+photo_panels([("ラベルの誤り", "ラベルのクラスが写っていない", kinds["label"], imgfig.ORANGE),
+              ("決めきれない", "ラベルか予測が決めきれない", kinds["unsure"], imgfig.PURPLE),
+              ("モデルの誤り", "ラベルは写り、予測は写らない", kinds["model"], imgfig.BLUE)],
+             k=4, cols=2, data=lambda it: f"{it['true_ja']}→{it['pred_ja']}");
+```
+
+[各群から、ラベル→予測の順に等間隔で4枚を表示。枠の色は群の色。分け方は元の写真を目視で確認した結果（data/look.csv）。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+誤り40枚を、元の写真を見て3つに分けました。
+ラベルの誤りが7枚。決めきれないが16枚。モデルの誤りと言えるのが17枚です。
+正解率83%の残り17%のうち、モデルが直すべき誤りは、写真で見るかぎり半分以下です。
+決めきれない16枚は、ヤギか鹿か、羊かヤギか、人が見ても決めにくい写真です。ここは、クラスの定義そのものを決める必要があるかもしれません。
+:::
+
+## ラベルが馬で予測が牛の4枚は、馬が小さいか柵ごしに写る写真だ
+
+<!-- evidence: 馬→牛の4枚の全数。モデルの誤りの例。確信度0.50〜0.58 -->
+
+```{python}
+#| fig-alt: "ラベルが馬で牛と予測された4枚。草地を歩く馬の群れ、黒い柵の奥の馬、金属の柵ごしに見える黒い馬、小屋の前の馬の群れ。"
+photo_grid(horse_cow, cols=4, data=lambda it: f"予測 {it['pred_ja']} {it.num('prob'):.2f}", size=0.12);
+```
+
+- 確信度は `{python} f"{pmin:.2f}"`〜`{python} f"{pmax:.2f}"`、正解の馬 `{python} horse_right`枚の中央値は `{python} f"{horse_med:.2f}"`
+- 4枚とも馬が写っていて、ラベルは合っている
+
+[`{python} len(horse_cow)`枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+モデルの誤りの例として、馬を牛と間違えた4枚です。馬が遠くの群れで小さいか、柵や鉄の棒ごしに写っています。
+確信度は0.5前後で、正解した馬の写真より低いです。
+こういう誤りは、写真を足す、閾値で人に回す、などの対策が考えられます。ただし、さきほどのラベルの誤りには効きません。
+:::
+
+## 対策を決める前に、間違えた40枚を元の写真で見よう
+
+<!-- evidence: 40枚の内訳（7・16・17）から、対策の宛先が分かれる -->
+
+```{python}
+#| fig-alt: "誤り40枚の内訳を示す横棒。ラベルの誤り7枚はアノテーター、決めきれない16枚はクラスの決め方を話し合う、モデルの誤り17枚はエンジニアが引き取る。"
+owner_figure();
+```
+
+- ラベル→予測の組ごとに40枚を並べ、写っているものを1枚ずつ書き出す
+- 書き出した表を、ラベルの付け直しとクラスの決め方の議論に使う
+
+::: {.notes}
+最初に言ったとおり、数字だけでは対策の宛先が決まりません。
+ラベルの誤り7枚には、モデルの改善は効きません。決めきれない16枚には、クラスの決め方が先です。
+次の改善の前に、この40枚を一度、元の写真で見てください。今回使った確認表（data/look.csv）が出発点になります。
+:::
+
+<!-- appendix -->
+
+## ラベルの誤り7枚は、羊が写る6枚とヤギが写る1枚だ
+
+<!-- evidence: ラベルの誤り7枚の全数 -->
+
+```{python}
+#| fig-alt: "ラベルの誤り7枚。ラベルが牛の5枚（ヤギ4頭、羊の写真3枚、羊と鹿）とラベルがヤギの2枚（羊の群れ）。どれもラベルのクラスは写っていない。"
+photo_grid(kinds["label"], cols=4, data=lambda it: f"ラベル{it['true_ja']}→{it['pred_ja']}", size=0.12);
+```
+
+[`{python} len(kinds["label"])`枚をすべて表示。写真: Open Images V7（各作者 CC BY 2.0）。作者・題名: credits.html]{.source}
+
+## ラベルが牛で鹿と予測された1枚は、牛が右上の隅に小さく写る
+
+<!-- evidence: 牛→鹿の1枚。拡大で牛が写る -->
+
+```{python}
+#| fig-alt: "ラベルが牛で鹿と予測された1枚。左は写真全体で、右上の隅を枠で囲む。右は枠の拡大で、斜面を歩く白い牛が写る。手前の大きな動物は角のある1頭で、牛ではない。"
+imgfig.zoom_figure([(cow_deer[0], (0.72, 0.0, 0.95, 0.22))],
+                   caption=lambda it: f"{imgfig.seen(it)}\n鹿 {it.num('prob'):.2f}");
+```
+
+[1枚をすべて表示。元の写真（1024px）から枠の部分を切り出して拡大。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+## 写真は Open Images V7 の公開画像で、確認表は元の写真を目視して付けた
+
+<!-- evidence: README.md と meta.json の作成条件 -->
+
+- 分類: CLIP ViT-B/32 の zero-shot、6クラス、評価用 `{python} n_all`枚
+- ラベル: Open Images V7 の人手確認済みラベル（画像ごとに1クラス）
+- 写っているものの確認表（data/look.csv）: 元の写真（長辺1024px）を見て付けた
+- 作者・題名・ライセンスの一覧: [credits.html](credits.html)

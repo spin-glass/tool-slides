@@ -1,0 +1,48 @@
+{
+  "run_id": "farmh-sonnet-S13-r2",
+  "task": "farmh",
+  "model": "sonnet",
+  "skill": "S13",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 1041,
+  "num_turns": 93,
+  "cost_usd": 3.41,
+  "output_tokens": 81249,
+  "models_used": {
+    "claude-sonnet-5-5": 3.41
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-hidden-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-hidden-errors/credits.html",
+    "decks/farm-hidden-errors/data/look.csv",
+    "decks/farm-hidden-errors/index.qmd",
+    "decks/farm-hidden-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 38,
+    "Read": 52,
+    "Write": 1,
+    "Monitor": 1
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.12,
+    "seven_day": 0.04,
+    "status": "allowed"
+  },
+  "final_message": "`decks/farm-hidden-errors/index.qmd` が完成しました。`quarto render` で `_output/decks/farm-hidden-errors/index.html` が出ています。本編6枚（budget 6）、付録3枚です。lint は block 0 で、warning が2件残っています。どちらも「写っていない」と言い切ることへの確認の催促で、該当の写真は元の写真と拡大で1枚ずつ見て確かめ済みです。`render_check.sh` の照合も0件で、全10枚をスクリーンショットで目視しました。Notion・git の commit/push・公開はしていません。\n\n## 私が決めたこと（差し戻し可）\n\n聴衆・行動・持ち時間は指示どおりです。budget は 10分÷1.5 を切り捨てた6枚にしました。承認は挟まず進め、決めた経緯は `decided-by` に記録しています。\n\n## タイトル連読\n\n1. 正解率83%の裏で、誤り40枚の半分超はラベルがヤギの写真だ\n2. ヤギを鹿と間違えた10枚の半数は、写真を見てもヤギと決めきれない\n3. 誤り40枚のうち7枚は、ラベルの牛やヤギが写真のどこにも写っていない\n4. 馬を牛と間違えた4枚は、馬が柵の奥か群れの中にいて、確信度は0.5台だ\n5. 誤り40枚のうちモデルの誤りは18枚で、残る22枚は直す先が別だ\n6. 対策を決める前に、間違えた40枚を1枚ずつ見て原因を3つに分けよう\n\n付録は、ヤギ起点の残り9枚、ほかの残り10枚、ヤギと当たった19枚の全数です。\n\n## 見えたこと\n\n- **ヤギの行が突出しています。** 誤り40枚のうち21枚がラベルがヤギの写真で、当たったのは40枚中19枚です。ヤギ→鹿の10枚は、5枚がヤギと言える山の動物、5枚が写真を見てもヤギと決めきれない動物です。\n- **7枚はラベルが写真と合っていません。** 牛と書かれた5枚（羊・ヤギ・鹿が写り、牛なし）と、ヤギと書かれた2枚（羊の群れ）です。この7枚を除くと正解率は86%になります。\n- **誤り40枚の内訳:** ラベルの誤り7枚、決めきれない15枚、モデルの誤り18枚です。\n\n## 注意\n\n- **タイトルを1つ変えました。** 5枚目は最初「ラベルの誤り7枚・決めきれない15枚・モデルの誤り18枚に分かれる」でしたが、2行に折り返したため上の文にしました。数字は同じです。\n- **分類は私の目視です。** 「決めきれない」とラベルの誤りの分類は私の目視で、根拠は `data/look.csv` にあります。スライドの出典行とノートにもそう書きました。アノテーターの方が見れば結果が変わる可能性があります。\n- **付録は小さめです。** 付録の図は1枚が約103〜107px と小さく、本編の図は約133〜217px です。\n- **追加したファイル:** `credits.html`（作者・出典の一覧）と `make_credits.py` を作りました。`.gitignore` に `.quarto` 関連の2行が足されています（`quarto render` による変更）。"
+}

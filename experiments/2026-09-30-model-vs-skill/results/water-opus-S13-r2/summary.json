@@ -1,0 +1,48 @@
+{
+  "run_id": "water-opus-S13-r2",
+  "task": "water",
+  "model": "opus",
+  "skill": "S13",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 1426,
+  "num_turns": 118,
+  "cost_usd": 7.458,
+  "output_tokens": 90551,
+  "models_used": {
+    "claude-opus-5-5": 7.458
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/data/swan_color.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 24,
+    "Read": 87,
+    "Write": 6
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.15,
+    "seven_day": 0.04,
+    "status": "allowed"
+  },
+  "final_message": "The deck is done. `quarto render decks/water-errors/index.qmd` produces `_output/decks/water-errors/index.html`. Lint shows 0 blocks, and the screenshot check finds 0 mismatches between the slides and the table of what each photo shows. There are 6 main slides and 8 appendix slides. Nothing is committed, and nothing was saved to Notion.\n\n**What I decided (you can send any of this back)**\n- Audience, action and time: as you specified. I set the main-slide limit to 6 (10 minutes ÷ 1.5).\n- Slide titles, in order:\n  1. 誤り51枚は、すべてカモ・ガン・ハクチョウの間で起きている\n  2. 誤り51枚のうち31枚は、ラベルのクラスが写真に写っていない\n  3. ラベルのクラスが写らない31枚のうち20枚は、予測のクラスが写っている\n  4. 残る11枚には、ラベルのクラスも予測のクラスも写っていない\n  5. モデルの誤り12枚のうち9枚は、黒いハクチョウをガンとしたものだ\n  6. 次の対策を決める前に、間違えた画像を1枚ずつ写真で見よう\n- Appendix: each error pair shown in full, a close-up of a duck hidden behind an egret, the 4 \"correct\" swan photos that contain no swan, and how I checked the photos.\n\n**What the photos showed**\nI opened all 51 wrong photos at full size. For every photo where the labelled class seemed to be missing, I also checked a close-up of each quarter of the image.\n- **31 of 51 are label errors.** The labelled class doesn't appear anywhere in the photo.\n  - In 20 of them, the class the model predicted is in the photo.\n  - 8 show only other birds, such as pigeons, gulls and egrets.\n  - 3 show a different one of the six classes.\n- **12 are real model errors.** In 9 of these, the model called a black swan a goose.\n- **The pair that looks worst isn't a model problem.** Goose labelled as swan is the largest pair in the confusion matrix (13 photos), but none of the 13 is a model error. Swan labelled as goose (10 photos) has 9.\n- **8 are not counted as either kind of error.** 7 have a bird too small or blurred to identify, and 1 shows both the labelled and predicted class.\n\n**Things to know**\n- **The table of what each photo shows is my own visual check.** It's in `data/look.csv`. Swan colours (black or white) are in `data/swan_color.csv`, also by eye. Have an annotator review both before you rely on them.\n- **I only checked one set of correct predictions.** I looked at the 26 correct swan photos and found 4 with no swan in them. I didn't look at the correct photos for any other class.\n- **Some thumbnails are small.** In the confusion matrix and the 20-photo figure they're about 86–92px on screen, below the 100px the check script treats as readable (150px is the target). These figures show a sample chosen by a stated rule, and every photo is shown larger in the appendix.\n- **Three lint warnings remain.** They flag the slides that say a class is \"not in the photo\". I checked each of those photos one by one with close-ups, so I left the wording as it is.\n- **Quarto edited `.gitignore` on its own while rendering.** It added `/.quarto/` and `**/*.quarto_ipynb`.\n- **I added some files.** `prepare.py` builds `credits.html`, the list of photographers and sources. Each slide's notes hold what to say aloud, and they mark guesses as guesses (for example, why the model gets black swans wrong).\n\nFiles are in `decks/water-errors/`:\n- `index.qmd`\n- `prepare.py`\n- `credits.html`\n- `data/look.csv`\n- `data/swan_color.csv`"
+}

@@ -1,0 +1,48 @@
+{
+  "run_id": "water-opus-S13-r1",
+  "task": "water",
+  "model": "opus",
+  "skill": "S13",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 1428,
+  "num_turns": 118,
+  "cost_usd": 7.224,
+  "output_tokens": 82270,
+  "models_used": {
+    "claude-opus-5-5": 7.224
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/water-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/water-errors/credits.html",
+    "decks/water-errors/data/look.csv",
+    "decks/water-errors/index.qmd",
+    "decks/water-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 27,
+    "Read": 85,
+    "Write": 3,
+    "Edit": 2
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.15,
+    "seven_day": 0.04,
+    "status": "allowed"
+  },
+  "final_message": "The deck is finished. `quarto render decks/water-errors/index.qmd` writes `_output/decks/water-errors/index.html`. The lint check has no blocking errors, and the check of figure captions against my photo notes found 0 mismatches. I looked at all 14 slide screenshots myself. Nothing was saved to Notion, committed, pushed or published.\n\n## What I decided (change anything here)\n- **Audience:** the team running the classifier, engineers and annotators. They see accuracy and the confusion matrix but have never looked at the misclassified photos.\n- **What they should do afterwards:** open and look at the misclassified photos before choosing the next fix.\n- **Length:** 10 minutes, so 6 main slides plus 7 appendix slides.\n\n**Main slides (titles in order)**\n1. ラベルと予測が食い違う51枚は、すべて鳥3種の間にある\n2. 食い違う51枚を写真で見ると、32枚はラベルの鳥が写っていない\n3. ラベルの鳥がいない32枚のうち20枚は、予測の鳥が写っている\n4. 残る12枚のうち9枚は、カモ・ガン・ハクチョウのどれでもない鳥だ\n5. モデルが誤った12枚のうち10枚は、黒いハクチョウの写真だ\n6. 対策を決める前に、誤った画像を1枚ずつ開いて写っている鳥を確かめよう\n\n**Appendix:** the 7 photos I couldn't decide or that show both birds, all 20 photos from slide 3, the 3 photos with neither bird, a table by label→prediction pair, a check of every swan-labelled photo, and how the check was done.\n\n## What the photos showed\n- All 51 mismatches are among the three birds. Boat, lighthouse and seal have no errors.\n- I opened all 51 at full size, plus 4-part zoomed crops for the uncertain ones, and sorted them:\n\n| Group | Photos |\n|---|---|\n| The labelled bird isn't in the photo | 32 |\n| Model error (labelled bird present, predicted bird absent) | 12 |\n| Can't tell from the photo | 6 |\n| Both the labelled and predicted bird appear | 1 |\n\n- **The most common confusion contains no model errors.** Of the 13 photos labelled goose and predicted swan, 12 show swans or other birds with a goose label. The 13th is a silhouette I couldn't identify.\n- **The real model weakness is black swans.** Among photos labelled swan, the model got 10 of 24 black swans wrong but only 1 of 9 white swans.\n\n## Things to be aware of\n- **The photo check was done by me, not a person.** Some calls about which bird is in a photo could be wrong. The appendix says so explicitly, and the results are in `data/look.csv` (one row per photo) for annotators to check.\n- **Only partly checked:** I also checked the 26 correctly classified swan photos. 6 swan-labelled photos (wrong or right) show no swan, including two flamingos. I did not check correct predictions for the other five classes.\n- **Swan colour:** I added a black/white column to `data/look.csv`, judged by eye. The slide 5 numbers depend on it.\n- **Smaller photos than recommended:** most photo grids come out at about 127–149px per photo, a bit under the 150px guideline. I judged them readable in the screenshots.\n- Quarto added two lines to `.gitignore` on its own (`/.quarto/`, `**/*.quarto_ipynb`). I left them in.\n\nNew files are in `decks/water-errors/`:\n- `index.qmd`\n- `data/look.csv`\n- `make_credits.py`, which builds `credits.html` (photographer credits, published with the deck)"
+}
