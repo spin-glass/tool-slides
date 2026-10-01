@@ -27,15 +27,17 @@ WORK = Path(os.environ.get("MVS_WORK", Path(tempfile.gettempdir()) / "tool-slide
 
 MODELS = {"fable": "claude-fable-5-1", "opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5",
           "haiku": "claude-haiku-4-5-20251001"}
-SKILLS = {"S0": None, "S1": "7b4428f", "S3": "1c3960f", "S4": "d7cce24", "S5": "810c258", "S6": "4043590", "S7": "0084230", "S8": "8c12b3d", "S9": "cb8055f", "S10": "a00709e", "S11": "7f0f7ab", "S12": "94a8a34", "S13": "54c22f1"}       # スキルを取り出すコミット
-REPO_THEME = {"S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13"}          # テーマとフィルタもそのコミットから取る版（付録の印はテーマとフィルタで出すため）
+SKILLS = {"S0": None, "S1": "7b4428f", "S3": "1c3960f", "S4": "d7cce24", "S5": "810c258", "S6": "4043590", "S7": "0084230", "S8": "8c12b3d", "S9": "cb8055f", "S10": "a00709e", "S11": "7f0f7ab", "S12": "94a8a34", "S13": "54c22f1", "S14": "3e0be39"}       # スキルを取り出すコミット
+REPO_THEME = {"S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14"}          # テーマとフィルタもそのコミットから取る版（付録の印はテーマとフィルタで出すため）
 BASE = "1c3960f"             # それ以外の条件で使う、共通のテーマの版
 # (依頼文, 最大ターン, 予算USD)。under は gate と同じ依頼文（聴衆・行動・時間なし）で、最後まで作らせる。
 # change は追試の課題（同じ240枚を新旧2つの版で判定した結果。切り口は「変更の前後」）
 TASKS = {"image": ("prompt_image.md", 60, 12.0), "gate": ("prompt_gate.md", 8, 2.0), "under": ("prompt_gate.md", 60, 12.0),
          "change": ("prompt_change.md", 60, 12.0), "birds": ("prompt_birds.md", 60, 12.0),
-         "birds2": ("prompt_birds.md", 60, 12.0), "water": ("prompt_water.md", 60, 12.0),
-         "farmh": ("prompt_farm.md", 60, 12.0), "fruith": ("prompt_fruit.md", 60, 12.0)}
+         "birds2": ("prompt_birds.md", 60, 12.0), "water": ("prompt_water.md", 100, 20.0),
+         "farmh": ("prompt_farm.md", 100, 20.0), "fruith": ("prompt_fruit.md", 100, 20.0)}
+# 水辺・牧場・果物は S14 の実行から上限を 100 ターン・20 ドルに上げた（S13 までは 60 ターン・12 ドル）。版を重ねて手順
+# （確認の表・拡大・claim）が増え、S11〜S13 で上限で止まる実行が出たため。S14 以降の版は、開発用・最終確認とも同じ上限で比べる
 DECK = "decks/farm-errors"
 DECKS = {"change": "decks/farm-change", "birds": "decks/bird-errors", "birds2": "decks/bird-errors",
          "water": "decks/water-errors", "farmh": "decks/farm-hidden-errors", "fruith": "decks/fruit-hidden-errors"}     # 課題ごとの保存先（無い課題は DECK）
