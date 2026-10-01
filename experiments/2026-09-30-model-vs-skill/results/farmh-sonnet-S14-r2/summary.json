@@ -1,0 +1,48 @@
+{
+  "run_id": "farmh-sonnet-S14-r2",
+  "task": "farmh",
+  "model": "sonnet",
+  "skill": "S14",
+  "rep": "2",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 988,
+  "num_turns": 132,
+  "cost_usd": 5.876,
+  "output_tokens": 107881,
+  "models_used": {
+    "claude-sonnet-5-5": 5.876
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-hidden-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-hidden-errors/credits.html",
+    "decks/farm-hidden-errors/data/look.csv",
+    "decks/farm-hidden-errors/deckfig.py",
+    "decks/farm-hidden-errors/index.qmd",
+    "decks/farm-hidden-errors/make_credits.py"
+  ],
+  "tools": {
+    "Bash": 35,
+    "Read": 94,
+    "Write": 2
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.46,
+    "seven_day": 0.11,
+    "status": "allowed"
+  },
+  "final_message": "`decks/farm-hidden-errors/index.qmd` を作り、`quarto render decks/farm-hidden-errors/index.qmd` で HTML が出ることまで確認しました。出力先は `_output/decks/farm-hidden-errors/index.html` です。lint は block 0・warning 0、`render_check.sh` の確認の表との照合も 0 件で、全 11 枚（本編 6 枚、付録 4 枚、タイトル 1 枚）を目視しました。Notion への保存、commit、push、公開はしていません。\n\n`.gitignore` に `/.quarto/` と `**/*.quarto_ipynb` が追記されています。render で自動追記されたもので、私は直接触っていません。\n\n## 任された項目と、決めた内容\n- **聴衆・行動・持ち時間**: 指示どおり（エンジニアとアノテーター、誤った画像を実際に見る、10分）。\n- **budget**: 6 枚（10 分 ÷ 1.5）。記録は `decided-by: claude（本人の委任「構成や見せ方は任せます…」2026-10-01）`。\n- **骨子の承認待ち**: 省きました。タイトル連読は自分で確認しています。\n\n## タイトル一覧（本編 6 枚）\n1. 誤り40枚のうち、ラベルの動物が写っているのに外したのは10枚だけだ\n2. ヤギを鹿と誤った10枚のうち7枚は、題名が野生種の名前の写真だ\n3. ヤギを羊・牛・馬と誤った11枚のうち、ヤギが写ると言えるのは3枚だ\n4. ラベルが牛の誤り6枚のうち、牛が写っていないのは5枚だ\n5. ラベルの動物が写る10枚のうち9枚は、遠くか柵の向こうに写る\n6. 次の改善では、対策を決める前に、誤った画像を1枚ずつ見よう\n\n付録 4 枚は、14 組の取り違え一覧、本編にない 7 枚、遠くの牛とピンクの羊の拡大、分け方の説明です。\n\n## 見つかったこと\n- 正解率は 83.3%（240 枚中 200 枚）で、誤りは 40 枚です。\n- 40 枚を元の写真で 1 枚ずつ見て、ラベルの動物の写り方で 3 つに分けました。写っているのは 10 枚、決めきれないのは 22 枚、写っていないのは 8 枚です。\n- ヤギ→鹿の 10 枚は、ほぼ野生種の写真でした。題名が Ibex や chamois などの写真が 7 枚あります。\n- 牛のラベルの誤り 6 枚のうち 5 枚は、牛が写っていません。羊が 4 枚、ヤギが 1 枚写っていました。\n- モデルの誤りと言える 10 枚のうち 9 枚は、動物が遠くか柵の向こうに写っています。\n\n## 注意してほしい点\n- 「写る／決めきれない／写っていない」の判定は私が元の写真を見て付けたもので、`data/look.csv` に 1 枚ずつ残しています。ラベルの基準を決めているアノテーターの確認を受けてください。\n- 「写っていない」とした写真は、4 区画の拡大でも探し直しました。\n- 「遠く・柵ごし・近く」の分類と、写真の説明も目視で付けたものです。ラベルのヤギ・牛が写っていると言えるのは該当枚数だけで、その他は決めきれないものとして別に数えています。\n- 誤りの理由（なぜ鹿と答えたか等）は、スライド本文には書かず、ノートに推測と断って書きました。\n- 第三者の写真は 240 枚すべてが CC BY 2.0 です。作者・出典は `credits.html` にまとめ、YAML の `resources:` に入れています（公開はしていません）。\n\n## 追加したファイル\n- `deckfig.py`（このデッキ用の図の補助。imgfig の説明文が大きすぎて題名が重なったため）\n- `make_credits.py`、`data/look.csv`、`credits.html`"
+}

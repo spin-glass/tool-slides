@@ -1,0 +1,47 @@
+{
+  "run_id": "farmh-opus-S14-r1",
+  "task": "farmh",
+  "model": "opus",
+  "skill": "S14",
+  "rep": "1",
+  "natural": false,
+  "effort": "high",
+  "followups": 0,
+  "exit_codes": [
+    0
+  ],
+  "wall_s": 1148,
+  "num_turns": 141,
+  "cost_usd": 9.401,
+  "output_tokens": 104813,
+  "models_used": {
+    "claude-opus-5-5": 9.401
+  },
+  "stop_reasons": [
+    "success"
+  ],
+  "deck_exists": true,
+  "deck_path": "decks/farm-hidden-errors/index.qmd",
+  "changed_files": [
+    ".gitignore",
+    "decks/farm-hidden-errors/credits.html",
+    "decks/farm-hidden-errors/data/look.csv",
+    "decks/farm-hidden-errors/index.qmd",
+    "decks/farm-hidden-errors/prepare.py"
+  ],
+  "tools": {
+    "Bash": 29,
+    "Read": 107,
+    "Write": 4
+  },
+  "skill_calls": [],
+  "slides_skill_listed": true,
+  "stop_hook_responses": 3,
+  "stop_hook_blocks": 0,
+  "rate_limits": {
+    "five_hour": 0.46,
+    "seven_day": 0.11,
+    "status": "allowed"
+  },
+  "final_message": "I've built the deck at `decks/farm-hidden-errors/index.qmd`. `quarto render decks/farm-hidden-errors/index.qmd` produces `_output/decks/farm-hidden-errors/index.html`. The lint has no errors or warnings, and the screenshot check found no mismatches against the table of what's in each photo. I looked at all 10 screenshots myself.\n\n**What I decided (you left these to me)**\n- Audience, goal and time are as you gave them: the team that runs the classifier, getting them to look at the misclassified images before choosing a fix, 10 minutes.\n- Main section: 6 slides (10 minutes ÷ 1.5). There are 3 appendix slides after it.\n\n**Slide titles in order**\n1. 誤り40枚のうち、ラベルの動物が写っていると言えるのは10枚だ\n2. ラベルの動物が写っていない8枚のうち6枚は、予測のほうが写真と合う\n3. 「ヤギ→鹿」の10枚は、どれも野山や動物園で撮った角のある動物だ\n4. 残る12枚も、ラベルの動物に入るかを写真からは決めきれない\n5. ラベルの動物が写る10枚では、「馬→牛」の4枚が最も多い\n6. 次の対策を決める前に、間違えた画像を3種類に分けて見てほしい\n- Appendix: the full 240-image confusion matrix, enlargements of the two photos where the key animal is small, and how I sorted the photos.\n\n**What the photos showed**\n- I opened all 40 misclassified photos at full size (1024px on the long side), including enlarged quarters of each, and sorted them into three groups:\n  - **Labelled animal visible: 10.** These are the real model errors.\n  - **Labelled animal absent: 8.** For example, five photos labelled cow show only sheep or goats. In 6 of the 8 the model's answer matches the photo. Counting those 6 as correct raises accuracy from 83% to 86%.\n  - **Can't tell from the photo: 22.** These include ibex, chamois and a museum specimen. The largest cell in the confusion matrix, goat→deer (10 photos), is entirely this kind. Whether they count as goats depends on the labelling rules, not on the photo.\n- All photos on the slides are shown in full, with no selection. Each caption gives what is visible, then label→prediction and confidence. Species names are the photographers' titles, left untranslated.\n\n**Changes made after checking against the photos**\n- Slide 3's title originally said \"岩山\" (rocky mountains). Several photos are grassy slopes, so I changed it to \"野山\" (hills and mountains) and added \"角のある\" (horned), which is visible in all 10.\n- A slide-1 bullet originally said \"most are wild species\". That was a guess, so it now quotes the photographers' titles (Ibex, Warthog and so on).\n- Any reasons for the errors (for example, being pulled by coat pattern) appear only in the speaker notes, marked as guesses.\n- I haven't looked at the 200 correctly classified photos, so I can't say whether they also contain label errors. The notes say this.\n\n**Files added**\n- `data/look.csv`: one row per photo recording what is in it.\n- `prepare.py`: generates `credits.html`, the author and source list (CC BY 2.0), which is published with the deck.\n- When Quarto rendered, it added two lines to `.gitignore` (`/.quarto/` and `**/*.quarto_ipynb`). I left them in.\n\nAs you asked, I didn't save anything to Notion, commit, push or publish."
+}

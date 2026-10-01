@@ -1,0 +1,319 @@
+---
+title: "混同行列の数字の裏で、誤った画像は何を写しているか"
+subtitle: "牧場6種の画像分類（評価用240枚）の誤り40枚を、元の写真で1枚ずつ見る"
+format:
+  revealjs:
+    fig-format: jpeg
+    fig-dpi: 200
+resources:
+  - credits.html
+---
+
+<!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター）。正解率と混同行列は毎回見ているが、誤った画像そのものは見たことがない -->
+<!-- action: 次の改善で対策を決める前に、誤った画像を実際に見る -->
+<!-- minutes: 10 -->
+<!-- budget: 6 -->
+<!-- status: approved -->
+<!-- decided-by: claude（本人の委任「構成や見せ方は任せます。途中の確認や承認は要らないので、最後まで作ってください」2026-10-01） -->
+
+```{python}
+#| include: false
+import collections
+import csv
+import re
+import sys
+
+sys.path.insert(0, "../../.claude/skills/slides/scripts")
+import imgfig
+import deckfig
+import matplotlib.pyplot as plt
+
+items = imgfig.load_table("data/predictions.csv", "data/thumbs")
+order = {"写る": 0, "決めきれない": 1, "写らない": 2}
+wrong = imgfig.load_look([it for it in items if it["true"] != it["pred"]], "data/look.csv")
+st = deckfig.status
+wrong.sort(key=lambda it: (order[st(it)], it["true"], it["pred"], it.id))
+
+n_all = len(items)
+n_ok = n_all - len(wrong)
+acc = n_ok / n_all
+by_status = collections.Counter(st(it) for it in wrong)
+assert (n_all, n_ok, len(wrong)) == (240, 200, 40)
+assert dict(by_status) == {"写る": 10, "決めきれない": 22, "写らない": 8}
+
+is_pair = lambda it, t, p: it["true"] == t and it["pred"] == p
+s2 = [it for it in wrong if is_pair(it, "Goat", "Deer")]
+s3 = [it for it in wrong if it["true"] == "Goat" and it["pred"] in ("Sheep", "Cattle", "Horse")]
+s4 = [it for it in wrong if it["true"] == "Cattle"]
+s5 = [it for it in wrong if st(it) == "写る"]
+goat_wrong = [it for it in wrong if it["true"] == "Goat"]
+assert (len(s2), len(s3), len(s4), len(s5), len(goat_wrong)) == (10, 11, 6, 10, 21)
+
+import json
+n_excl = json.load(open("data/meta.json", encoding="utf-8"))["n_excluded_by_eye"]
+credits = {r["id"]: r for r in csv.DictReader(open("data/credits.csv", encoding="utf-8"))}
+ok_goat = [it for it in items if it["true"] == "Goat" and it["pred"] == "Goat"]
+ok_goat_wild = [it for it in ok_goat if re.search(r"markhor|caucasica", credits[it.id]["title"], re.I)]
+assert (len(ok_goat), len(ok_goat_wild)) == (19, 3)
+
+pairs = collections.Counter((it["true_ja"], it["pred_ja"]) for it in wrong)
+top5 = pairs.most_common(5)
+assert (len(pairs), sum(n for _, n in top5)) == (14, 28)
+
+plt.rcParams["font.family"] = imgfig.japanese_fonts()
+plt.rcParams["font.size"] = 16
+```
+
+## 誤り40枚のうち、ラベルの動物が写っているのに外したのは10枚だけだ
+
+```{python}
+#| include: false
+imgfig.claim("誤り40枚のうち、ラベルの動物が写っているのに外したのは10枚だけだ", {40: wrong, 10: s5})
+```
+
+```{python}
+#| fig-alt: "ラベルのクラス別に、誤りの枚数を3色の横棒で示した図。ヤギは21枚で、ラベルの動物が写る3枚、決めきれない16枚、写っていない2枚。牛は6枚で、写る1枚、写っていない5枚。羊は5枚、馬は4枚、ブタは3枚、鹿は1枚。"
+labs = sorted({it["true_ja"] for it in wrong}, key=lambda l: -sum(it["true_ja"] == l for it in wrong))
+cnt = {l: collections.Counter(st(it) for it in wrong if it["true_ja"] == l) for l in labs}
+fig, ax = plt.subplots(figsize=(13.3, 3.7))
+for y, l in enumerate(labs):
+    left = 0
+    for s, txt in (("写る", "white"), ("決めきれない", imgfig.INK), ("写らない", "white")):
+        n = cnt[l][s]
+        if n:
+            ax.barh(y, n, left=left, color=deckfig.STATUS_COLOR[s], height=0.66)
+            ax.text(left + n / 2, y, str(n), ha="center", va="center", color=txt, fontsize=16, weight="bold")
+        left += n
+    ax.text(left + 0.3, y, f"{left}枚", va="center", color=imgfig.INK, fontsize=16)
+ax.set_yticks(range(len(labs)), [f"ラベル {l}" for l in labs], fontsize=16)
+ax.invert_yaxis()
+ax.set_xlim(0, 24)
+ax.xaxis.set_visible(False)
+for sp in ("top", "right", "bottom"):
+    ax.spines[sp].set_visible(False)
+ax.legend(handles=[plt.Rectangle((0, 0), 1, 1, color=deckfig.STATUS_COLOR[s]) for s in order],
+          labels=[deckfig.STATUS_LABEL[s] for s in order], loc="lower right", frameon=False, fontsize=16)
+plt.tight_layout()
+```
+
+- 正解率 `{python} f"{acc:.1%}"`（`{python} n_all`枚中`{python} n_ok`枚）、誤りは `{python} len(wrong)`枚
+- ラベルがヤギの誤りは `{python} len(goat_wrong)`枚で、ヤギが写るのは `{python} sum(st(it) == "写る" for it in goat_wrong)`枚
+
+[`{python} len(wrong)`枚の誤りを、元の写真で1枚ずつ見て分けた。写真: Open Images V7（各作者 CC BY 2.0）]{.source}
+
+::: {.notes}
+いつもの正解率と混同行列は、誤りを「枚数」で数えています。今日は誤りの40枚を、元の写真で1枚ずつ見て、ラベルの動物が写っているかを確かめた結果から始めます。
+
+分け方は3つです。青は、ラベルの動物が写っているのに外したもの。灰色は、写っている動物がラベルの動物かどうか決めきれないもの。橙は、ラベルの動物が写っていないものです。
+
+40枚のうち、青は10枚だけでした。8枚は橙、22枚は灰色です。ヤギのラベルが付いた誤りが21枚と最も多く、そのうち青は3枚しかありません。
+
+この分け方は、写真を見た私の判断です。判断の根拠は、次のスライドから1枚ずつ見せます。
+:::
+
+## ヤギを鹿と誤った10枚のうち7枚は、題名が野生種の名前の写真だ
+
+```{python}
+#| include: false
+imgfig.claim("ヤギを鹿と誤った10枚のうち7枚は、題名が野生種の名前の写真だ",
+             {10: s2, 7: [it for it in s2 if it["title_species"] == "yes"]})
+```
+
+```{python}
+#| fig-alt: "ヤギのラベルで鹿と予測された10枚。岩場や草の斜面、柵の向こうにいる角のある動物で、題名は Rebecos、Ibex、Big Horned Sheep、jeune chamois、Sitatunga Buck、Bouquetin、nubian ibex など。すべてラベルのヤギか決めきれない。"
+deckfig.photo_figure(s2, cols=5, color=lambda it: deckfig.STATUS_COLOR[st(it)], caption_fn=deckfig.caption_no_pred);
+```
+
+- 題名が野生種の名前（Ibex、chamois、Sitatunga Buck など）の写真が `{python} sum(it["title_species"] == "yes" for it in s2)`枚
+- 正しく当たったヤギ `{python} len(ok_goat)`枚にも、題名が野生種の名前の写真が `{python} len(ok_goat_wild)`枚ある
+
+[`{python} len(s2)`枚をすべて表示（ID順）。予測はすべて鹿（確信度 `{python} f"{min(it.num('prob') for it in s2):.2f}"`〜`{python} f"{max(it.num('prob') for it in s2):.2f}"`）。英字は撮影者の題名（表記のまま）。灰の枠と「?」は、ラベルのヤギか決めきれない写真]{.source}
+
+::: {.notes}
+ヤギのラベルで最も多い誤りが、鹿と答えた10枚です。10枚とも、岩場、草の斜面、柵の向こうにいる角のある動物で、牧場のヤギの写真とは見た目が違います。
+
+撮影者の題名を見ると、7枚は Ibex、chamois、Sitatunga Buck など野生種の名前です。ただし、正しく当たったヤギ19枚の中にも、題名が markhor などの写真が3枚あります。野生種の名前だけでは、誤りと正解を分けられません。
+
+これらをヤギと呼ぶかどうかは、私には決められないので灰色にしました。ここは、ラベルの基準を決めているアノテーターの方に判断してほしい箇所です。モデルが鹿と答えた理由は、推測ですが、角と岩場や草地の背景が鹿の写真に近いからだと思います。確かめてはいません。
+:::
+
+## ヤギを羊・牛・馬と誤った11枚のうち、ヤギが写ると言えるのは3枚だ
+
+```{python}
+#| include: false
+s3_yes = [it for it in s3 if imgfig.present(it, "ヤギ")]
+s3_no = [it for it in s3 if imgfig.absent(it, "ヤギ")]
+s3_unsure = [it for it in s3 if st(it) == "決めきれない"]
+assert (len(s3_yes), len(s3_no), len(s3_unsure)) == (3, 2, 6)
+imgfig.claim("ヤギを羊・牛・馬と誤った11枚のうち、ヤギが写ると言えるのは3枚だ", {11: s3, 3: s3_yes})
+```
+
+```{python}
+#| fig-alt: "ヤギのラベルで羊・牛・馬と予測された11枚。青い枠の3枚は、黒い毛の1頭、柵の中の1頭、斜面の白い2頭でヤギが写る。灰の枠の6枚は顔のアップや白黒まだらの子など決めきれない。橙の枠の2枚は羊の群れや黒い顔の羊で、ヤギが写っていない。"
+deckfig.photo_figure(s3, cols=6, color=lambda it: deckfig.STATUS_COLOR[st(it)],
+                     legend=deckfig.legend_for(*order), text_px=17);
+```
+
+- ヤギが写る `{python} len(s3_yes)`枚の予測は馬 `{python} sum(it["pred"] == "Horse" for it in s3_yes)`枚と羊 `{python} sum(it["pred"] == "Sheep" for it in s3_yes)`枚、写っていない `{python} len(s3_no)`枚は羊の写真
+
+[`{python} len(s3)`枚をすべて表示（ラベルの動物の写り方→ID順）。「?」は写っているか決めきれない対象。英字は撮影者の題名（表記のまま）]{.source}
+
+::: {.notes}
+次は、ヤギを羊、牛、馬と間違えた11枚です。この中でヤギが写っていると私が言い切れるのは3枚です。黒い毛のヤギ、柵の中のヤギ、斜面の白い2頭で、モデルの誤りと言えます。
+
+橙の2枚は、羊の群れと、黒い顔の羊が写る写真で、ヤギは写っていません。灰色の6枚は、顔のアップや白黒まだらの子、黒い頭の白い群れなどで、ヤギか羊か私には決められませんでした。
+
+ここでも、混同行列のヤギから羊への5枚や6枚という数字は、モデルの弱さを示しているとは限りません。ラベルの付け方を見直す余地もある、というのが画像から言えることです。
+:::
+
+## ラベルが牛の誤り6枚のうち、牛が写っていないのは5枚だ
+
+```{python}
+#| include: false
+s4_no = [it for it in s4 if imgfig.absent(it, "牛")]
+s4_sheep = [it for it in s4_no if imgfig.present(it, "羊")]
+s4_goat = [it for it in s4_no if imgfig.present(it, "ヤギ")]
+assert (len(s4_no), len(s4_sheep), len(s4_goat)) == (5, 4, 1)
+s4_show = sorted(s4, key=lambda it: (st(it) != "写らない", it.id))
+imgfig.claim("ラベルが牛の誤り6枚のうち、牛が写っていないのは5枚だ", {6: s4, 5: s4_no})
+```
+
+```{python}
+#| fig-alt: "ラベルが牛で誤った6枚。橙の枠の5枚は、牛が写っておらず、子羊連れの羊、柵の向こうの羊、柵のある囲いのヤギ、群れの奥に鹿がいる羊の群れ、走る羊の群れ。青い枠の1枚は、手前に角のある野生の動物がいて、右上の遠くに牛が小さく写る。"
+deckfig.photo_figure(s4_show, cols=6, color=lambda it: deckfig.STATUS_COLOR[st(it)],
+                     legend=deckfig.legend_for("写る", "写らない"));
+```
+
+- 牛が写っていない `{python} len(s4_no)`枚は、羊が写る `{python} len(s4_sheep)`枚とヤギが写る `{python} len(s4_goat)`枚
+- 残る1枚は、右上の遠くに牛が小さく写る（拡大は付録）
+
+[`{python} len(s4)`枚をすべて表示（牛が写らない→写る→ID順）。牛が写らない`{python} len(s4_no)`枚は、元の写真と4区画の拡大で牛を探して確かめた]{.source}
+
+::: {.notes}
+牛のラベルが付いた誤りは6枚です。このうち5枚は、元の写真を区画ごとに拡大して探しても、牛が写っていませんでした。羊が写る写真が4枚、ヤギが写る写真が1枚です。
+
+つまり、モデルが羊と答えた写真の多くは、写真の中身としては羊でした。ここは、モデルを直す話ではなく、ラベルを直す話になります。
+
+残る1枚は、手前に角のある野生の動物がいて、右上の遠くに小さく白い牛がいます。付録に拡大を置きました。
+:::
+
+## ラベルの動物が写る10枚のうち9枚は、遠くか柵の向こうに写る
+
+```{python}
+#| include: false
+far = [it for it in s5 if it["view"] == "遠く"]
+fence = [it for it in s5 if it["view"] == "柵ごし"]
+near = [it for it in s5 if it["view"] == "近く"]
+horses = [it for it in s5 if it["true"] == "Horse"]
+assert (len(far), len(fence), len(near), len(horses)) == (6, 3, 1, 4)
+view_order = {"遠く": 0, "柵ごし": 1, "近く": 2}
+assert all(it["pred"] == "Cattle" for it in horses)
+imgfig.claim("ラベルの動物が写る10枚のうち9枚は、遠くか柵の向こうに写る", {10: s5, 9: far + fence})
+```
+
+```{python}
+#| fig-alt: "ラベルの動物が写っているのに外した10枚。ヤギ3枚（黒い毛の1頭、柵の中、斜面の白い2頭）、牛1枚（右上の遠くに牛）、馬4枚（小屋の前、柵ごしの顔、草地の群れ、黒い柵の向こう）、羊2枚（草地に散らばる羊、全身がピンクの羊）。9枚は動物が遠くか柵の向こうにいる。"
+deckfig.photo_figure(sorted(s5, key=lambda it: (view_order[it["view"]], it["true"], it.id)), cols=5,
+                     color=lambda it: deckfig.STATUS_COLOR[st(it)], text_px=17);
+```
+
+- 遠く `{python} len(far)`枚、柵や囲いの向こう `{python} len(fence)`枚、近く `{python} len(near)`枚。馬の `{python} len(horses)`枚は、どれも牛と答えた
+
+[`{python} len(s5)`枚をすべて表示（遠く→柵ごし→近く、ラベル順）。遠く・柵ごし・近くは、元の写真を見て付けた分類]{.source}
+
+::: {.notes}
+最後に、ラベルの動物が写っているのに外した10枚です。これが、モデル側の誤りと言える画像です。
+
+遠くに小さく写るもの、柵や囲いの向こうにいるものが9枚を占めます。馬の4枚はすべて牛と答えています。小屋の前の馬、草地の群れ、柵ごしの顔、黒い柵の向こうの馬で、動物が画面の中で小さいか、柵が手前にあります。
+
+ピンクに染まった羊も、この中に入っています。推測ですが、動物が小さい、または柵が手前にあることで、モデルが背景に引っ張られていると思います。これも確かめてはいません。対策はデータの追加や、切り出しなど、ここで初めて検討できます。
+:::
+
+## 次の改善では、対策を決める前に、誤った画像を1枚ずつ見よう
+
+- 誤りの組ごとに画像を並べ、ラベルの動物が写るかを1枚ずつ確かめる
+
+| ラベルの動物が | 枚数 | 先にすること |
+|---|---|---|
+| 写っていない | `{python} by_status["写らない"]` | ラベルを付け直す |
+| 決めきれない | `{python} by_status["決めきれない"]` | 野生種や似た種をどのクラスに入れるか決める |
+| 写る | `{python} by_status["写る"]` | モデルの対策を検討する（データの追加など） |
+
+::: {.notes}
+今日の40枚では、モデルの対策が必要な誤りは10枚でした。残りの30枚は、ラベルの付け方を決めてからでないと、モデルの誤りかどうか分かりません。
+
+正解率と混同行列だけで対策を決めると、ラベルの問題にモデルの改善で対応してしまいます。次の改善では、対策を決める前に、誤った画像を並べて、ラベルの動物が写っているかを1枚ずつ見てください。見る人は、エンジニアとアノテーターの両方がいると、判断が早くなります。
+
+今回の40枚と分類表は、付録とデータの置き場にあります。
+:::
+
+<!-- appendix -->
+
+## 誤りは14組の取り違えに分かれ、上位5組が28枚を占める
+
+```{python}
+#| include: false
+top5_items = [it for it in wrong if (it["true_ja"], it["pred_ja"]) in {k for k, _ in top5}]
+imgfig.claim("誤りは14組の取り違えに分かれ、上位5組が28枚を占める", {28: top5_items})
+```
+
+```{python}
+#| fig-alt: "誤り40枚をラベル→予測の組で数えた横棒グラフ。ヤギ→鹿10枚、ヤギ→羊6枚、牛→羊5枚、馬→牛4枚、ヤギ→牛3枚が上位5組で28枚。羊→ヤギ2枚、ヤギ→馬2枚、ブタ→牛2枚、ほか6組が1枚ずつ。"
+rows = pairs.most_common()
+fig, ax = plt.subplots(figsize=(13.3, 4.4))
+for y, ((t, p), n) in enumerate(rows):
+    ax.barh(y, n, color=imgfig.ORANGE if y < 5 else deckfig.GRAY, height=0.7)
+    ax.text(n + 0.15, y, f"{n}枚", va="center", fontsize=16, color=imgfig.INK)
+ax.set_yticks(range(len(rows)), [f"{t} → {p}" for (t, p), _ in rows], fontsize=16)
+ax.invert_yaxis()
+ax.xaxis.set_visible(False)
+for sp in ("top", "right", "bottom"):
+    ax.spines[sp].set_visible(False)
+plt.tight_layout()
+```
+
+[ラベル→予測の組ごとの枚数（誤り `{python} len(wrong)`枚の全数）。橙は上位5組]{.source}
+
+## 本編にない7枚も、ラベルの動物が写らないか決めきれない写真だ
+
+```{python}
+#| include: false
+shown = {it.id for g in (s2, s3, s4, s5) for it in g}
+rest = [it for it in wrong if it.id not in shown]
+assert len(rest) == 7 and collections.Counter(st(it) for it in rest) == {"決めきれない": 6, "写らない": 1}
+imgfig.claim("本編にない7枚も、ラベルの動物が写らないか決めきれない写真だ", {7: rest})
+```
+
+```{python}
+#| fig-alt: "本編で見せていない7枚。灰の枠の6枚は、縞のある茶色の2頭（ラベル鹿）、灰色の親子・餌を食べる群れ・題名 Warthog の1頭（ラベルブタ）、木の上と下にいる動物（ラベル羊）、博物館の展示（ラベル羊）。橙の枠の1枚は、題名 Cute llama のリャマで、ラベルは羊。"
+deckfig.photo_figure(rest, cols=7, color=lambda it: deckfig.STATUS_COLOR[st(it)],
+                     legend=deckfig.legend_for("決めきれない", "写らない"));
+```
+
+[`{python} len(rest)`枚をすべて表示（本編の図に載せなかった誤り。ID順）]{.source}
+
+## 遠くの牛とピンクの羊は、拡大するとラベルの動物だと分かる
+
+```{python}
+#| include: false
+by_id = {it.id: it for it in wrong}
+zoom = [(by_id["c07d851439073801"], (0.74, 0.0, 0.94, 0.2)), (by_id["355bb78dcef02900"], (0.27, 0.70, 0.50, 0.92))]
+```
+
+```{python}
+#| fig-alt: "左は右上の遠くに白い牛が小さく写る写真と、その部分の拡大。右は丘の上にピンクの羊が小さく写る写真と、その部分の拡大。"
+imgfig.zoom_figure(zoom,
+                   caption=lambda it: f"{imgfig.seen(it)}\n予測 {it['pred_ja']} {it.num('prob'):.2f}",
+                   caption_size=0.1);
+```
+
+[`{python} len(zoom)`枚をすべて表示。枠の中を、元の写真から切り出して拡大した]{.source}
+
+## 分け方は、元の写真1枚ずつの目視で決めた
+
+- 写る・決めきれない・写っていない: ラベルのクラスが写真に写るかを、元の写真で見て分けた
+- 「写っていない」とした `{python} by_status["写らない"]`枚は、4区画の拡大でも対象を探した
+- 動物の名前は、見た目で言えるクラス名まで。種の名前は撮影者の題名のまま
+- ラベルは直していない。画像の作者・題名・ライセンスは [credits.html](credits.html) にある
+
+[`{python} n_all`枚は、作成時に目視で外した`{python} n_excl`枚を除いた評価用の写真。CLIP ViT-B/32 の zero-shot 分類]{.source}
