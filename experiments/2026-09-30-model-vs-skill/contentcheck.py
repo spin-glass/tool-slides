@@ -142,8 +142,7 @@ def drawn(run: str, task: str) -> list[list[str]]:
     report = EVAL.parent / f"drawn-{run}.jsonl"
     html = WORK / "runs" / run / "ws/_output" / TASKS[task][2] / "index.html"
     if report.exists() and html.exists() and report.stat().st_mtime < html.stat().st_mtime:
-        return [[c["id"] for c in json.loads(line).get("captions", []) if c.get("id")]
-                for line in open(report, encoding="utf-8")]      # 記録を取ったときの描画がそのまま残っている
+        return figures(report)                                  # 記録を取ったときの描画がそのまま残っている
     report.unlink(missing_ok=True)
     os.environ["IMGFIG_REPORT"] = str(report)
     try:
@@ -152,10 +151,13 @@ def drawn(run: str, task: str) -> list[list[str]]:
         os.environ.pop("IMGFIG_REPORT", None)
     if not ok:
         sys.exit(f"描き直せない: {run}\n{err}")
-    if not report.exists():
-        return []
-    return [[c["id"] for c in json.loads(line).get("captions", []) if c.get("id")]
-            for line in open(report, encoding="utf-8")]
+    return figures(report) if report.exists() else []
+
+
+def figures(report: Path) -> list[list[str]]:
+    """図の記録から、図ごとの写真の ID を返す。S14 からの imgfig.claim の記録（文の枚数の確かめ）は図ではないので除く。"""
+    recs = [json.loads(line) for line in open(report, encoding="utf-8") if line.strip()]
+    return [[c["id"] for c in r.get("captions", []) if c.get("id")] for r in recs if "claim" not in r]
 
 
 HIT = 0.9       # 図の記録が無い図で「載った」とする照合の値（birdcheck と同じ）
