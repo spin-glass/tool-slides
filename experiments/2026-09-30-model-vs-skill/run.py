@@ -27,7 +27,7 @@ WORK = Path(os.environ.get("MVS_WORK", Path(tempfile.gettempdir()) / "tool-slide
 
 MODELS = {"fable": "claude-fable-5-1", "opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5",
           "haiku": "claude-haiku-4-5-20251001"}
-SKILLS = {"S0": None, "S1": "7b4428f", "S3": "1c3960f", "S4": "d7cce24", "S5": "810c258", "S6": "4043590", "S7": "0084230", "S8": "8c12b3d", "S9": "cb8055f", "S10": "a00709e", "S11": "7f0f7ab", "S12": "94a8a34", "S13": "54c22f1", "S14": "3e0be39"}       # スキルを取り出すコミット
+SKILLS = {"S0": None, "S1": "7b4428f", "S3": "1c3960f", "S4": "d7cce24", "S5": "810c258", "S6": "4043590", "S7": "0084230", "S8": "8c12b3d", "S9": "cb8055f", "S10": "a00709e", "S11": "7f0f7ab", "S12": "94a8a34", "S13": "54c22f1", "S14": "cac0e5f"}       # スキルを取り出すコミット
 REPO_THEME = {"S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14"}          # テーマとフィルタもそのコミットから取る版（付録の印はテーマとフィルタで出すため）
 BASE = "1c3960f"             # それ以外の条件で使う、共通のテーマの版
 # (依頼文, 最大ターン, 予算USD)。under は gate と同じ依頼文（聴衆・行動・時間なし）で、最後まで作らせる。
@@ -78,10 +78,11 @@ format:
     width: 1280
     height: 720
     margin: 0.06
-    fig-width: 10
-    fig-height: 4.2
+    fig-width: 13.3
+    fig-height: 4.4
     embed-resources: false
 """
+# 図の大きさは、リポジトリの _quarto.yml に合わせて S14 から 13.3×4.4 にした（S13 までは 10×4.2。imgfig の写真の図は大きさを自分で決める）
 LUA = """-- HTML コメントだけの段落を出力から除く（最初の見出しより前に残ると空のスライドになるため）。
 function RawBlock(el)
   if el.format:match("html") and el.text:match("^%s*<!%-%-.-%-%->%s*$") then
