@@ -30,6 +30,7 @@ format:
     margin: 0.06
     fig-width: 13.3   # 幅いっぱい（写真8列×2段で1枚153px）。文字＋図のスライドは max_height_in で高さだけ縮める
     fig-height: 4.4
+    mermaid-format: png   # Mermaid は描画時に PNG にする（ブラウザで描くと、Web フォントの読み込み前に箱の大きさが決まり、文字がはみ出す）
     embed-resources: false
   pptx:
     slide-level: 2

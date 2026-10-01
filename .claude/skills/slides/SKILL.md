@@ -41,6 +41,7 @@ lint では測れないが、スクショで必ず確かめる数値:
 - 写真を並べた図は、デッキの YAML に `fig-format: jpeg` と `fig-dpi: 200` を書く（PNG だと1枚1〜2MB。JPEG にすると図がスライドの空きに合わせて伸びる）。
 - 文字の大きさ（`theme/custom.scss`）: 本文28px・行間1.5（42px/行）、タイトル40px（全角34字で2行）、表24px、出典・付録の印・枚数16px。32px×1.6 では2行タイトル＋箇条書き5つで約500px になり図の余地が無かった（3デッキ28枚の棚卸し、Claude Design「スライド型見本」2026-09-30）。
 - 図（matplotlib）の文字はスライド上で約20px にする: `_quarto.yml` の `fig-width: 13.3`（幅いっぱい）なら `plt.rcParams["font.size"] = 16`。流れ図の箱の中は20px以上。灰色の文字は `#57606a`（6.4:1）、`#9aa4ae` は枠線と強調しない系列だけ（白地の文字では2.6:1で読めない）。群の色は青 `#0b5cad` と橙 `#b35900`（`imgfig.BLUE` / `imgfig.ORANGE`、scss の `$link-color` / `$accent-2`）。
+- 流れ図・工程表は `{mermaid}` のセルで描ける（`_quarto.yml` の `mermaid-format: png` で PNG になり、文字がはみ出さない）。先頭に `python3 .claude/skills/design-doc/scripts/check_doc.py --mermaid-init 24px` の1行を置き、色と文字をデッキにそろえる。数値の図は matplotlib。
 - 画像ヒストグラムは1区間1段（`per_bin=(1,1)`）にして写真を約110px以上にする。区間の枚数などの文字は18px以上。
 
 budget の目安: 口頭発表は持ち時間（分）÷1.5 を切り捨て。読むだけの資料は読了時間（分）÷1。

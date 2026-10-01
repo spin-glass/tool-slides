@@ -58,4 +58,5 @@
 ## 見本
 
 `decks/2026-10-01-invoice-ocr-confirm/design/operations.md`（架空の題材の運用・移行設計の組み替え案・抜粋。6章＋付録3つ、Mermaid 4つと表）。
+図の色と文字: 各 Mermaid の先頭に `check_doc.py --mermaid-init` が出す1行を置く（無いと check_doc が warning。既定の紫ではなくスライドと同じ青 #0b5cad・橙 #b35900 になる。強調する1本だけ `crit`・`classDef … stroke:#b35900`）。gantt は `tickInterval 1month` で月の目盛りの重複を防ぐ。
 図の型は Claude Design「スライド型見本」4b の5つ: 判定規則（flowchart TB）、本番の設定の番号と切り戻し（表＋flowchart LR）、移行の4段階（gantt）、異常の対応と切り分け（flowchart LR）、機械と人の分担（表）。

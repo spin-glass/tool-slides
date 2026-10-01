@@ -82,7 +82,7 @@ class DesignDoc(unittest.TestCase):
         self.assertEqual(sorted(set(blocks)), ["mermaid-type", "placeholder", "ref-missing"])
         self.assertEqual(blocks.count("ref-missing"), 2)        # §4.2 と 7章
         warnings = doc_rules(FIX / "design/bad.md", "warning")
-        self.assertEqual(sorted(set(warnings)), ["figure-first", "heading-number"])
+        self.assertEqual(sorted(set(warnings)), ["figure-first", "heading-number", "mermaid-theme"])
 
     def test_sample_document(self):
         doc = ROOT / "decks/2026-10-01-invoice-ocr-confirm/design/operations.md"

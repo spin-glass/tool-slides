@@ -40,6 +40,11 @@ MERMAID_TYPES = re.compile(r"^(flowchart|graph|gantt|sequenceDiagram|classDiagra
                            r"C4Context|C4Container|C4Component|packet-beta|kanban|architecture-beta)\b")
 PLACEHOLDER_RE = re.compile(r"\bTODO\b|\bTBD\b|\bFIXME\b|lorem|\[insert[^\]]*\]|\bXXX\b|\[__\]|〇〇|○○", re.I)
 HOOK_MAX_BLOCKS = 3
+# Mermaid の見た目をデッキ（theme/custom.scss）にそろえる1行。図の先頭に置く（設計書は16px、スライドは fontSize を 24px に）
+MERMAID_INIT = ('%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", '
+                '"primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", '
+                '"edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", '
+                '"critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%')
 
 
 @dataclass
@@ -129,6 +134,10 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
         if not MERMAID_TYPES.match(head):
             issues.append(Issue("block", ln, "mermaid-type",
                                 f"Mermaid の1行目が図の種類でない: {head[:40]!r}（flowchart / gantt / sequenceDiagram など）"))
+        if "%%{init" not in body:
+            issues.append(Issue("warning", ln, "mermaid-theme",
+                                "Mermaid に色と文字の指定（%%{init: …}%%）が無い。既定の紫の図になり、スライドの色とそろわない。"
+                                "`check_doc.py --mermaid-init` が出す1行を図の先頭に置く"))
     if render and blocks:
         pngs, errors = render_mermaid([b for _, b in blocks], path.parent / "_check", path.stem)
         for e in errors:
@@ -253,7 +262,12 @@ def main() -> int:
     ap.add_argument("files", nargs="*", type=Path)
     ap.add_argument("--render", action="store_true", help="Mermaid を PNG にして design/_check/ に置く")
     ap.add_argument("--hook", action="store_true", help="Claude Code Stop hook として動く")
+    ap.add_argument("--mermaid-init", nargs="?", const="16px", metavar="SIZE",
+                    help="Mermaid の先頭に置く色と文字の1行を出す（スライドでは 24px）")
     args = ap.parse_args()
+    if args.mermaid_init:
+        print(MERMAID_INIT.replace('"16px"', f'"{args.mermaid_init}"'))
+        return 0
     if args.hook:
         return run_hook()
     if not args.files:
