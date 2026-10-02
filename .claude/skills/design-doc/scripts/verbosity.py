@@ -37,7 +37,11 @@ LIMITS = {
     "cross_dup_chars": 30,        # 同じフォルダの別の設計書と同じ文（この字数以上）なら block
     "restate_warn": 3,            # 同じ主張ID（C1）を本文にこの回数以上書いたら warning（正本＋要点の2か所まで）
     "read_growth_warn": 1.0,      # 原文（design/_source/<同じ名前>.md）より読む字数がこの倍率を超えたら warning
+    "core_growth_warn": 1.5,      # 原文から削除候補・繰り返しを除いた量（中身）のこの倍率を超えたら warning（上の倍率と小さい方）
+    "number_repeat_warn": 3,      # 同じ「数値＋単位」（300件・40%）を本文にこの回数以上書いたら warning
+    "summary_share_warn": 0.3,    # §1（要点）の読む字数が全体のこの割合を超えたら warning
 }
+NUM_UNIT_RE = re.compile(r"(?<![0-9.§C])(\d+(?:\.\d+)?)\s*(%|％|件|名|か月|ヶ月|営業日|日|分|時間|年|回|円)")
 ID_RE = re.compile(r"(?<![A-Za-z0-9_-])C\d+(?![A-Za-z0-9_-])")
 LABEL_RE = re.compile(r'\["([^"]*)"\]|\[([^\]"]*)\]|\{"?([^}"]*)"?\}|\(\["?([^\]"]*)"?\]\)|\|"?([^|"]*)"?\|')
 
@@ -76,7 +80,17 @@ class Metrics:
     filler: int = 0
     candidates: int = 0
     duplicates: int = 0
+    cut: float = 0.0              # 削除候補の段落と、繰り返した文の字数（原文なら「削れる量」）
     fillers: Counter = field(default_factory=Counter)
+
+    @property
+    def core(self) -> float:
+        """削除候補と繰り返しを除いた、中身の量。"""
+        return max(self.read - self.cut, 0.0)
+
+    def read_limit(self) -> float:
+        """この文書を原文としたときの、書き直しの読む字数の上限。"""
+        return min(self.read * LIMITS["read_growth_warn"], self.core * LIMITS["core_growth_warn"])
 
     @property
     def read(self) -> float:
@@ -85,7 +99,7 @@ class Metrics:
 
     def fmt(self) -> str:
         return (f"読む字数 {self.read:.0f}（文章 {self.chars:.0f}・表 {self.table:.0f}・図 {self.figure:.0f}）・段落 {self.units}・"
-                f"一般論等 {self.filler}・削除候補 {self.candidates}・繰り返し {self.duplicates}")
+                f"一般論等 {self.filler}・削除候補 {self.candidates}・繰り返し {self.duplicates}・削れる量 {self.cut:.0f}")
 
 
 def load_ng() -> dict[str, list[re.Pattern]]:
@@ -188,6 +202,43 @@ def table_cells(lines: list[str]) -> list[tuple[int, str]]:
     return out
 
 
+def tables(lines: list[str]) -> list[tuple[int, list[list[str]]]]:
+    """表ごとの (開始行, 行のリスト[セル])。区切り行は除く。"""
+    out: list[tuple[int, list[list[str]]]] = []
+    cur: list[list[str]] = []
+    start = 0
+    fence: str | None = None
+    for i, raw in enumerate(lines + [""], 1):
+        s = raw.strip()
+        if fence:
+            if s.startswith(fence) and s.strip(fence[0]) == "":
+                fence = None
+            continue
+        m = re.match(r"^(`{3,}|~{3,})", s)
+        if m:
+            fence = m.group(1)
+        if s.startswith("|") and not fence:
+            if not cur:
+                start = i
+            if not re.match(r"^\|\s*:?-{3,}", s):
+                cur.append([c.strip() for c in s.strip("|").split("|")])
+        elif cur:
+            out.append((start, cur))
+            cur = []
+    return out
+
+
+def section_read_chars(lines: list[str], heading_re: str) -> float:
+    """見出し（heading_re に合う ## 行）から次の ## 見出しまでの読む字数。"""
+    start = next((i for i, l in enumerate(lines) if re.match(heading_re, l)), None)
+    if start is None:
+        return 0.0
+    end = next((i for i in range(start + 1, len(lines)) if re.match(r"^##\s", lines[i])), len(lines))
+    part = lines[start + 1:end]
+    t, f = table_and_figure_chars(part)
+    return sum(zen_len(u.text) for u in units(part)) + t + f
+
+
 def table_and_figure_chars(lines: list[str]) -> tuple[float, float]:
     """表のセルの字数と、Mermaid のノード・矢印のラベルの字数。"""
     table = figure = 0.0
@@ -247,6 +298,7 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None, siblings:
         words = "、".join(dict.fromkeys(w for _, w in hits))
         if hits and not has_info(u):
             metrics.candidates += 1
+            metrics.cut += n
             candidates.append((u, f"中身の語が無く、一般論・前置き・ヘッジだけ（{words}）"))
             findings.append(Finding("block", u.line, "filler-only",
                                     f"削除候補: 数字・担当の固有名「」・主張ID・§ のどれも無く、一般論・前置き・ヘッジだけの段落（{words}）。"
@@ -283,6 +335,7 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None, siblings:
                 continue
             if s in seen and seen[s] != u.line:
                 metrics.duplicates += 1
+                metrics.cut += zen_len(s)
                 candidates.append((u, f"{seen[s]}行目と同じ文"))
                 findings.append(Finding("block", u.line, "dup-sentence",
                                         f"{seen[s]}行目と同じ文を繰り返している（「{s[:24]}…」）。正本の1か所だけ残し、ほかは参照にする"))
@@ -309,6 +362,32 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None, siblings:
             else:
                 seen_cell.setdefault(key, ln)
 
+    # 全行が同じ値の列（「本人に確認」×6、全部「方針」の状態の列）。3行以上の表だけを見る
+    for start, rows in tables(lines):
+        if len(rows) >= 4:                       # 見出し＋3行以上
+            for k, head in enumerate(rows[0]):
+                vals = {strip_md(r[k]) for r in rows[1:] if k < len(r)}
+                if len(vals) == 1 and next(iter(vals)):
+                    findings.append(Finding("warning", start, "same-column",
+                                            f"表の列「{strip_md(head)}」が全行同じ値（{next(iter(vals))[:12]}）。列ごと消し、必要なら表の上に1行で書く"))
+
+    # 同じ数値を何度も書いている（300件・40% など）
+    visible_body = "\n".join(l for l in re.sub(r"<!--.*?-->", "", "\n".join(lines), flags=re.S).splitlines()
+                             if not l.lstrip().startswith(("#", "%%", "```")))
+    nums = Counter(f"{a}{b}" for a, b in NUM_UNIT_RE.findall(visible_body) if a != "1")   # 「1か月」「1日」は別々の事実で重なりやすい
+    rep = [f"{k}×{n}" for k, n in nums.most_common() if n >= LIMITS["number_repeat_warn"]]
+    if rep:
+        findings.append(Finding("warning", 1, "restated-number",
+                                f"同じ数値を{LIMITS['number_repeat_warn']}回以上書いている（{', '.join(rep[:8])}）。"
+                                "正本の章に1回、§1 の要点に1回まで。ほかは「§5 の合格条件」と参照する"))
+
+    # §1（要点）が長い
+    s1 = section_read_chars(lines, r"^##\s+1[.\s]")
+    if metrics.read >= 600 and s1 > metrics.read * LIMITS["summary_share_warn"]:
+        findings.append(Finding("warning", 1, "summary-long",
+                                f"§1 が読む字数の{s1 / metrics.read:.0%}（{s1:.0f}字）。§1 は1行ずつの要点と未決の表だけにし、"
+                                "条件の全文は正本の章に置く"))
+
     # 同じ主張を何か所にも書いている（言い換えの再掲は文の一致では見つからないので、主張IDの回数で見る）
     visible = re.sub(r"<!--.*?-->", "", "\n".join(lines), flags=re.S)
     counts = Counter(ID_RE.findall(visible))
@@ -318,14 +397,27 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None, siblings:
                                 f"同じ主張を{LIMITS['restate_warn']}か所以上に書いている（{', '.join(many[:8])}）。"
                                 "書くのは正本の章と §1 の要点の2か所まで。ほかは「§4.2 を参照」にし、数値を再掲しない"))
 
+    # [要確認] は §1 の「まだ決めていない点」の表で1回だけ。本文では「未決（§1.1）」と参照する
+    sec, outside = "", []
+    for i, raw in enumerate(re.sub(r"<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), "\n".join(lines), flags=re.S).splitlines(), 1):
+        if raw.startswith("## "):
+            sec = raw
+        elif "[要確認]" in raw and not re.match(r"^##\s+1[.\s]", sec):
+            outside.append(i)
+    if outside:
+        findings.append(Finding("warning", outside[0], "tbd-outside-summary",
+                                f"§1 の外に [要確認] がある（{', '.join(map(str, outside[:8]))}行）。未決は §1 の表に1回だけ書き、"
+                                "本文では「未決（§1.1）」と参照する"))
+
     # 原文（design/_source/<同じ名前>.md）より読む量が増えていないか
     source = path.parent / "_source" / path.name
     if siblings and source.exists():
         _, m0, _ = analyze(source, ng, siblings=False)
-        if m0.read and metrics.read > m0.read * LIMITS["read_growth_warn"]:
+        if m0.read and metrics.read > m0.read_limit():
             findings.append(Finding("warning", 1, "read-growth",
-                                    f"読む字数が原文の{metrics.read / m0.read:.0%}（{m0.read:.0f}→{metrics.read:.0f}）。"
-                                    "同じ事実の再掲・説明の長い付録・原文に無い未決の追加を見直す"))
+                                    f"読む字数 {metrics.read:.0f} が上限 {m0.read_limit():.0f} を超えた（原文 {m0.read:.0f}、"
+                                    f"原文から削除候補と繰り返しを除いた中身 {m0.core:.0f} の{LIMITS['core_growth_warn']}倍、の小さい方）。"
+                                    "同じ事実の再掲・状態の列・本文の主張ID・原文に無い未決の追加を見直す"))
 
     # 同じフォルダの別の設計書と同じ文（共通事項の複製）
     if siblings:
@@ -370,6 +462,8 @@ def main() -> int:
     if args.original:
         _, m0, _ = analyze(args.original, ng, siblings=False)
         print(f"原文   {args.original}: {m0.fmt()}")
+        print(f"  書き直しの読む字数の上限: {m0.read_limit():.0f}（原文 {m0.read:.0f} と、削れる量を除いた中身 {m0.core:.0f} の"
+              f"{LIMITS['core_growth_warn']}倍、の小さい方）")
     for f in args.files:
         findings, m, cands = analyze(f, ng, siblings=not args.original)
         print(f"{'書き直し' if args.original else '検査'} {f}: {m.fmt()}")

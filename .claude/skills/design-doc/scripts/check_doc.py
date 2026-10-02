@@ -17,8 +17,9 @@ block:   本文にない章への参照（§3.4・3.4節・3章。「基本設�
 warning: `## ` の章の直後に図（Mermaid・表・画像）が無い、章番号（## 3. / ### 3.1）のない見出し、
          1段落200字超・1章の文章1000字超、一般論・前置き・ヘッジが1段落に2つ以上・文章1000字あたり3つ超、バズワード、
          表のセルが一般論だけ・表どうしで同じセル、同じ主張ID を3か所以上（再掲）、
-         読む字数（文章＋表＋図のラベル）が原文（design/_source/<同じ名前>.md）より多い、ひし形のラベルの1行が10字超、
-         claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）
+         読む字数（文章＋表＋図のラベル）が上限（原文と、原文の中身の1.5倍の小さい方。原文は design/_source/<同じ名前>.md）を超えた、ひし形のラベルの1行が10字超、
+         claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）、未決・提案以外の主張IDが本文に見えている、
+         同じ数値を3回以上・全行が同じ値の列・§1 が読む字数の3割超・§1 の外の [要確認]
 辞書: references/ng_doc.md（一般論・前置き）と slides の references/ng_words.md（ヘッジ・バズワード）。閾値は verbosity.py の LIMITS
 終了コード: 0 = block なし / 2 = block あり
 """
@@ -161,7 +162,12 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
         j = ln   # 0-based index of next line
         while j < len(lines):
             s = lines[j].strip()
-            if not s or s.startswith("<!--"):
+            if s.startswith("<!--"):           # 複数行のコメントは閉じるまで飛ばす
+                while j < len(lines) and "-->" not in lines[j]:
+                    j += 1
+                j += 1
+                continue
+            if not s:
                 j += 1
                 continue
             break
@@ -213,14 +219,29 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
             for e in claims_mod.validate(rows):
                 issues.append(Issue("block", 1, "claims-file", f"{cand.name}: {e}"))
             # 削りすぎの検知: 設計書に載せるはずの主張（target が doc / both）が、同じフォルダのどの設計書にも出てこない
-            text = "\n".join(re.sub(r"<!--.*?-->", "", p.read_text(encoding="utf-8"), flags=re.S)
-                             for p in path.parent.glob("*.md") if not p.name.startswith("_"))
+            # 本文に見えている ID と、<!-- claims: C3,C4 --> に列挙した ID を数える（範囲「C1〜C28」のコメントは数えない）
+            raw_all = "\n".join(p.read_text(encoding="utf-8") for p in path.parent.glob("*.md") if not p.name.startswith("_"))
+            listed = " ".join(m.group(1) for m in re.finditer(r"<!--\s*claims\s*:\s*([^>]*?)-->", raw_all))
+            text = re.sub(r"<!--.*?-->", "", raw_all, flags=re.S) + "\n" + listed
             missing = [r["id"] for r in rows if r.get("target") in ("doc", "both") and r.get("id")
                        and not re.search(rf"(?<![A-Za-z0-9_-]){re.escape(r['id'])}(?![A-Za-z0-9_-])", text)]
             if missing:
                 issues.append(Issue("warning", 1, "claims-unused",
                                     f"設計書に載せるはずの主張が本文に出てこない: {', '.join(missing)}。"
-                                    "削りすぎていないか確かめ、載せるなら本文に（C1）の形で添える"))
+                                    "削りすぎていないか確かめ、載せるなら正本の章に <!-- claims: C1 --> で添える"))
+            # 本文に見せる主張IDは未決と提案だけ（読み手が確かめる項目の印）。ほかは <!-- claims: … --> に書く
+            status = {r["id"]: r.get("status", "") for r in rows if r.get("id")}
+            body = re.sub(r"<!--.*?-->", "", path.read_text(encoding="utf-8"), flags=re.S)
+            shown = {}
+            for i, l in enumerate(body.splitlines(), 1):
+                for cid in verbosity.ID_RE.findall(l):
+                    if status.get(cid) not in (None, "未決", "提案"):
+                        shown.setdefault(cid, i)
+            if shown:
+                first = min(shown.values())
+                issues.append(Issue("warning", first, "claim-id-visible",
+                                    "本文に見せる主張IDは未決と提案だけ。次は <!-- claims: … --> に移す: "
+                                    + ", ".join(f"{k}（{status[k]}、{v}行）" for k, v in list(shown.items())[:8])))
             break
 
     order = {"block": 0, "warning": 1, "info": 2}
