@@ -184,6 +184,25 @@ $line: #d0d7de;                       // 表の横線・区切り
   color: $link-color;
 }
 
+// A案とB案のように前後の関係がない並列の対比。矢印を置かず、選ばせたい側（左）に青を置く
+.reveal .pair.accent-left .column:last-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.reveal .pair.accent-left .column:last-child h3 {
+  color: $muted;
+}
+
+.reveal .pair.accent-left .column:first-child {
+  border-left: 4px solid $link-color;
+  padding-left: 20px;
+}
+
+.reveal .pair.accent-left .column:first-child h3 {
+  color: $link-color;
+}
+
 .reveal .pair p {
   margin: 0 0 12px;
   font-size: 24px;
