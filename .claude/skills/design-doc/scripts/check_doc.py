@@ -7,6 +7,7 @@
   python3 check_doc.py --hook                                  # Stop hook。git で変更のある decks/**/design/*.md を検査（描画も行う）
   python3 check_doc.py --candidates design/_source/<doc>.md    # 原文の削除候補・一般論の多い段落・繰り返しの一覧（書き直す前に）
   python3 check_doc.py --original design/_source/<doc>.md design/<doc>.md   # 原文と書き直しの字数・段落数・一般論の比較
+  python3 check_doc.py --paragraphs design/_source/<doc>.md   # 原文の全段落の一覧（4分類の作業表）
 
 block:   本文にない章への参照（§3.4・3.4節・3章。「基本設計 §5.1」のように文書名つきの外部参照は見ない）、
          Mermaid の1行目が図の種類でない、Mermaid の描画エラー、placeholder（TODO・TBD・XXX・〇〇。`[要確認]` は未決の印として可）、
@@ -15,6 +16,8 @@ block:   本文にない章への参照（§3.4・3.4節・3章。「基本設�
          文書内の同じ文の繰り返し（全角20字以上）、同じフォルダの別の設計書と同じ文（全角30字以上）
 warning: `## ` の章の直後に図（Mermaid・表・画像）が無い、章番号（## 3. / ### 3.1）のない見出し、
          1段落200字超・1章の文章1000字超、一般論・前置き・ヘッジが1段落に2つ以上・文章1000字あたり3つ超、バズワード、
+         表のセルが一般論だけ・表どうしで同じセル、同じ主張ID を3か所以上（再掲）、
+         読む字数（文章＋表＋図のラベル）が原文（design/_source/<同じ名前>.md）より多い、ひし形のラベルの1行が10字超、
          claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）
 辞書: references/ng_doc.md（一般論・前置き）と slides の references/ng_words.md（ヘッジ・バズワード）。閾値は verbosity.py の LIMITS
 終了コード: 0 = block なし / 2 = block あり
@@ -40,8 +43,9 @@ import verbosity  # noqa: E402
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 NUMBERED_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+")
 FENCE_RE = re.compile(r"^(`{3,}|~{3,})\s*(\{?mermaid\}?)?\s*$")
-# 本文中の章参照。同じ行の直前30字に文書名（「基本設計 §5.1」「原文 §3.2・§4.1」）があれば他の文書への参照として見ない
-REF_RE = re.compile(r"§\s*(?P<a>\d+(?:\.\d+)*)|(?P<b>\d+(?:\.\d+)+)節|(?P<c>\d+)章")
+# 本文中の章参照。同じ表のセルの中で、参照の直前12字か直後6字に文書名（「基本設計 §5.1」「原文 §3.2」「§12 は原文に無い」）があれば他の文書への参照として見ない
+# 「3章」は章の数（「章は11」）と区別できないので、「第3章」の形だけを参照として見る
+REF_RE = re.compile(r"§\s*(?P<a>\d+(?:\.\d+)*)|(?P<b>\d+(?:\.\d+)+)節|第(?P<c>\d+)章")
 DOC_WORDS = ("原文", "基本設計", "処理設計", "ML設計", "精度検証", "運用・移行", "運用設計", "移行設計", "設計書", "文書", "仕様書", "マニュアル")
 MERMAID_TYPES = re.compile(r"^(flowchart|graph|gantt|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|pie|journey|"
                            r"timeline|mindmap|quadrantChart|gitGraph|xychart-beta|block-beta|sankey-beta|requirementDiagram|"
@@ -71,10 +75,20 @@ def parse(path: Path):
     lines = path.read_text(encoding="utf-8").splitlines()
     headings, blocks, prose = [], [], []
     in_fence = None
+    in_comment = False
     buf: list[str] = []
     start = 0
     for i, raw in enumerate(lines, 1):
         m = FENCE_RE.match(raw.strip())
+        if in_comment and not in_fence:          # 複数行の HTML コメントは本文として扱わない
+            if "-->" in raw:
+                in_comment = False
+                prose.append((i, raw.split("-->", 1)[1]))
+            continue
+        if not in_fence and "<!--" in raw and "-->" not in raw.split("<!--", 1)[1]:
+            in_comment = True
+            prose.append((i, raw.split("<!--", 1)[0]))
+            continue
         if in_fence:
             if raw.strip().startswith(in_fence[0]) and raw.strip().strip(in_fence[0][0]) == "":
                 if in_fence[1]:
@@ -112,9 +126,16 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
     for ln, raw in prose:
         text = re.sub(r"<!--.*?-->", "", raw)
         for m in REF_RE.finditer(text):
-            window = text[max(0, m.start() - 30):m.start()]
-            if any(w in window for w in DOC_WORDS):
-                continue   # 「基本設計 §5.1」など、他の文書への参照
+            cell_start = text.rfind("|", 0, m.start()) + 1
+            cell_end = text.find("|", m.end())
+            cell_end = len(text) if cell_end < 0 else cell_end
+            # 「原文の §3.1・§3.3・§5.2」のように並んだ参照は、先頭の文書名を引き継ぐ
+            head = re.sub(r"(?:(?:§\s*\d+(?:\.\d+)*|\d+(?:\.\d+)+節|\d+章)[–〜~\-]?\d*(?:\.\d+)*\s*[・、,，と及びおよび\s]*)+$", "",
+                          text[cell_start:m.start()])
+            before = head[-12:]
+            after = text[m.end():min(cell_end, m.end() + 6)]
+            if any(w in before or w in after for w in DOC_WORDS):
+                continue   # 「基本設計 §5.1」「§12 は原文に無い」など、他の文書への参照（同じセルの中だけ見る）
             num = m.group("a") or m.group("b") or m.group("c")
             if num not in numbers:
                 issues.append(Issue("block", ln, "ref-missing",
@@ -142,6 +163,13 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
         if not MERMAID_TYPES.match(head):
             issues.append(Issue("block", ln, "mermaid-type",
                                 f"Mermaid の1行目が図の種類でない: {head[:40]!r}（flowchart / gantt / sequenceDiagram など）"))
+        for lab in re.findall(r'\{"?([^}"]+)"?\}', "\n".join(l for l in body.splitlines() if not l.strip().startswith("%%"))):
+            longest = max(zen_len_safe(x) for x in re.split(r"<br\s*/?>", lab))
+            if longest > 10:
+                issues.append(Issue("warning", ln, "mermaid-diamond",
+                                    f"ひし形のラベルの1行が全角{longest:.0f}字（「{lab[:16]}…」）。ひし形は字が欠けやすいので、"
+                                    "1行10字以内にして <br> で折る"))
+                break
         if "%%{init" not in body:
             issues.append(Issue("warning", ln, "mermaid-theme",
                                 "Mermaid に色と文字の指定（%%{init: …}%%）が無い。既定の紫の図になり、スライドの色とそろわない。"
@@ -172,7 +200,8 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
             for e in claims_mod.validate(rows):
                 issues.append(Issue("block", 1, "claims-file", f"{cand.name}: {e}"))
             # 削りすぎの検知: 設計書に載せるはずの主張（target が doc / both）が、同じフォルダのどの設計書にも出てこない
-            text = "\n".join(p.read_text(encoding="utf-8") for p in path.parent.glob("*.md") if not p.name.startswith("_"))
+            text = "\n".join(re.sub(r"<!--.*?-->", "", p.read_text(encoding="utf-8"), flags=re.S)
+                             for p in path.parent.glob("*.md") if not p.name.startswith("_"))
             missing = [r["id"] for r in rows if r.get("target") in ("doc", "both") and r.get("id")
                        and not re.search(rf"(?<![A-Za-z0-9_-]){re.escape(r['id'])}(?![A-Za-z0-9_-])", text)]
             if missing:
@@ -186,6 +215,10 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
     return issues
 
 
+def zen_len_safe(s: str) -> float:
+    return verbosity.zen_len(s)
+
+
 def render_mermaid(blocks: list[str], out_dir: Path, stem: str) -> tuple[list[Path], list[str]]:
     """Mermaid を quarto（html, mermaid-format: png）で PNG にし、out_dir/<stem>-fig-NN.png に置く。"""
     if not shutil.which("quarto"):
@@ -197,8 +230,13 @@ def render_mermaid(blocks: list[str], out_dir: Path, stem: str) -> tuple[list[Pa
     (tmp / "figs.qmd").write_text("\n".join(qmd), encoding="utf-8")
     r = subprocess.run(["quarto", "render", "figs.qmd", "--to", "html", "--quiet"], cwd=tmp,
                        capture_output=True, text=True)
-    pngs = sorted((tmp / "figs_files" / "figure-html").glob("mermaid-figure-*.png"),
-                  key=lambda p: int(re.search(r"(\d+)", p.stem).group(1)))
+    # quarto の出力番号は文書の順と限らないので、HTML に出てくる <img> の順で並べる
+    html = (tmp / "figs.html").read_text(encoding="utf-8") if (tmp / "figs.html").exists() else ""
+    order = list(dict.fromkeys(re.findall(r'src="(figs_files/figure-html/mermaid-figure-[^"]+\.png)"', html)))
+    pngs = [tmp / o for o in order if (tmp / o).exists()]
+    if len(pngs) != len(blocks):     # HTML から読めないときは番号順（文書の順と違うことがある）
+        pngs = sorted((tmp / "figs_files" / "figure-html").glob("mermaid-figure-*.png"),
+                      key=lambda p: int(re.search(r"(\d+)", p.stem).group(1)))
     errors: list[str] = []
     if r.returncode != 0 or len(pngs) != len(blocks):
         tail = [l for l in (r.stderr + r.stdout).splitlines() if l.strip()][-3:]
@@ -285,6 +323,7 @@ def main() -> int:
     ap.add_argument("--hook", action="store_true", help="Claude Code Stop hook として動く")
     ap.add_argument("--candidates", action="store_true", help="削除候補・一般論の多い段落・繰り返しの一覧を出す（原文に使う）")
     ap.add_argument("--original", type=Path, help="原文。書き直しと字数・段落数・一般論を比べる")
+    ap.add_argument("--paragraphs", action="store_true", help="原文の全段落の一覧（4分類の作業表）を出す")
     ap.add_argument("--mermaid-init", nargs="?", const="16px", metavar="SIZE",
                     help="Mermaid の先頭に置く色と文字の1行を出す（スライドでは 24px）")
     args = ap.parse_args()
@@ -296,11 +335,19 @@ def main() -> int:
     if not args.files:
         print("対象の .md を指定する", file=sys.stderr)
         return 2
+    if args.paragraphs:
+        sys.argv = [sys.argv[0], "--paragraphs"] + [str(f) for f in args.files]
+        return verbosity.main()
     if args.candidates or args.original:
         argv = (["--original", str(args.original)] if args.original else []) + [str(f) for f in args.files]
         sys.argv = [sys.argv[0]] + argv
         if not args.original:
-            return verbosity.main()
+            rc = verbosity.main()
+            for f in args.files:          # 原文の章参照の誤り（存在しない章を指す）も出す
+                for i in check_document(f):
+                    if i.rule in ("ref-missing", "placeholder"):
+                        print("  原文の" + i.fmt(f))
+            return rc
         verbosity.main()      # 比べた上で、書き直しの検査も続けて行う
     worst = 0
     for f in args.files:

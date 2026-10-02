@@ -75,6 +75,15 @@ def validate(rows: list[dict[str, str]]) -> list[str]:
     return errors
 
 
+def warnings(rows: list[dict[str, str]]) -> list[str]:
+    """止めないが直すもの。"""
+    out = []
+    for n, r in enumerate(rows, 2):
+        if r.get("status") in ("未決", "提案") and not r.get("owner"):
+            out.append(f"{n}行目 {r.get('id')}: {r.get('status')} に決める担当（owner）が無い。分からなければ「原文の作成者」と書き、仮に置くなら「（仮）」を付ける")
+    return out
+
+
 def summary(rows: list[dict[str, str]]) -> str:
     c = Counter(r["status"] for r in rows)
     return "、".join(f"{s} {c[s]}" for s in STATUSES if c[s])
@@ -91,6 +100,8 @@ def main() -> int:
         errors = validate(rows)
         for e in errors:
             print(f"BLOCK   {p}: {e}")
+        for w in warnings(rows):
+            print(f"WARNING {p}: {w}")
         print(f"-- {p}: {len(rows)}件（{summary(rows)}）/ block {len(errors)}")
         for r in rows:
             if r["status"] == "未決":
