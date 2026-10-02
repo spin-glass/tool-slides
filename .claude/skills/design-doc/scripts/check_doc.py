@@ -14,13 +14,14 @@ block:   本文にない章への参照（§3.4・3.4節・3章。「基本設�
          claims.csv の列・状態の誤り、
          冗長さ: 削除候補（数字・主張ID・§・`コード`・「固有の語」・[要確認] のどれも無く、一般論・前置き・ヘッジだけの段落）、
          文書内の同じ文の繰り返し（全角20字以上）、同じフォルダの別の設計書と同じ文（全角30字以上）
-warning: `## ` の章の直後に図（Mermaid・表・画像）が無い、章番号（## 3. / ### 3.1）のない見出し、
+warning: `## ` の章の直後に図（Mermaid・表・画像）が無い（読む字数1500字以上の文書だけ）、章番号（## 3. / ### 3.1）のない見出し、
          1段落200字超・1章の文章1000字超、一般論・前置き・ヘッジが1段落に2つ以上・文章1000字あたり3つ超、バズワード、
          表のセルが一般論だけ・表どうしで同じセル、同じ主張ID を3か所以上（再掲）、
-         読む字数（文章＋表＋図のラベル）が上限（原文と、原文の中身の1.5倍の小さい方。原文は design/_source/<同じ名前>.md）を超えた、ひし形のラベルの1行が10字超、
-         claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）、未決・提案以外の主張IDが本文に見えている、
+         読む字数（文章＋表＋図のラベル）が上限（原文と、原文の中身の1.5倍の小さい方。原文は design/_source/<同じ名前>.md）を超えた、ひし形のラベルの1行が8字超、
+         claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）、主張IDが本文に見えている、
          同じ数値を3回以上・全行が同じ値の列・§1 が読む字数の3割超・§1 の外の [要確認]
 辞書: references/ng_doc.md（一般論・前置き）と slides の references/ng_words.md（ヘッジ・バズワード）。閾値は verbosity.py の LIMITS
+info:    図の PNG の場所、半角の文字を含む図のラベル（描くと右端が欠けることがあるので PNG で確かめる）、読む字数
 終了コード: 0 = block なし / 2 = block あり
 """
 from __future__ import annotations
@@ -155,9 +156,10 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
                 issues.append(Issue("block", ln, "ref-missing",
                                     f"本文にない章への参照 §{num}。章を書くか、参照を直す（他の文書なら文書名を前に付ける: 基本設計 §{num}）"))
 
-    # 章（##）の直後に図があるか
+    # 章（##）の直後に図があるか。短い文書（読む字数1500字未満）では求めない（図が枠になって読む量を増やす）
+    short = verbosity.analyze(path, siblings=False)[1].read < verbosity.LIMITS["short_doc_chars"]
     for idx, (ln, level, num, title) in enumerate(headings):
-        if level != 2:
+        if level != 2 or short:
             continue
         j = ln   # 0-based index of next line
         while j < len(lines):
@@ -189,6 +191,20 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
                                     f"ひし形のラベルの1行が全角{longest:.0f}字（「{lab[:16]}…」）。ひし形は字が欠けやすいので、"
                                     "1行8字以内にして <br> で折り、半角の ? § 空白を避ける"))
                 break
+        # quarto の PNG では、半角の文字（数字・.・-・空白・§）が測った幅より広く描かれ、ノードや辺のラベルの一番長い行の
+        # 右端が欠けることがある（「0.7以上」→「0.7以」、「原文 §3」→「原文 §」）。欠けない場合もあるので info で案内し、PNG で確かめる
+        plain = "\n".join(l for l in body.splitlines() if not l.strip().startswith(("%%", "classDef", "class ", "style ")))
+        risky = []
+        for m in re.finditer(r'\[\[?"?([^\]"]+)"?\]?\]|\{"?([^}"]+)"?\}|\(\["?([^\]"]+)"?\]\)|\|"?([^|"]+)"?\|', plain):
+            lab = next(g for g in m.groups() if g)
+            longest = max(re.split(r"<br\s*/?>", lab), key=zen_len_safe).strip()
+            if len(re.findall(r"[\x20-\x24\x26-\x7e§]", longest)) >= 2:
+                risky.append(longest)
+        if risky:
+            issues.append(Issue("info", ln, "mermaid-halfwidth",
+                                "半角の文字を含むラベル（" + "、".join(f"「{x[:14]}」" for x in risky[:6]) + "）は、描くと右端が欠けることがある。"
+                                "PNG で端を確かめ、欠けていれば全角だけの行を一番長くするよう <br> で折るか（「スコアが<br>0.7以上」）、"
+                                "半角を減らす（「原文 §3」→「原文の3章」）"))
         if "%%{init" not in body:
             issues.append(Issue("warning", ln, "mermaid-theme",
                                 "Mermaid に色と文字の指定（%%{init: …}%%）が無い。既定の紫の図になり、スライドの色とそろわない。"
@@ -229,18 +245,18 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
                 issues.append(Issue("warning", 1, "claims-unused",
                                     f"設計書に載せるはずの主張が本文に出てこない: {', '.join(missing)}。"
                                     "削りすぎていないか確かめ、載せるなら正本の章に <!-- claims: C1 --> で添える"))
-            # 本文に見せる主張IDは未決と提案だけ（読み手が確かめる項目の印）。ほかは <!-- claims: … --> に書く
+            # 主張IDは本文に見せない（読み手は claims.csv を見ない）。すべて <!-- claims: … --> に書く
             status = {r["id"]: r.get("status", "") for r in rows if r.get("id")}
             body = re.sub(r"<!--.*?-->", "", path.read_text(encoding="utf-8"), flags=re.S)
             shown = {}
             for i, l in enumerate(body.splitlines(), 1):
                 for cid in verbosity.ID_RE.findall(l):
-                    if status.get(cid) not in (None, "未決", "提案"):
+                    if cid in status:
                         shown.setdefault(cid, i)
             if shown:
                 first = min(shown.values())
                 issues.append(Issue("warning", first, "claim-id-visible",
-                                    "本文に見せる主張IDは未決と提案だけ。次は <!-- claims: … --> に移す: "
+                                    "主張IDは本文に見せず、正本の段落か表の直後の <!-- claims: … --> に書く: "
                                     + ", ".join(f"{k}（{status[k]}、{v}行）" for k, v in list(shown.items())[:8])))
             break
 

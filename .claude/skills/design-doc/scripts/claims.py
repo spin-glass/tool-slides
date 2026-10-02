@@ -80,7 +80,7 @@ def warnings(rows: list[dict[str, str]]) -> list[str]:
     out = []
     for n, r in enumerate(rows, 2):
         if r.get("status") in ("未決", "提案") and not r.get("owner"):
-            out.append(f"{n}行目 {r.get('id')}: {r.get('status')} に決める担当（owner）が無い。分からなければ「原文の作成者」と書き、仮に置くなら「（仮）」を付ける")
+            out.append(f"{n}行目 {r.get('id')}: {r.get('status')} に決める担当（owner）が無い。原文に無ければ「原文に無い」と書く（仮の担当は note に「仮: 総務課長」と書き、報告で確かめる）")
     return out
 
 

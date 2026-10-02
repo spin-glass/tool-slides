@@ -40,6 +40,7 @@ LIMITS = {
     "core_growth_warn": 1.5,      # 原文から削除候補・繰り返しを除いた量（中身）のこの倍率を超えたら warning（上の倍率と小さい方）
     "number_repeat_warn": 3,      # 同じ「数値＋単位」（300件・40%）を本文にこの回数以上書いたら warning
     "summary_share_warn": 0.3,    # §1（要点）の読む字数が全体のこの割合を超えたら warning
+    "short_doc_chars": 1500,      # 読む字数がこれ未満の文書は「短い文書」: 章ごとの図を求めない（枠を縮める）
 }
 NUM_UNIT_RE = re.compile(r"(?<![0-9.§C])(\d+(?:\.\d+)?)\s*(%|％|件|名|か月|ヶ月|営業日|日|分|時間|年|回|円)")
 ID_RE = re.compile(r"(?<![A-Za-z0-9_-])C\d+(?![A-Za-z0-9_-])")
@@ -366,10 +367,12 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None, siblings:
     for start, rows in tables(lines):
         if len(rows) >= 4:                       # 見出し＋3行以上
             for k, head in enumerate(rows[0]):
-                vals = {strip_md(r[k]) for r in rows[1:] if k < len(r)}
-                if len(vals) == 1 and next(iter(vals)):
+                vals = {strip_md(r[k]) if k < len(r) else "" for r in rows[1:]}
+                if len(vals) == 1 and strip_md(head):
+                    v = next(iter(vals))
                     findings.append(Finding("warning", start, "same-column",
-                                            f"表の列「{strip_md(head)}」が全行同じ値（{next(iter(vals))[:12]}）。列ごと消し、必要なら表の上に1行で書く"))
+                                            f"表の列「{strip_md(head)}」が全行{'同じ値（' + v[:12] + '）' if v else '空欄'}。"
+                                            "列ごと消し、必要なら表の上に1行で書く"))
 
     # 同じ数値を何度も書いている（300件・40% など）
     visible_body = "\n".join(l for l in re.sub(r"<!--.*?-->", "", "\n".join(lines), flags=re.S).splitlines()

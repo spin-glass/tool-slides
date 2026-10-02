@@ -84,7 +84,7 @@ class DesignDoc(unittest.TestCase):
         self.assertEqual(sorted(set(blocks)), ["mermaid-type", "placeholder", "ref-missing"])
         self.assertEqual(blocks.count("ref-missing"), 2)        # §4.2 と 7章
         warnings = doc_rules(FIX / "design/bad.md", "warning")
-        self.assertEqual(sorted(set(warnings)), ["figure-first", "heading-number", "mermaid-theme"])
+        self.assertEqual(sorted(set(warnings)), ["heading-number", "mermaid-theme"])   # 短い文書には章ごとの図を求めない
 
     def test_verbose_document(self):
         doc = FIX / "design/verbose.md"
@@ -187,8 +187,8 @@ class Restatement(unittest.TestCase):
         found = self.messages(path, "claim-id-visible")
         self.assertEqual(len(found), 1)
         self.assertIn("C1（決定", found[0])
-        self.assertNotIn("C2", found[0])                # 未決は本文に見せてよい
-        hidden = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 担当 | 決め方 |\n|---|---|---|\n| 上限の数値（C2） | 経理課長 | 実測 |\n\n"
+        self.assertIn("C2（未決", found[0])             # 未決も本文に見せない（読み手は claims.csv を見ない）
+        hidden = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 担当 | 決め方 |\n|---|---|---|\n| 上限の数値 | 経理課長 | 実測 |\n\n<!-- claims: C2 -->\n\n"
                           "## 2. 全体像\n\n| | 現行 | 変更後 |\n|---|---|---|\n| 入力 | 手入力 | OCR |\n\n<!-- claims: C1 -->\n")
         self.assertEqual(self.messages(hidden, "claim-id-visible"), [])
         self.assertEqual(self.messages(hidden, "claims-unused"), [])    # コメントに書いた ID も「載せた」に数える
@@ -206,6 +206,32 @@ class Restatement(unittest.TestCase):
         _, m1, _ = verbosity.analyze(path, siblings=False)
         self.assertLess(m1.read, m0.read)                         # 原文よりは短いが
         self.assertEqual(len(self.messages(path, "read-growth")), 1)   # 中身の1.5倍を超える
+
+    def test_column_all_blank(self):
+        path = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 決める担当 | 決め方 |\n|---|---|---|\n"
+                        "| 上限 | 経理課長 | |\n| 誤り率 | 情報システム課 | |\n| 時間 | 経理課 | |\n")
+        found = self.messages(path, "same-column")
+        self.assertEqual(len(found), 1)
+        self.assertIn("空欄", found[0])
+
+    def test_halfwidth_label_hint(self):
+        path = self.doc("# 題\n\n## 1. 図\n\n```mermaid\nflowchart LR\n  A[スコアが<br>0.7以上] -->|原文 §3| B[0.5以上0.7未満]\n"
+                        "  B --> C[3回連続]\n```\n")
+        hints = [i for i in check_doc.check_document(path) if i.rule == "mermaid-halfwidth"]
+        self.assertEqual(len(hints), 1)
+        self.assertEqual(hints[0].severity, "info")              # 欠けない場合もあるので止めない
+        listed = hints[0].message.split("）は")[0]                # 案内文の例を除いた、列挙したラベルの部分
+        self.assertIn("原文 §3", listed)
+        self.assertIn("0.5以上0.7未満", listed)
+        self.assertNotIn("スコアが", listed)                    # 全角だけの行が一番長ければ見ない
+        self.assertNotIn("3回連続", listed)                     # 半角1字は見ない
+
+    def test_figure_first_only_for_long_documents(self):
+        para = "経理課が「保留」の項目を毎日20分で確かめ、週次で誤りの記録を30分で見直す。情報システム課は月次で閾値を評価する。"
+        long_doc = "# 題\n\n## 1. 要点\n\n" + "\n\n".join(para.replace("毎日", f"{i}日目に") for i in range(30)) + "\n\n## 2. 運用\n\n本文。\n"
+        self.assertGreaterEqual(verbosity.analyze(self.doc(long_doc), siblings=False)[1].read, 1500)
+        self.assertEqual(len(self.messages(self.doc(long_doc), "figure-first")), 2)
+        self.assertEqual(self.messages(self.doc("# 題\n\n## 1. 要点\n\n短い本文。\n"), "figure-first"), [])
 
     def test_figure_after_multiline_comment(self):
         path = self.doc("# 題\n\n## 1. 要点\n\n<!-- 1行目\n     2行目 -->\n\n| 項目 | 要点 | 正本 |\n|---|---|---|\n| 変更 | OCR | §1 |\n")
