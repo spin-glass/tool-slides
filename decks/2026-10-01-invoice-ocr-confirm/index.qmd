@@ -263,9 +263,10 @@ Markdown("\n".join(lines))
 %%| fig-width: 11
 %%{init: {"theme": "base", "themeVariables": {"fontSize": "24px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}, "flowchart": {"padding": 14}}}%%
 flowchart LR
-  A[項目ごとの確信度] --> B{その項目の閾値以上?}
-  B -->|はい| C[採用]
-  B -->|いいえ| D[「保留」]
+  A[項目ごとの確信度] --> B{閾値と比べる}
+  B -->|上回る| C[採用]
+  B -->|下回る| D[「保留」]
+  B -->|等しい| F[扱いは未決]
   D --> E[経理課が確認]
 ```
 
