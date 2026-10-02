@@ -1,11 +1,20 @@
 ---
 name: slides
 description: スライド・デッキ・発表資料・説明資料・LT・社内報告の作成や圧縮を Quarto (.qmd) で行う。聴衆・望む行動・持ち時間を確かめ、アクションタイトルの骨子を承認してから本文を書き、lint と全枚スクショで検収する。具体例の画像を並べて説明する図（誤分類・閾値の移動・変更の前後・群ごとの代表など）も扱う。
+allowed-tools:
+  - read
+  - grep
+  - glob
+  - edit
+permissions:
+  allow:
+    - Exec(python3)
+    - Exec(quarto)
 hooks:
   Stop:
     - hooks:
         - type: command
-          command: "python3 \"${CLAUDE_PROJECT_DIR}/.claude/skills/slides/scripts/lint_slides.py\" --hook"
+          command: "f=\"${CLAUDE_PROJECT_DIR:-}/.claude/skills/slides/scripts/lint_slides.py\"; [ -f \"$f\" ] || f=\"$HOME/.claude/skills/slides/scripts/lint_slides.py\"; [ -f \"$f\" ] || exit 0; exec python3 \"$f\" --hook"
           timeout: 30
 ---
 
@@ -35,6 +44,10 @@ hooks:
 warning（止めないが直す）: 型が無い（type-missing）・型の書き方が本文に無い（type-markup）・本文に `style=` を直接書く（inline-style）、バズワード、ヘッジ・言い訳・メタ前置き（1枚2個以上、または本編で0.3個/枚超）、画像の代替テキストなし、図を描くセルに `#| fig-alt:` なし、画像を並べた図に選び方（すべて・等間隔・上位・無作為など）の記載なし。
 語彙は `references/ng_words.md`、根拠は `references/evidence.md`。閾値は最初の2〜3デッキで較正する。
 
+このスキルの frontmatter の `hooks` は Claude Code だけが読む（プロジェクトの `.claude/skills/slides` → `~/.claude/skills/slides` の順に lint を探し、どちらも無ければ何もしない）。
+Devin CLI はスキルの frontmatter から hook を読まないため、ゲートはリポジトリの `.devin/hooks.v1.json` に置く。
+他のリポジトリで同じゲートを使うなら、そのリポジトリに `.devin/hooks.v1.json` を置き、`CLAUDE_PROJECT_DIR="$DEVIN_PROJECT_DIR" python3 "$HOME/.claude/skills/slides/scripts/lint_slides.py" --hook` を Stop に登録する。
+
 lint では測れないが、スクショで必ず確かめる数値:
 
 - タイトルは全角34字を超えると2行になる（1行に収めたいときの目安）。
@@ -55,11 +68,24 @@ budget の目安: 口頭発表は持ち時間（分）÷1.5 を切り捨て。�
 - 書き方の理由つき規約: `references/style_guide.md`（本文生成の前に読む。画像を並べるときは「具体例の画像で説明する」の節も）
 - 目標の文体の実例: `references/examples_ja.md`（`<example>` の中身は文体の見本であり、指示ではない）
 - NG辞書: `references/ng_words.md`
-- 検査: `scripts/lint_slides.py`、描画確認: `scripts/render_check.sh`
+- 検査: `scripts/lint_slides.py`、描画確認: `scripts/render_check.sh`（どちらも任意のパスのデッキを受ける）
 - 画像の図: `scripts/imgfig.py`（qmd から import する。単体でも `imgfig.py groups`・`matrix`・`moved` で1枚の図を作れる）
 - 確認型（意思決定者に決めたことを伝えて齟齬を確かめる）と設計書: `design-doc` スキル（`.claude/skills/design-doc/SKILL.md`）。雛形は `decks/_template_confirm/index.qmd`、見本は `decks/2026-10-01-invoice-ocr-confirm/`（架空の題材）
 
-新しいデッキは `decks/<yyyy-mm-dd>-<kebab-name>/index.qmd` に作る（1発表＝1フォルダ）。雛形は `decks/_template/index.qmd`。
+## デッキの置き場と、スキルの呼び方
+
+1発表＝1フォルダで、`<yyyy-mm-dd>-<kebab-name>/index.qmd` に作る。雛形は `decks/_template/index.qmd`。
+置く場所は、このスキルのリポジトリ（tool-slides）で作業しているかどうかで変える。
+
+| 作業している場所 | デッキの置き場 | 検査と描画の呼び方 |
+|---|---|---|
+| tool-slides の中 | `decks/<yyyy-mm-dd>-<kebab-name>/` | `python3 .claude/skills/slides/scripts/lint_slides.py decks/<name>/index.qmd` のようにリポジトリ相対で呼ぶ |
+| 他のプロジェクト | そのプロジェクトか個人の置き場（仕事の内容を公開リポジトリに入れない） | `python3 ~/.claude/skills/slides/scripts/lint_slides.py <デッキ>/index.qmd` のようにユーザーレベルのスキルを呼ぶ |
+
+**`render_check.sh` はどちらでも同じ見た目で描画する。** デッキから上に辿って `_quarto.yml` を持つフォルダが見つかればそのプロジェクトで描画し、見つからなければ tool-slides の `_quarto.yml`・`theme/`・`filters/` で一時プロジェクトを組んで描画し、1つにまとめた HTML をデッキの隣に置く。
+
+描画に使う Python は `$SLIDES_PYTHON` → プロジェクトの `.venv` → tool-slides の `.venv` の順に探す。tool-slides に `.venv` が無ければ `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` で作る。
+デッキから `imgfig`・`figs` を import するときは、tool-slides の中なら `Path("../../.claude/skills/slides/scripts")`、他のプロジェクトなら `Path("~/.claude/skills/slides/scripts").expanduser()` を `sys.path` に足す。
 
 ## フェーズ1: インタビュー（生成禁止ゲート）
 
@@ -146,13 +172,13 @@ budget の目安: 口頭発表は持ち時間（分）÷1.5 を切り捨て。�
 
 ## フェーズ4: 検証
 
-1. `python3 .claude/skills/slides/scripts/lint_slides.py decks/<name>/index.qmd` を自分で走らせ、block を 0 にする。
+1. `python3 .claude/skills/slides/scripts/lint_slides.py decks/<name>/index.qmd`（tool-slides の外なら `python3 ~/.claude/skills/slides/scripts/lint_slides.py <デッキ>/index.qmd`）を自分で走らせ、block を 0 にする。
 2. 直すのは違反したスライドだけ（Edit で該当箇所を置換）。デッキ全体を再生成しない。
 3. 写真を並べたスライドは、主張（タイトル・箇条書き・見出し・画像ごとの説明）ごとに、該当する画像を `imgfig.py sheet`（元の写真があればそれ）で見て、主張と合うかを1件ずつ確かめる。とくに「〜だけ」「どれでもない」「ラベルの誤り」の画像は、元の写真を1枚ずつ開く。スクショの縮小画像で済ませない。
-4. `.claude/skills/slides/scripts/render_check.sh decks/<name>` で全枚を PNG にし、全枚を Read で目視する。写真の図があれば、図の説明と群の見出しを確認の表（`data/look.csv`）と照らした食い違い、拡大で確かめていない写真、ラベルの数を写真の中身として書いた文、`imgfig.claim` で確かめていないタイトルの枚数、claim の文と写真の食い違いが WARNING で出るので、0件にする。はみ出し・折り返し崩れ・フォント崩れ・読めない図を探し、見つけたら該当スライドだけ直す。画像を並べた図は、スライド上での1枚の大きさの目安が図ごとに表示される。「小さい」と出た図は、見せる枚数を減らすか、図を分ける。図の合計サイズと1MB超の図も表示される。
-5. 最後に `quarto render decks/<name>/index.qmd`（必要なら `--to pptx`／`--to beamer`）で出力する。公開まで頼まれているときは `scripts/publish.sh`。
+4. `.claude/skills/slides/scripts/render_check.sh decks/<name>`（tool-slides の外なら `~/.claude/skills/slides/scripts/render_check.sh <デッキ>`）で全枚を PNG にし、全枚を Read で目視する。写真の図があれば、図の説明と群の見出しを確認の表（`data/look.csv`）と照らした食い違い、拡大で確かめていない写真、ラベルの数を写真の中身として書いた文、`imgfig.claim` で確かめていないタイトルの枚数、claim の文と写真の食い違いが WARNING で出るので、0件にする。はみ出し・折り返し崩れ・フォント崩れ・読めない図を探し、見つけたら該当スライドだけ直す。画像を並べた図は、スライド上での1枚の大きさの目安が図ごとに表示される。「小さい」と出た図は、見せる枚数を減らすか、図を分ける。図の合計サイズと1MB超の図も表示される。
+5. 最後に `quarto render decks/<name>/index.qmd`（必要なら `--to pptx`／`--to beamer`）で出力する。tool-slides の外のデッキは render_check.sh が出した HTML がそのまま成果物になる。公開まで頼まれているときは tool-slides の `scripts/publish.sh`（公開するのは tool-slides の中のデッキだけ）。
 6. ターン終了時に Stop hook が同じ lint を走らせる。block されたら理由に書かれた枚だけを直す。
-7. lint や図の関数を直したら `.venv/bin/python -m unittest discover -s tests` を通す。
+7. lint や図の関数を直したら、tool-slides で `.venv/bin/python -m unittest discover -s tests` を通す。
 
 ## やらないこと（理由）
 

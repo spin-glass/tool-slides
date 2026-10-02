@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Exec(python3)",
+      "Exec(quarto)",
+      "Exec(.venv/bin/python)",
+      "Exec(.claude/skills/slides/scripts/render_check.sh)"
+    ]
+  }
+}

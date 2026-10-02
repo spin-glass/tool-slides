@@ -1,0 +1,18 @@
+{
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "CLAUDE_PROJECT_DIR=\"$DEVIN_PROJECT_DIR\" python3 \"$DEVIN_PROJECT_DIR/.claude/skills/design-doc/scripts/check_doc.py\" --hook",
+          "timeout": 60
+        },
+        {
+          "type": "command",
+          "command": "CLAUDE_PROJECT_DIR=\"$DEVIN_PROJECT_DIR\" python3 \"$DEVIN_PROJECT_DIR/.claude/skills/slides/scripts/lint_slides.py\" --hook",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
+}
