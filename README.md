@@ -12,9 +12,32 @@ Claude Code の `slides` スキルが「聴衆・行動・持ち時間の確認 
 ## 使い方
 
 ```sh
-uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt   # 初回のみ（コードセル実行用）
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # 初回のみ（コードセル実行用）
 claude   # 「/slides 〜の発表資料を作って」
 ```
+
+### どのプロジェクトからでも使えるようにする
+
+`slides` と `design-doc` をユーザーレベルのスキルとして入れる。
+リンクなので、このリポジトリを直せばそのまま反映される。
+
+```sh
+mkdir -p ~/.claude/skills
+ln -s "$PWD/.claude/skills/slides"     ~/.claude/skills/slides
+ln -s "$PWD/.claude/skills/design-doc" ~/.claude/skills/design-doc
+```
+
+入れたあとは、他のプロジェクトで作業しているときも `python3 ~/.claude/skills/slides/scripts/lint_slides.py <デッキ>/index.qmd` のように呼べる。
+**デッキはこのリポジトリの外に置いてよい。** `render_check.sh` は、デッキから上に辿って `_quarto.yml` を持つフォルダが見つかればそのプロジェクトで描画し、見つからなければこのリポジトリの `_quarto.yml`・`theme/`・`filters/` で一時プロジェクトを組んで描画して、1つにまとめた HTML をデッキの隣に置く。どちらでも見た目は同じになる。
+描画に使う Python は `$SLIDES_PYTHON` → そのプロジェクトの `.venv` → このリポジトリの `.venv` の順に探す。
+
+**Devin CLI で使う**
+
+Devin は互換として `~/.claude/skills/` を読むので、上のリンクのままスキルは認識される（`/slides`・`/design-doc` で呼べる）。
+ゲートは `.devin/hooks.v1.json`（このリポジトリに同梱）。スキルの frontmatter の `hooks` は Claude 専用で、Devin は読まない。
+権限は `.devin/config.json`。`.claude/settings.json` の許可設定は Claude 専用。
+他のリポジトリで使うときは、そのリポジトリに `.devin/hooks.v1.json` を置き、`CLAUDE_PROJECT_DIR="$DEVIN_PROJECT_DIR" python3 "$HOME/.claude/skills/slides/scripts/lint_slides.py" --hook` を Stop に登録する。
+テストを走らせるには `.venv/bin/pip install -r requirements-dev.txt`。
 
 | 操作 | コマンド |
 |---|---|

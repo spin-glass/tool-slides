@@ -1,14 +1,23 @@
 ---
 name: design-doc
 description: 設計書（基本設計・ML設計・精度検証・運用設計・移行計画など）のレビュー・改稿と、意思決定者に「決めたことを伝えて齟齬を確かめる」確認型スライドの作成。原資料から主張の表（claims.csv）を作り、設計書は Markdown＋Mermaid（VSCode プレビュー・Notion で表示）、スライドは slides スキルの Quarto で作り、最後に原文と照合する。「設計書が分かりにくい」「意思決定者向けに短く」「決めたことを確認するスライド」で使う。
+allowed-tools:
+  - read
+  - grep
+  - glob
+  - edit
+permissions:
+  allow:
+    - Exec(python3)
+    - Exec(quarto)
 hooks:
   Stop:
     - hooks:
         - type: command
-          command: "python3 \"${CLAUDE_PROJECT_DIR}/.claude/skills/design-doc/scripts/check_doc.py\" --hook"
+          command: "f=\"${CLAUDE_PROJECT_DIR:-}/.claude/skills/design-doc/scripts/check_doc.py\"; [ -f \"$f\" ] || f=\"$HOME/.claude/skills/design-doc/scripts/check_doc.py\"; [ -f \"$f\" ] || exit 0; exec python3 \"$f\" --hook"
           timeout: 60
         - type: command
-          command: "python3 \"${CLAUDE_PROJECT_DIR}/.claude/skills/slides/scripts/lint_slides.py\" --hook"
+          command: "f=\"${CLAUDE_PROJECT_DIR:-}/.claude/skills/slides/scripts/lint_slides.py\"; [ -f \"$f\" ] || f=\"$HOME/.claude/skills/slides/scripts/lint_slides.py\"; [ -f \"$f\" ] || exit 0; exec python3 \"$f\" --hook"
           timeout: 30
 ---
 
@@ -17,15 +26,17 @@ hooks:
 設計書の改稿と意思決定者向けスライドは別々に書かない。原資料 → 主張の表（根拠と状態を確かめた共通メモ）→ 設計書／確認型スライド → 原文との照合、の順に作る。
 スライドの作法（聴衆・行動・時間、ゴーストデッキ承認、lint、全枚スクショ）は `slides` スキルに従い、ここではその上に乗せる手順と型だけを書く。
 
-## 成果物と置き場所（1案件＝1フォルダ `decks/<yyyy-mm-dd>-<kebab-name>/`）
+## 成果物と置き場所（1案件＝1フォルダ `<yyyy-mm-dd>-<kebab-name>/`）
 
 | 成果物 | ファイル | 雛形 | 検査 |
 |---|---|---|---|
 | 主張の表 | `claims.csv` | `templates/claims.csv` | `scripts/claims.py` |
 | 設計書（組み替え） | `design/<文書名>.md` | `templates/design_doc.md` | `scripts/check_doc.py`（`--render` で Mermaid を PNG にして目視） |
-| 確認型スライド | `index.qmd` | `decks/_template_confirm/index.qmd` | slides の `lint_slides.py`（`kind: confirm` の規則）と `render_check.sh` |
+| 確認型スライド | `index.qmd` | tool-slides の `decks/_template_confirm/index.qmd` | slides の `lint_slides.py`（`kind: confirm` の規則）と `render_check.sh` |
 
-見本: `decks/2026-10-01-invoice-ocr-confirm/`（架空の題材: 請求書を OCR で読み取る方式への切替。確認型5枚＋付録3枚、運用・移行設計の組み替え案、主張19件）。
+**フォルダを置く場所は `slides` スキルの「デッキの置き場と、スキルの呼び方」に従う。** tool-slides の中なら `decks/` の下、他のプロジェクトで作業しているならそのプロジェクトか個人の置き場に置き、スクリプトは `python3 ~/.claude/skills/design-doc/scripts/...` で呼ぶ。設計書の原文が社内の資料なら、公開リポジトリには置かない。
+
+見本: tool-slides の `decks/2026-10-01-invoice-ocr-confirm/`（架空の題材: 請求書を OCR で読み取る方式への切替。確認型5枚＋付録3枚、運用・移行設計の組み替え案、主張19件）。
 
 ## 数値ルール（lint・check_doc が機械的に検査する。slides の表に足す分）
 
@@ -42,6 +53,10 @@ hooks:
 
 warning（止めないが直す）: 章（`##`）の見出しの直後に図（Mermaid・表・画像）が無い、章番号（`## 3.` / `### 3.1`）のない見出し、確認型の本編の枚に `claims` が無い。
 
+このスキルの frontmatter の `hooks` は Claude Code だけが読む（プロジェクトの `.claude/skills/` → `~/.claude/skills/` の順に探し、どちらも無ければ何もしない）。
+Devin CLI はスキルの frontmatter から hook を読まないため、ゲートはリポジトリの `.devin/hooks.v1.json` に置く。
+他のリポジトリで同じゲートを使うなら、そのリポジトリに `.devin/hooks.v1.json` を置き、`CLAUDE_PROJECT_DIR="$DEVIN_PROJECT_DIR" python3 "$HOME/.claude/skills/design-doc/scripts/check_doc.py" --hook` と `CLAUDE_PROJECT_DIR="$DEVIN_PROJECT_DIR" python3 "$HOME/.claude/skills/slides/scripts/lint_slides.py" --hook` を Stop に登録する。
+
 ## フェーズ0: 原資料を主張の表にする（生成禁止ゲート）
 
 slides のフェーズ1（聴衆・行動・持ち時間）に加えて、次が揃うまで設計書もスライドも書かない。
@@ -52,7 +67,7 @@ slides のフェーズ1（聴衆・行動・持ち時間）に加えて、次が
    - 状態は7つ（事実／参考値／方針／想定／提案／決定／未決）。原文に「こうする」と書いてあるだけなら 方針、見積りや仮の期間は 想定、「約1%（再集計する）」のような再測定前の数は 参考値。実績・確約と書かない。
    - 矛盾する記述は両方を note に残す。生成器が勝手に片方を正解にしない。
    - 無い費用・日程・性能は 未決 にして決める担当（owner）を書く。補完して断定しない。
-3. `python3 .claude/skills/design-doc/scripts/claims.py decks/<name>/claims.csv` で検査し、未決の一覧を本人に見せる。
+3. `python3 .claude/skills/design-doc/scripts/claims.py <案件>/claims.csv`（tool-slides の外なら `python3 ~/.claude/skills/design-doc/scripts/claims.py ...`）で検査し、未決の一覧を本人に見せる。
 
 ## フェーズ1: 整合と不足を確かめ、先に決める項目を出す
 
@@ -78,7 +93,7 @@ slides のフェーズ1（聴衆・行動・持ち時間）に加えて、次が
 - **章（`##`）の見出しの直後に図を1つ置く。** 関係は構成図（flowchart）、時間順は工程表（gantt）か処理フロー、差は比較表、抽象的な規則は具体例つきの図。図ごとに範囲を示し、矢印に意味を書く。1枚に全階層を詰めない。
 - 原文の業務・要件は保持し、読み順と表現だけを変える。要件の削除・変更と、表現の変更を区別して本人に示す。
 - 状態の語を守る: 参考値を実績に、想定を確約に、方針を実施済みに、提案を決定に変えない。未決は `[要確認]` と書き、§1.3 の一覧に載せる。「別マニュアル参照」で完成扱いにしない。
-- 検査: `python3 .claude/skills/design-doc/scripts/check_doc.py --render decks/<name>/design/<文書名>.md` → `design/_check/<文書名>-fig-NN.png` を Read で全枚目視（文字の重なり・はみ出し・矢印の向き・色の意味）。VSCode の Markdown プレビューで見るには拡張機能「Markdown Preview Mermaid Support」が要る。Notion に貼る場合も Mermaid のコードブロックはそのまま図になる。
+- 検査: `python3 .claude/skills/design-doc/scripts/check_doc.py --render <案件>/design/<文書名>.md`（tool-slides の外なら `python3 ~/.claude/skills/design-doc/scripts/check_doc.py --render ...`）→ `design/_check/<文書名>-fig-NN.png` を Read で全枚目視（文字の重なり・はみ出し・矢印の向き・色の意味）。VSCode の Markdown プレビューで見るには拡張機能「Markdown Preview Mermaid Support」が要る。Notion に貼る場合も Mermaid のコードブロックはそのまま図になる。
 
 ## フェーズ3: 確認型スライド（`index.qmd`。slides の4フェーズに従う）
 

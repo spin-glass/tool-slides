@@ -1,21 +1,41 @@
 #!/usr/bin/env bash
 # quarto render（revealjs）→ Chrome headless で全スライドを 1280x720 の PNG にする。
 # 出力: <deck>/_check/slide-NN.png（Read で全枚を目視する）
-# 使い方: render_check.sh decks/<name>      （index.qmd を含むフォルダ、または .qmd のパス）
+# 使い方: render_check.sh <deck>      （index.qmd を含むフォルダ、または .qmd のパス）
+#
+# デッキが Quarto プロジェクト（_quarto.yml を持つフォルダ）の中にあれば、そのプロジェクトで描画する。
+# 外にあるときは、このスキルのリポジトリの _quarto.yml・theme・filters で一時プロジェクトを組んで描画し、
+# 1つにまとめた HTML をデッキの隣に置く。どちらの経路でも見た目は同じになる。
 set -euo pipefail
 
-ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "$0")/../../../.." && pwd))"
-TARGET="${1:?usage: render_check.sh decks/<name>}"
+SKILL_DIR="$(cd -P "$(dirname "$0")/.." && pwd)"   # シンボリックリンク経由でも実体を指す
+REPO="$(cd -P "$SKILL_DIR/../../.." && pwd)"       # <repo>/.claude/skills/slides の3つ上
+
+TARGET="${1:?usage: render_check.sh <deck>}"
 [[ -d "$TARGET" ]] && TARGET="$TARGET/index.qmd"
 [[ -f "$TARGET" ]] || { echo "not found: $TARGET" >&2; exit 1; }
 QMD="$(cd "$(dirname "$TARGET")" && pwd)/$(basename "$TARGET")"
 DECK_DIR="$(dirname "$QMD")"
-REL="${QMD#"$ROOT"/}"
-HTML="$ROOT/_output/${REL%.qmd}.html"
 OUT="$DECK_DIR/_check"
 
-PY="$ROOT/.venv/bin/python"
-[[ -x "$PY" ]] || { echo ".venv がない: uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt" >&2; exit 1; }
+# デッキを含む Quarto プロジェクトを上に辿って探す
+PROJECT=""
+d="$DECK_DIR"
+while [[ "$d" != "/" ]]; do
+  if [[ -f "$d/_quarto.yml" ]]; then PROJECT="$d"; break; fi
+  d="$(dirname "$d")"
+done
+
+# Python: $SLIDES_PYTHON → プロジェクトの .venv → スキルのリポジトリの .venv
+PY="${SLIDES_PYTHON:-}"
+if [[ -z "$PY" || ! -x "$PY" ]]; then
+  PY=""
+  for c in ${PROJECT:+"$PROJECT/.venv/bin/python"} "$REPO/.venv/bin/python"; do
+    if [[ -x "$c" ]]; then PY="$c"; break; fi
+  done
+fi
+[[ -n "$PY" ]] || { echo ".venv がない: (cd $REPO && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt)" \
+                     "／別の Python を使うなら SLIDES_PYTHON=/path/to/python" >&2; exit 1; }
 export QUARTO_PYTHON="$PY"
 
 CHROME="${CHROME:-}"
@@ -33,8 +53,53 @@ fi
 REPORT="$OUT/imgfig.jsonl"
 PREV="$(cat "$REPORT" 2>/dev/null || true)"
 NEW="$(mktemp)"
-(cd "$ROOT" && IMGFIG_REPORT="$NEW" quarto render "$REL" --to revealjs --quiet)
-[[ -f "$HTML" ]] || { echo "HTML が出力されていない: $HTML" >&2; exit 1; }
+
+# 描画した HTML を、プロジェクトの output-dir の有無にかかわらず見つける
+find_html() {  # $1 = プロジェクト根, $2 = 根からの相対パス（.qmd）
+  local root="$1" rel="$2" c
+  for c in "$root/_output/${rel%.qmd}.html" "$root/${rel%.qmd}.html"; do
+    [[ -f "$c" ]] && { echo "$c"; return 0; }
+  done
+  return 1
+}
+
+TMP_PROJECT=""
+# if で書く（`[[ … ]] && …` だと、空のときの偽が set -e の下で終了コード1になる）
+cleanup() { if [[ -n "$TMP_PROJECT" ]]; then rm -rf "$TMP_PROJECT"; fi; }
+trap cleanup EXIT
+
+if [[ -n "$PROJECT" ]]; then
+  REL="${QMD#"$PROJECT"/}"
+  (cd "$PROJECT" && IMGFIG_REPORT="$NEW" quarto render "$REL" --to revealjs --quiet)
+  RENDER_HTML="$(find_html "$PROJECT" "$REL")" || { echo "HTML が出力されていない（${PROJECT}）" >&2; exit 1; }
+  HTML="$RENDER_HTML"
+else
+  # プロジェクトの外。スキルのリポジトリの設定で一時プロジェクトを組む
+  for f in "$REPO/_quarto.yml" "$REPO/theme" "$REPO/filters"; do
+    [[ -e "$f" ]] || { echo "描画に要る資材が無い: $f" >&2; exit 1; }
+  done
+  TMP_PROJECT="$(mktemp -d)"
+  cp "$REPO/_quarto.yml" "$TMP_PROJECT/_quarto.yml"
+  ln -s "$REPO/theme" "$TMP_PROJECT/theme"
+  ln -s "$REPO/filters" "$TMP_PROJECT/filters"
+  # デッキの ../../.claude/skills/slides/scripts からの import（imgfig・figs）も通るようにする
+  ln -s "$REPO/.claude" "$TMP_PROJECT/.claude"
+  # デッキはリンクではなくコピーで入れる。リンクだと Quarto が実体の位置を見てプロジェクト外と判断し、
+  # _quarto.yml（テーマとフィルタ）が当たらないまま単独描画になる。
+  mkdir -p "$TMP_PROJECT/decks"
+  cp -R "$DECK_DIR" "$TMP_PROJECT/decks/$(basename "$DECK_DIR")"
+  rm -rf "$TMP_PROJECT/decks/$(basename "$DECK_DIR")/_check"
+  REL="decks/$(basename "$DECK_DIR")/$(basename "$QMD")"
+  # 外に置くデッキは1つにまとめた HTML にする（デッキの隣に資材のフォルダを作らない）
+  (cd "$TMP_PROJECT" && IMGFIG_REPORT="$NEW" quarto render "$REL" --to revealjs --quiet -M embed-resources:true)
+  RENDER_HTML="$(find_html "$TMP_PROJECT" "$REL")" || { echo "HTML が出力されていない（一時プロジェクト）" >&2; exit 1; }
+  HTML="${QMD%.qmd}.html"
+  # Quarto が一時プロジェクトの _output ではなく入力の隣へ出す場合もあるため、同じファイルなら複写しない
+  if [[ "$(cd "$(dirname "$RENDER_HTML")" && pwd -P)/$(basename "$RENDER_HTML")" != "$(cd "$DECK_DIR" && pwd -P)/$(basename "$HTML")" ]]; then
+    cp "$RENDER_HTML" "$HTML"
+  fi
+  echo "HTML -> ${HTML}（1つにまとめた形）"
+fi
 
 rm -rf "$OUT" && mkdir -p "$OUT"
 if [[ -s "$NEW" ]]; then cp "$NEW" "$REPORT"; elif [[ -n "$PREV" ]]; then printf '%s\n' "$PREV" > "$REPORT"; fi
@@ -79,7 +144,7 @@ elif [[ -s "$REPORT" ]] && grep -q '"captions": \[{' "$REPORT"; then
 fi
 
 # 図のファイルサイズ（公開ページの重さ）。写真を並べた図は PNG だと1枚1MBを超える
-FIG_DIR="${HTML%.html}_files/figure-revealjs"
+FIG_DIR="${RENDER_HTML%.html}_files/figure-revealjs"
 if [[ -d "$FIG_DIR" ]]; then
   echo "figures: $(du -sk "$FIG_DIR" | cut -f1) KB"
   find "$FIG_DIR" -type f -size +1024k | while read -r f; do
