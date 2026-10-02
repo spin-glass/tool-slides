@@ -122,10 +122,23 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
             issues.append(Issue("warning", ln, "heading-number",
                                 f"章番号がない見出し「{title}」。`## 3. 題` / `### 3.1 題` の形にすると参照を検査できる"))
 
-    # 章参照
+    # 章参照。表の見出しのセルに文書名（「原文の章」）があれば、その列の参照は他の文書への参照とみなす
+    header_docs: dict[int, bool] = {}       # 列番号 → 見出しに文書名がある
+    prev_table = False
     for ln, raw in prose:
         text = re.sub(r"<!--.*?-->", "", raw)
+        is_table = text.strip().startswith("|")
+        if is_table and not prev_table:
+            header_docs = {k: any(w in c for w in DOC_WORDS) for k, c in enumerate(text.strip().strip("|").split("|"))}
+        elif not is_table:
+            header_docs = {}
+        prev_table = is_table
+        quoted = [(q.start(), q.end()) for q in re.finditer(r"「[^」]*」", text)]
         for m in REF_RE.finditer(text):
+            if any(a <= m.start() < b for a, b in quoted):
+                continue   # 「§12 を参照」のような引用の中は、原文の文言なので見ない
+            if is_table and header_docs.get(text[:m.start()].strip().lstrip("|").count("|")):
+                continue   # 「原文の章」列の参照
             cell_start = text.rfind("|", 0, m.start()) + 1
             cell_end = text.find("|", m.end())
             cell_end = len(text) if cell_end < 0 else cell_end
@@ -165,10 +178,10 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
                                 f"Mermaid の1行目が図の種類でない: {head[:40]!r}（flowchart / gantt / sequenceDiagram など）"))
         for lab in re.findall(r'\{"?([^}"]+)"?\}', "\n".join(l for l in body.splitlines() if not l.strip().startswith("%%"))):
             longest = max(zen_len_safe(x) for x in re.split(r"<br\s*/?>", lab))
-            if longest > 10:
+            if longest > 8:
                 issues.append(Issue("warning", ln, "mermaid-diamond",
                                     f"ひし形のラベルの1行が全角{longest:.0f}字（「{lab[:16]}…」）。ひし形は字が欠けやすいので、"
-                                    "1行10字以内にして <br> で折る"))
+                                    "1行8字以内にして <br> で折り、半角の ? § 空白を避ける"))
                 break
         if "%%{init" not in body:
             issues.append(Issue("warning", ln, "mermaid-theme",

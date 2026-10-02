@@ -70,7 +70,7 @@
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 flowchart TB
-  A[項目ごとの確信度] --> B{その項目の閾値以上?}
+  A[項目ごとの確信度] --> B{その項目の<br>閾値以上？}
   B -->|はい| C[採用]
   B -->|いいえ| D[「保留」]
 ```

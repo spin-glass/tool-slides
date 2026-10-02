@@ -354,11 +354,18 @@ def main() -> int:
     if args.paragraphs:
         for f in args.files:
             print(f"# {f} の段落（4分類の作業表: 残す／1か所にまとめる／削る／未決にする）")
-            print("| 行 | 種類 | 中身の語 | 一般論・前置き・ヘッジ | 先頭 | 分類 | 理由 |")
+            print("| 行 | 種類 | 数字・ID・§・「」 | 一般論・前置き・ヘッジ | 先頭 | 分類 | 理由 |")
             print("|---|---|---|---|---|---|---|")
-            for u in units(f.read_text(encoding="utf-8").splitlines()):
-                words = "、".join(dict.fromkeys(w for _, w in filler_hits(u.text, ng)))
-                print(f"| {u.line} | {u.kind} | {'あり' if has_info(u) else 'なし'} | {words} | {u.text[:24]} |  |  |")
+            lines = f.read_text(encoding="utf-8").splitlines()
+            rows = [(u.line, u.kind, has_info(u), u.text) for u in units(lines)]
+            table_rows: dict[int, list[str]] = {}
+            for ln, cell in table_cells(lines):
+                table_rows.setdefault(ln, []).append(cell)
+            rows += [(ln, "table", bool(INFO_RE.search(" ".join(cs))), " / ".join(cs)) for ln, cs in table_rows.items()]
+            for ln, kind, info, text in sorted(rows):
+                words = "、".join(dict.fromkeys(w for _, w in filler_hits(text, ng)))
+                print(f"| {ln} | {kind} | {'あり' if info else 'なし'} | {words} | {text[:24]} |  |  |")
+            print("\n「数字・ID・§・「」」が「なし」でも、担当・対象・手順を書いた段落は中身がある。分類は文を読んで決める。")
         return 0
     if args.original:
         _, m0, _ = analyze(args.original, ng, siblings=False)
@@ -371,6 +378,9 @@ def main() -> int:
                   f"段落 {m.units}/{m0.units}・一般論等 {m.filler}/{m0.filler}・削除候補 {m.candidates}/{m0.candidates}")
         for u, why in cands:
             print(f"  {u.line:4}行 [{why}] {u.text[:60]}{'…' if len(u.text) > 60 else ''}")
+        if cands and not args.original:
+            print("  ※ 候補は出発点。判断を含む文（「導入が望ましいと考えられる」）はヘッジを外して残し、"
+                  "扱いが必要な話題（障害時・セキュリティ）は未決にする（SKILL.md フェーズ2.1）")
     return 0
 
 

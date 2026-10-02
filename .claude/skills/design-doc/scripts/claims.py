@@ -90,9 +90,9 @@ def summary(rows: list[dict[str, str]]) -> str:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or any(a in ("-h", "--help") for a in sys.argv[1:]):
         print(__doc__)
-        return 2
+        return 0 if len(sys.argv) >= 2 else 2
     worst = 0
     for arg in sys.argv[1:]:
         p = Path(arg)
