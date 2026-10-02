@@ -5,11 +5,18 @@
   python3 check_doc.py decks/<name>/design/<doc>.md            # 章参照・章ごとの図・Mermaid の種類・placeholder・claims.csv
   python3 check_doc.py --render decks/<name>/design/<doc>.md   # さらに Mermaid を PNG にする → design/_check/<doc>-fig-NN.png（Read で目視）
   python3 check_doc.py --hook                                  # Stop hook。git で変更のある decks/**/design/*.md を検査（描画も行う）
+  python3 check_doc.py --candidates design/_source/<doc>.md    # 原文の削除候補・一般論の多い段落・繰り返しの一覧（書き直す前に）
+  python3 check_doc.py --original design/_source/<doc>.md design/<doc>.md   # 原文と書き直しの字数・段落数・一般論の比較
 
 block:   本文にない章への参照（§3.4・3.4節・3章。「基本設計 §5.1」のように文書名つきの外部参照は見ない）、
          Mermaid の1行目が図の種類でない、Mermaid の描画エラー、placeholder（TODO・TBD・XXX・〇〇。`[要確認]` は未決の印として可）、
-         claims.csv の列・状態の誤り
-warning: `## ` の章の直後に図（Mermaid・表・画像）が無い、章番号（## 3. / ### 3.1）のない見出し
+         claims.csv の列・状態の誤り、
+         冗長さ: 削除候補（数字・主張ID・§・`コード`・「固有の語」・[要確認] のどれも無く、一般論・前置き・ヘッジだけの段落）、
+         文書内の同じ文の繰り返し（全角20字以上）、同じフォルダの別の設計書と同じ文（全角30字以上）
+warning: `## ` の章の直後に図（Mermaid・表・画像）が無い、章番号（## 3. / ### 3.1）のない見出し、
+         1段落200字超・1章の文章1000字超、一般論・前置き・ヘッジが1段落に2つ以上・文章1000字あたり3つ超、バズワード、
+         claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）
+辞書: references/ng_doc.md（一般論・前置き）と slides の references/ng_words.md（ヘッジ・バズワード）。閾値は verbosity.py の LIMITS
 終了コード: 0 = block なし / 2 = block あり
 """
 from __future__ import annotations
@@ -28,6 +35,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import claims as claims_mod  # noqa: E402
+import verbosity  # noqa: E402
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 NUMBERED_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+")
@@ -152,12 +160,25 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
             issues.append(Issue("block", ln, "placeholder",
                                 f"未確定の記述 `{m.group(0)}`。値を確かめて埋めるか、未決なら [要確認] と書いて未決事項の節に載せる"))
 
+    # 冗長さ（一般論・前置き・ヘッジ、削除候補、繰り返し、長すぎる段落・章）
+    findings, metrics, _ = verbosity.analyze(path)
+    issues.extend(Issue(f.severity, f.line, f.rule, f.message) for f in findings)
+    issues.append(Issue("info", 1, "metrics", metrics.fmt()))
+
     # 主張の表（デッキのフォルダの claims.csv）
     for cand in (path.parent / "claims.csv", path.parent.parent / "claims.csv"):
         if cand.exists():
             rows = claims_mod.load(cand)
             for e in claims_mod.validate(rows):
                 issues.append(Issue("block", 1, "claims-file", f"{cand.name}: {e}"))
+            # 削りすぎの検知: 設計書に載せるはずの主張（target が doc / both）が、同じフォルダのどの設計書にも出てこない
+            text = "\n".join(p.read_text(encoding="utf-8") for p in path.parent.glob("*.md") if not p.name.startswith("_"))
+            missing = [r["id"] for r in rows if r.get("target") in ("doc", "both") and r.get("id")
+                       and not re.search(rf"(?<![A-Za-z0-9_-]){re.escape(r['id'])}(?![A-Za-z0-9_-])", text)]
+            if missing:
+                issues.append(Issue("warning", 1, "claims-unused",
+                                    f"設計書に載せるはずの主張が本文に出てこない: {', '.join(missing)}。"
+                                    "削りすぎていないか確かめ、載せるなら本文に（C1）の形で添える"))
             break
 
     order = {"block": 0, "warning": 1, "info": 2}
@@ -262,6 +283,8 @@ def main() -> int:
     ap.add_argument("files", nargs="*", type=Path)
     ap.add_argument("--render", action="store_true", help="Mermaid を PNG にして design/_check/ に置く")
     ap.add_argument("--hook", action="store_true", help="Claude Code Stop hook として動く")
+    ap.add_argument("--candidates", action="store_true", help="削除候補・一般論の多い段落・繰り返しの一覧を出す（原文に使う）")
+    ap.add_argument("--original", type=Path, help="原文。書き直しと字数・段落数・一般論を比べる")
     ap.add_argument("--mermaid-init", nargs="?", const="16px", metavar="SIZE",
                     help="Mermaid の先頭に置く色と文字の1行を出す（スライドでは 24px）")
     args = ap.parse_args()
@@ -273,6 +296,12 @@ def main() -> int:
     if not args.files:
         print("対象の .md を指定する", file=sys.stderr)
         return 2
+    if args.candidates or args.original:
+        argv = (["--original", str(args.original)] if args.original else []) + [str(f) for f in args.files]
+        sys.argv = [sys.argv[0]] + argv
+        if not args.original:
+            return verbosity.main()
+        verbosity.main()      # 比べた上で、書き直しの検査も続けて行う
     worst = 0
     for f in args.files:
         issues = check_document(f, render=args.render)

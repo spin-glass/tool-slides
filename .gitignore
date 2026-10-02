@@ -28,3 +28,7 @@ experiments/*/site/
 experiments/*/results/*_planted/
 experiments/**/_cache_hard_fruit/
 experiments/*/task6/data/images/
+
+# 設計書の原文（design-doc スキル）。公開リポジトリなので仕事の原文はコミットしない
+decks/**/design/_source/
+experiments/**/_source/

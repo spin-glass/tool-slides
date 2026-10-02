@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / ".claude/skills/slides/scripts"))
 sys.path.insert(0, str(ROOT / ".claude/skills/design-doc/scripts"))
 import check_doc  # noqa: E402
 import claims  # noqa: E402
+import verbosity  # noqa: E402
 import lint_slides as lint  # noqa: E402
 
 NG = lint.load_ng_words()
@@ -83,6 +84,37 @@ class DesignDoc(unittest.TestCase):
         self.assertEqual(blocks.count("ref-missing"), 2)        # §4.2 と 7章
         warnings = doc_rules(FIX / "design/bad.md", "warning")
         self.assertEqual(sorted(set(warnings)), ["figure-first", "heading-number", "mermaid-theme"])
+
+    def test_verbose_document(self):
+        doc = FIX / "design/verbose.md"
+        blocks = doc_rules(doc, "block")
+        self.assertEqual(blocks.count("filler-only"), 2)      # 一般論だけの段落と、一般論だけの箇条書き
+        self.assertEqual(blocks.count("dup-sentence"), 1)     # 1章と2章で同じ文
+        warnings = doc_rules(doc, "warning")
+        for rule in ("filler", "unit-long"):
+            self.assertIn(rule, warnings)
+
+    def test_verbose_candidates_keep_informative_units(self):
+        _, metrics, cands = verbosity.analyze(FIX / "design/verbose.md")
+        lines = {u.text[:12] for u, why in cands if "一般論・前置き・ヘッジだけ" in why}
+        self.assertEqual(metrics.candidates, 2)
+        self.assertFalse(any("3営業日" in t for t in lines))     # 数字のある項目は削除候補にしない
+
+    def test_cross_document_duplicate(self):
+        self.assertIn("cross-dup", doc_rules(FIX / "design_multi/a.md", "block"))
+
+    def test_claims_missing_from_document(self):
+        issues = check_doc.check_document(FIX / "design_claims/design/doc.md")
+        missing = [i.message for i in issues if i.rule == "claims-unused"]
+        self.assertEqual(len(missing), 1)
+        self.assertIn("C2", missing[0])
+        self.assertNotIn("C3", missing[0])      # target が deck の主張は設計書に無くてよい
+
+    def test_metrics_compare_with_original(self):
+        _, verbose, _ = verbosity.analyze(FIX / "design/verbose.md", siblings=False)
+        _, clean, _ = verbosity.analyze(FIX / "design/ok.md", siblings=False)
+        self.assertGreater(verbose.filler, clean.filler)
+        self.assertGreater(verbose.chars, clean.chars)
 
     def test_sample_document(self):
         doc = ROOT / "decks/2026-10-01-invoice-ocr-confirm/design/operations.md"

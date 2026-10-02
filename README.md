@@ -47,6 +47,8 @@ Devin は互換として `~/.claude/skills/` を読むので、上のリンク�
 | 出力 | `QUARTO_PYTHON=.venv/bin/python quarto render decks/<name>/index.qmd`（`--to revealjs` / `pptx` / `beamer`） |
 | 群ごとに画像を並べた図を作る | `.venv/bin/python .claude/skills/slides/scripts/imgfig.py groups --table table.csv --thumbs thumbs/ --by true,pred --out groups.png`（ほかに `matrix`、閾値用の `moved`） |
 | 設計書の検査（章参照・章ごとの図・Mermaid を PNG に） | `python3 .claude/skills/design-doc/scripts/check_doc.py --render decks/<name>/design/<doc>.md` → `design/_check/<doc>-fig-NN.png` |
+| 設計書の削除候補の一覧（原文に使う） | `python3 .claude/skills/design-doc/scripts/check_doc.py --candidates decks/<name>/design/_source/<doc>.md` |
+| 原文と書き直しの比較（字数・段落数・一般論） | `python3 .claude/skills/design-doc/scripts/check_doc.py --original decks/<name>/design/_source/<doc>.md decks/<name>/design/<doc>.md` |
 | 主張の表の検査 | `python3 .claude/skills/design-doc/scripts/claims.py decks/<name>/claims.csv` |
 | テスト | `.venv/bin/python -m unittest discover -s tests` |
 

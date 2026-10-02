@@ -1,0 +1,4 @@
+id,doc,section,claim,status,evidence,owner,target,note
+C1,運用設計,§2,手入力から OCR に変える,決定,定例 2026-09-20,経理課,doc,
+C2,運用設計,§6,3か月・4段階で移す,想定,,経理課,both,
+C3,,,スライドだけに載せる補足,提案,,経理課,deck,
