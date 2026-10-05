@@ -214,9 +214,16 @@ groups = Counter(r for r in (("犬に似た動物" if i.label in ("オオカミ"
 | 線を決める犬 | `{python} len(cal)`枚。このうち外れ値にする割合が線の名前になる |
 | 評価用 | 犬`{python} len(dogs)`枚＋犬以外`{python} len(others)`枚（犬に似た動物`{python} groups["犬に似た動物"]`、ほかの動物`{python} groups["ほかの動物"]`、動物以外`{python} groups["動物以外"]`） |
 | 外れ値スコア | CLIP ViT-B/32 の埋め込みで、参照用の犬のうち`{python} meta["k"]`番目に近い写真とのコサイン距離 |
+| 分離の良さ | 評価用300枚での AUROC は`{python} f"{auroc:.3f}"` |
+
+: {tbl-colwidths="[22,78]"}
+
+## 表示のラベルは目視で直し、人物などの写真はスコアを見る前に除いた {.smaller}
+
+| 項目 | 内容 |
+|---|---|
 | ラベルの修正 | `{python} len(fix)`枚は Open Images のラベルが写真と合わないため、表示のラベルを目視で直した（例: コヨーテに付いたオオカミ・キツネ・ジャッカル、モルモットに付いたウサギ。一覧は data/label_fix.csv） |
 | 除いた写真 | 人物の写真と自動判定した`{python} meta["n_person_filtered"]`枚と、目視で外した`{python} meta["n_excluded_by_eye"]`枚（顔・ナンバープレート・ラベル違いなど）。どちらもスコアを見る前に外した |
-| 分離の良さ | 評価用300枚での AUROC は`{python} f"{auroc:.3f}"` |
 
 : {tbl-colwidths="[22,78]"}
 

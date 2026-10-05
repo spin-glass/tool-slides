@@ -61,8 +61,7 @@ warning（止めないが直す）: 章（`##`）の見出しの直後に図（M
 辞書は `references/ng_doc.md`（一般論・前置き）と slides の `references/ng_words.md`（ヘッジ・バズワード）。閾値は `scripts/verbosity.py` の `LIMITS`（初期値）。
 
 このスキルの frontmatter の `hooks` は Claude Code だけが読む（プロジェクトの `.claude/skills/` → `~/.claude/skills/` の順に探し、どちらも無ければ何もしない）。
-Devin CLI はスキルの frontmatter から hook を読まないため、ゲートはリポジトリの `.devin/hooks.v1.json` に置く。
-他のリポジトリで同じゲートを使うなら、そのリポジトリに `.devin/hooks.v1.json` を置き、`CLAUDE_PROJECT_DIR="$DEVIN_PROJECT_DIR" python3 "$HOME/.claude/skills/design-doc/scripts/check_doc.py" --hook` と `CLAUDE_PROJECT_DIR="$DEVIN_PROJECT_DIR" python3 "$HOME/.claude/skills/slides/scripts/lint_slides.py" --hook` を Stop に登録する。
+**hook に頼らず、フェーズ2.1・2.2の検査（`check_doc.py`）とスライドの検査は、どのエージェントでも終える前に自分で走らせる。** Devin CLI の hook（`.devin/hooks.v1.json`）と実行の許可（`.devin/config.json`）の例は slides スキルの `references/agents.md`。
 
 ## フェーズ0: 原資料を主張の表にする（生成禁止ゲート）
 

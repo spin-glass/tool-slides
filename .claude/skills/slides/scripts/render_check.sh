@@ -117,6 +117,73 @@ wait
 echo "$N slides -> $OUT"
 ls "$OUT"/slide-*.png
 
+# 本文が下端を越える・出典行にかかる枚を測る（図の高さを手で決めると、本文が1行増えたときに後から溢れる）。
+# 描画した HTML の隣に計測用の写しを置き、Chrome headless の --dump-dom で各スライドの下端の位置を受け取る。
+LAYOUT_HTML="${HTML%.html}.__layout.html"
+"$PY" - "$HTML" "$LAYOUT_HTML" <<'PYEOF'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+js = r"""<script>
+window.addEventListener('load', function () {
+  function run() {
+    var H = Reveal.getConfig().height, out = [];
+    Reveal.getSlides().forEach(function (s, i) {
+      Reveal.slide(i);
+      var scale = Reveal.getScale(), top = document.querySelector('.reveal .slides').getBoundingClientRect().top;
+      var srcEl = s.querySelector('.source'), srcTop = null, srcBox = null;
+      if (srcEl) { srcBox = srcEl.getBoundingClientRect(); srcTop = (srcBox.top - top) / scale; }
+      var bottom = 0, over = 0, imgs = [];
+      s.querySelectorAll('img, p, li, table, pre, h2, h3, figure, .cell-output-display').forEach(function (el) {
+        if (el.closest('aside.notes') || (srcEl && (srcEl === el || srcEl.contains(el) || el.contains(srcEl)))) return;
+        var r = el.getBoundingClientRect(); if (!r.height) return;
+        var b = (r.bottom - top) / scale; bottom = Math.max(bottom, b);
+        if (srcBox && b > srcTop + 2 && r.left < srcBox.right && r.right > srcBox.left) over = Math.max(over, b - srcTop);
+      });
+      s.querySelectorAll('img').forEach(function (im) {
+        if (!im.closest('aside.notes')) imgs.push(Math.round(im.getBoundingClientRect().height / scale));
+      });
+      out.push({n: i + 1, bottom: Math.round(bottom), height: H, source: srcTop === null ? null : Math.round(srcTop),
+                over_source: Math.round(over), imgs: imgs});
+    });
+    document.body.setAttribute('data-layout', JSON.stringify(out));
+  }
+  if (Reveal.isReady()) { run(); } else { Reveal.on('ready', run); }
+});
+</script>"""
+html = open(src, encoding="utf-8").read()
+i = html.rfind("</body>")
+open(dst, "w", encoding="utf-8").write(html[:i] + js + html[i:] if i >= 0 else html + js)
+PYEOF
+"$CHROME" --headless=new --disable-gpu --hide-scrollbars --window-size=1280,720 \
+  --run-all-compositor-stages-before-draw --virtual-time-budget=8000 --dump-dom "file://$LAYOUT_HTML" 2>/dev/null \
+  | "$PY" -c '
+import html, json, re, sys
+m = re.search(r"data-layout=\"([^\"]*)\"", sys.stdin.read())
+if not m:
+    print("（下端のはみ出しは測れなかった。スクショで確かめる）")
+    sys.exit(0)
+bad = 0
+for r in json.loads(html.unescape(m.group(1))):
+    over_edge = r["bottom"] - r["height"]
+    over = max(over_edge, r["over_source"] or 0)
+    if over <= 8:      # 数px は図の余白の重なり。小さいものは知らせない
+        continue
+    bad += 1
+    src_over = r["over_source"] or 0
+    where = (f"下端を約{over_edge}px 越えている" if over_edge >= src_over else
+             f"出典行に約{src_over}px かかっている（図の下の余白のこともあるので、スクショで出典が読めるか確かめる）")
+    tall = max(r["imgs"] or [0])
+    if tall > over:
+        k = (tall - over) / tall
+        fix = f"図（高さ約{tall}px）を約{k:.2f}倍にすると収まる（imgfig の図なら max_height_in を今の値×{k:.2f}、Quarto の図なら fig-height を同じ割合で縮める）"
+    else:
+        fix = "箇条書きか表を減らすか、本文をノートへ移す"
+    num = r["n"]
+    print(f"WARNING スライド{num}: 本文が{where}。{fix}")
+print(f"下端のはみ出し: {bad} 枚")
+'
+rm -f "$LAYOUT_HTML"
+
 # 画像を並べた図（imgfig）の、スライド上での1枚の大きさの目安
 if [[ -s "$REPORT" ]]; then
   "$PY" - "$REPORT" <<'PYEOF'
