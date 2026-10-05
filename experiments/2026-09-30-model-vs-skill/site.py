@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """検証で作らせたデッキを、公開サイトに載せる形にまとめる（条件つきの一覧と、写真の出典ページ）。
 
-    MVS_WORK=… .venv/bin/python experiments/2026-09-30-model-vs-skill/site.py
+    MVS_WORK=… [MVS_SITE_PREV=<前回の site/>] .venv/bin/python experiments/2026-09-30-model-vs-skill/site.py
 
 出力は site/（git には入れない。デッキ1本あたり約6MB）。scripts/publish.sh が _output/experiments/<この検証>/ に写して公開する。
 デッキは score.py が描画し直した出力（作業場所の _output）をそのまま使う。
@@ -23,6 +23,28 @@ import report  # noqa: E402
 
 SITE = HERE / "site"
 WORK = Path(os.environ["MVS_WORK"])       # run.py の作業場所（各実行の ws/_output を読む）
+# 前回組み立てた site/（任意）。作業場所（/tmp 以下）は OS の定期掃除で出力が消えることがあるため、
+# 作業場所に出力が無い実行は、前回の site/<実行名>/ から写す
+PREV = Path(os.environ["MVS_SITE_PREV"]) if os.environ.get("MVS_SITE_PREV") else None
+
+
+def fill_thumbs(deck: Path, thumbs: Path) -> None:
+    """デッキの HTML（出典ページなど）が data/thumbs/ の縮小画像を参照しているのに、出力に無いものを課題のデータから写す。"""
+    for f in deck.rglob("*.html"):
+        for i in set(re.findall(r"data/thumbs/([0-9a-f]{16}\.jpg)", f.read_text(encoding="utf-8", errors="ignore"))):
+            dst = f.parent / "data/thumbs" / i
+            if not dst.exists() and (thumbs / i).exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(thumbs / i, dst)
+
+
+def deck_source(run_id: str, src: Path) -> Path | None:
+    """実行のデッキの出力（index.html のあるフォルダ）。作業場所に無ければ前回の site/ から。どちらにも無ければ None。"""
+    if (src / "index.html").exists():
+        return src
+    if PREV and (PREV / run_id / "index.html").exists():
+        return PREV / run_id
+    return None
 TITLE = "検証: 出来はモデルによるのか、スキルによるのか"
 LEAD = """同じ依頼を、モデル（Fable 5.1・Opus 5.5・Sonnet 5.5）と slides スキルの有無・版を変えて作らせたデッキです。
 依頼はどれも「画像分類の誤り（または新旧の版の違い）を、実際の画像で説明する10分の発表」。スキルの版は、なし・初版（画像の仕組みが無い版）・
@@ -70,10 +92,11 @@ def bird_sections() -> list[str]:
                   for r in report.read_csv(report.RESULTS / f"{task}_shown_checked.csv")}
         rows = []
         for m in sorted((m for m in metrics if m["task"] == task), key=lambda m: (m["model"], m["skill"], m["rep"])):
-            src = WORK / "runs" / m["run_id"] / "ws/_output/decks/bird-errors"
-            if not (src / "index.html").exists():
+            src = deck_source(m["run_id"], WORK / "runs" / m["run_id"] / "ws/_output/decks/bird-errors")
+            if src is None:
                 continue
             shutil.copytree(src, SITE / m["run_id"])
+            fill_thumbs(SITE / m["run_id"], HERE / "task3/data/thumbs")   # 鳥の課題（2回目も同じ写真）
             title_ = html.escape(deck_title(report.RESULTS / m["run_id"] / "index.qmd"))
             v = rates.get(m["run_id"], [])
             m1 = f"{100 * sum(v) / len(v):.0f}%（{len(v)}名）" if v else "—"
@@ -96,6 +119,18 @@ CONTENT_TASKS = {"water": ("写真の中身の検証（開発用）：水辺の6
                  "fruith": ("写真の中身の検証（最終確認）：果物と野菜の6種", "decks/fruit-hidden-errors")}
 
 
+CONTENT_LEAD = ("<h2>写真の中身の検証（スキル S8〜S14）</h2><p>誤分類の写真を見せるデッキで、写真に写っていない物を「写っている」と"
+                "書く、写っている物を落とす、ラベルの枚数を写っている物の枚数として書く、といった中身の誤りが出ないかを確かめた。"
+                "判定は、デッキに載ったすべての写真とスライドの主張を確認者（Claude のモデル）2名が見て、事実と違うとされたものを、"
+                "誤りの写真を元の大きさで見て作った正解の表と照らして確定した。スキルの版を S8 から S14 まで直し、"
+                "S14 で、開発用の課題（水辺の鳥・牧場の動物）と、結果を見る前に作った最終確認の課題（果物と野菜）の12本すべてが、"
+                "確定した中身の誤り0件・描画でき・型を満たした（Opus 5.5・Sonnet 5.5 各2回）。"
+                "確認と判定は Claude によるもので、人による確認はしていない。</p>"
+                "<p class=\"n\">「言い過ぎ」には、写真から決められるのに「決めきれない」とした控えめな説明も数えている。"
+                "水辺の S4〜S6 のデッキは、作業場所の出力が残っていないため載せていない。"
+                "経緯と判定の根拠は、リポジトリの experiments/2026-09-30-model-vs-skill/README.md と results/ にある。</p>")
+
+
 def content_sections() -> list[str]:
     """写真の中身の検証のデッキ。確認者2名の判定を、元の写真で確かめて確定した「中身の誤り」の件数を添える。"""
     counts: dict[str, tuple[int, int]] = {}
@@ -111,12 +146,13 @@ def content_sections() -> list[str]:
                 w0, o0 = counts.get(run, (0, 0))
                 counts[run] = (w0 + len(wrong), o0 + len(over))
     metrics = [m for m in csv.DictReader(open(report.RESULTS / "metrics.csv", encoding="utf-8")) if m["task"] in CONTENT_TASKS]
-    out = []
+    out = [CONTENT_LEAD]
     for task, (title, deck) in CONTENT_TASKS.items():
         rows = []
-        for m in sorted((m for m in metrics if m["task"] == task), key=lambda m: (m["skill"], m["model"], m["rep"])):
-            src = WORK / "runs" / m["run_id"] / "ws/_output" / deck
-            if not (src / "index.html").exists():
+        for m in sorted((m for m in metrics if m["task"] == task),
+                        key=lambda m: (int(m["skill"].lstrip("S") or 0), m["model"], m["rep"])):   # 版の番号順（S7 → S14）
+            src = deck_source(m["run_id"], WORK / "runs" / m["run_id"] / "ws/_output" / deck)
+            if src is None:
                 continue
             shutil.copytree(src, SITE / m["run_id"])
             title_ = html.escape(deck_title(report.RESULTS / m["run_id"] / "index.qmd"))
@@ -139,8 +175,8 @@ def build() -> None:
     for r in recs:
         summary = json.loads((report.RESULTS / r["run_id"] / "summary.json").read_text())
         deck_dir = Path(summary.get("deck_path") or "decks/farm-errors/index.qmd").parent
-        src = WORK / "runs" / r["run_id"] / "ws" / "_output" / deck_dir
-        if not (src / "index.html").exists():
+        src = deck_source(r["run_id"], WORK / "runs" / r["run_id"] / "ws" / "_output" / deck_dir)
+        if src is None:
             print(f"skip (no output): {r['run_id']}")
             continue
         shutil.copytree(src, SITE / r["run_id"])
