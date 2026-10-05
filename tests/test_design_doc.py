@@ -295,10 +295,41 @@ class Structure(TempDoc):
         self.assertIn("RQ-01", rules["opaque-id"])                          # 要件IDが本文に12回
         kinds = [c.kind for c in structure.analyze(doc)[2]]
         self.assertEqual(kinds, ["前置き", "引く表", "本文"])
-        # 表を付録へ移し、§1 を要点にすれば消える
-        fixed = self.doc(f"# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 何を変えるか | 手入力を OCR に |\n\n"
+        # 表を付録へ移し、§1 を要点（4項目）にすれば消える
+        fixed = self.doc(f"# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 何を変えるか | 手入力を OCR に |\n"
+                         "| 次へ進む条件 | 読み誤りが手入力以下（原文に無い） |\n| まだ決めていない点 | 2点 |\n| 決めたこと | 原文に決定は無い |\n\n"
                          f"## 2. 日常の運用\n\n{body}\n\n## 付録A 原文の要件表との対応\n\n{table(12)}\n")
         self.assertEqual([i.rule for i in check_doc.check_document(fixed) if i.rule in structure.RULES], [])
+
+    def test_summary_is_judged_by_content_not_title(self):
+        body = "\n\n".join(para(i) for i in range(24))
+        four = ("| 項目 | 要点 |\n|---|---|\n| 何を変えるか | 手入力を OCR に変える |\n| 次へ進む条件 | 読み誤りが手入力以下（原文に無い） |\n"
+                "| まだ決めていない点 | 2点 |\n| 決めたこと | 方式の変更（経理部長、2026-09-20） |\n")
+        empty_title = self.doc(f"# 題\n\n## 1. 要点\n\n本書の要点を示す。\n\n## 2. 運用\n\n{body}\n")
+        found = self.messages(empty_title, "summary-items")
+        self.assertEqual(len(found), 1)                                    # 題を「要点」にしても中身が無ければ通らない
+        self.assertIn("次へ進む条件", found[0])
+        self.assertIn("決めたこと", found[0])
+        self.assertEqual(self.messages(empty_title, "summary-missing"), [])
+        meta_title = self.doc(f"# 題\n\n## 1. 位置づけと読み方\n\n{four}\n## 2. 運用\n\n{body}\n")
+        self.assertEqual(self.messages(meta_title, "summary-items"), [])  # 4つの要点が揃っていれば題が「位置づけ」でも要点
+        self.assertEqual(self.messages(meta_title, "summary-missing"), [])
+        self.assertEqual(structure.analyze(meta_title)[2][0].kind, "要点")
+        short = self.doc("# 題\n\n## 1. 要点\n\n本書の要点を示す。\n\n## 2. 運用\n\n" + para(1) + "\n")
+        self.assertEqual(self.messages(short, "summary-items"), [])       # 短い文書には求めない
+
+    def test_reference_chapter_by_ids_and_reading_guide_by_content(self):
+        rows = table(8, cell="RQ-{i:02d} | 請求書の項目{i}を読み取る | §4") + "\n\n" + table(6, cell="RQ-1{i} | 明細{i}を読み取る | §4")
+        guide = "\n\n".join(["読み方は次のとおりである。確定していない箇所には [測定待ち] の印を付ける。",
+                             "各章の末尾に関連文書を示す。記法は付録の凡例に従う。", "読者は担当者と承認者である。"])
+        body = "\n\n".join(para(i) for i in range(20))
+        doc = self.doc(f"# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 変更 | OCR |\n\n## 2. 本書の前提\n\n{guide}\n\n"
+                       f"## 3. 本書が満たす運用要件\n\n{rows}\n\n## 4. 日常の運用\n\n{body}\n")
+        kinds = [c.kind for c in structure.analyze(doc)[2]]
+        self.assertEqual(kinds, ["要点", "前置き", "引く表", "本文"])    # 読み方の章は語で、要件の章は行の合計と ID で拾う
+        found = self.messages(doc, "reference-in-path")
+        self.assertEqual(len(found), 1)
+        self.assertIn("14行・要件ID 14回", found[0])
 
     def test_same_shape_and_path_long(self):
         def chapter(n: int, parts: int = 20) -> str:
@@ -307,7 +338,10 @@ class Structure(TempDoc):
         doc = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 何を変えるか | OCR |\n\n" + "\n\n".join(chapter(n) for n in range(2, 7)) + "\n")
         same = self.messages(doc, "same-shape")
         self.assertEqual(len(same), 1)
-        self.assertIn("§2〜§6 の5章が同じ型「文→表→文」", same[0])
+        self.assertIn("§2〜§6 の5章が同じ型「文→表→文」で始まる", same[0])
+        # 末尾が違っても（§4 だけ箇条書きで終わる）、先頭3要素が同じなら同じ型
+        tail = self.doc(doc.read_text(encoding="utf-8").replace(f"{para(400 + 19)}\n", f"{para(400 + 19)}\n\n- 補足1\n- 補足2\n"))
+        self.assertIn("5章", self.messages(tail, "same-shape")[0])
         long = self.messages(doc, "path-long")
         self.assertEqual(len(long), 1)
         self.assertIn("> 6000字", long[0])
