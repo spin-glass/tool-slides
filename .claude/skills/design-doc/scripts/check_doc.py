@@ -24,7 +24,8 @@ warning: `## ` の章の直後に図（Mermaid・表・画像）が無い（読�
          claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）、主張IDが本文に見えている、
          同じ数値を3回以上・全行が同じ値の列・§1 が読む字数の3割超・§1 と付録の外の [要確認]
          構造（structure.py）: 前置き（冒頭の表・文書の説明の章・引く表の章）が本文の中身まで1000字超、§1 が無いか文書の説明になっている、
-         §1 の表が8行以上、引く表の章（表7割以上・10行以上）が読む路の途中、同じ型の章が3章以上続く、読み通す章の合計が6000字超、
+         §1 に4つの要点のどれかが無い、§1 の表が8行以上、引く表の章（表7割以上で、行が合計10行以上か要件ID5回以上）が読む路の途中、
+         同じ型で始まる章（先頭3要素）が3章以上続く、読み通す章の合計が6000字超、
          読む人が2者以上なのに読む章が無い、未決の一覧が末尾にあり本文から3回以上参照、本文の段落の半分超が別の章を参照、要件IDが本文に5回以上
 辞書: references/ng_doc.md（一般論・前置き）と slides の references/ng_words.md（ヘッジ・バズワード）。閾値は verbosity.py の LIMITS
 info:    図の PNG の場所、読む字数
@@ -62,8 +63,9 @@ MERMAID_TYPES = re.compile(r"^(flowchart|graph|gantt|sequenceDiagram|classDiagra
 PLACEHOLDER_RE = re.compile(r"\bTODO\b|\bTBD\b|\bFIXME\b|lorem|\[insert[^\]]*\]|\bXXX\b|\[__\]|〇〇|○○", re.I)
 HOOK_MAX_BLOCKS = 3
 # Mermaid の見た目をデッキ（theme/custom.scss）にそろえる1行。図の先頭に置く（設計書は16px、スライドは fontSize を 24px に）
-# flowchart の padding（既定 15）を広げ、htmlLabels を切るのは、半角の文字が測った幅より広く描かれて右端が欠けるため
-# （2026-10-05 の確認: 余白でノードの欠けが減り、SVG のラベルで辺のラベルの欠けが消えた。半角が多い行が一番長いノードは、それでも欠ける）
+# flowchart の padding（既定 15）を広げ、htmlLabels を切るのは、文字が測った幅より広く描かれて右端が欠けるため
+# （2026-10-05 の確認: 手元では辺のラベルの欠けが消えた。箱のラベルは直らない。別の環境では全角だけの「廃止」「並行運用」も欠けたので、
+#   箱は PNG を見て <br> で折るか短くする手当てが要る。この init は辺の分の緩和にすぎない）
 MERMAID_INIT = ('%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, '
                 '"themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", '
                 '"primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", '

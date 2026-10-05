@@ -5,9 +5,11 @@
 読む字数・表の割合・型（文・表・図・箇条書きの並び）・章参照・要件IDを数え、次を見つける（すべて warning）。
   front-matter-long   本文の中身が始まるまでの前置き（冒頭の表と、文書の説明の章・引く表の章）が 1000字超
   summary-missing     要点の章（§1）が無い、または文書の説明の章になっている（長い文書だけ）
+  summary-items       §1 に4つの要点（何を変えるか・次へ進む条件の値・まだ決めていない点・決めたこと）のどれかが無い（長い文書だけ。
+                      題を「要点」にするだけでは通らない）
   summary-rows        §1 の表が 8行以上（未決の全一覧を §1 に置いている）
-  reference-in-path   引く表の章（表が7割以上・1つの表が10行以上）が読む路の途中にある
-  same-shape          同じ型の章が3章以上続く（長い文書だけ）
+  reference-in-path   引く表の章（表が7割以上で、表の行が合計10行以上か要件IDが5回以上）が読む路の途中にある
+  same-shape          同じ型で始まる章（先頭3要素が同じ）が3章以上続く（長い文書だけ）
   path-long           読み通す章（引く表の章と付録を除く）の合計が 6000字超
   reader-entry        冒頭の表の「読む人」が2者以上なのに、それぞれが読む章（§）を添えていない
   undecided-at-end    未決の一覧の章が末尾にあり、本文から3回以上参照される
@@ -30,16 +32,29 @@ sys.path.insert(0, str(HERE))
 import verbosity  # noqa: E402
 from verbosity import LIMITS, Finding, strip_md, zen_len  # noqa: E402
 
-RULES = frozenset(("front-matter-long", "summary-missing", "summary-rows", "reference-in-path", "same-shape",
+RULES = frozenset(("front-matter-long", "summary-missing", "summary-items", "summary-rows", "reference-in-path", "same-shape",
                    "path-long", "reader-entry", "undecided-at-end", "ref-share", "opaque-id"))
+# §1 に要る4つの要点。題ではなく中身で見る（題を「要点」に変えるだけで通る検査は、中身を揃える動機にならない）
+SUMMARY_ITEMS = (
+    ("何を変えるか", re.compile(r"変える|変更|替える|置き換え|現行|移行後|変更後|導入|切り替え|切替")),
+    ("次へ進む条件（値か「原文に無い」）", re.compile(r"次へ進む|進む条件|合格|切り替え|切替|展開|公開|本番")),
+    ("まだ決めていない点", re.compile(r"決めていない|未決|未確定|未定")),
+    ("決めたこと", re.compile(r"決めたこと|決定|決めた")),
+)
+VALUE_RE = re.compile(r"\d|原文に無い|数値が無い|数値は無い")
+SHAPE_PREFIX = 3            # 型は先頭3要素で比べる（読み手が「同じ」と感じるのは章の冒頭。章の末尾まで一致する必要は無い）
+# 文書の一覧の表（関連文書・参照文書）。表の行の半分以上にこれらがあれば、文書についての説明の章
+META_TABLE_WORDS = ("基本設計", "詳細設計", "処理設計", "ML設計", "精度検証", "運用設計", "移行設計", "設計書", "仕様書", "要件定義",
+                    "マニュアル", "手順書", "議事録", "ガイドライン", "規程")
 REF_RE = re.compile(r"§\s*(?P<a>\d+(?:\.\d+)*)|(?P<b>\d+(?:\.\d+)+)節|第(?P<c>\d+)章")
 # 参照の直前12字か直後6字にこれらがあれば、他の文書への参照（「基本設計 §5.1」「原文 §3.2」「§12 は原文に無い」）
 DOC_WORDS = ("原文", "基本設計", "処理設計", "ML設計", "精度検証", "運用・移行", "運用設計", "移行設計", "設計書", "文書", "仕様書", "マニュアル")
 OPAQUE_ID_RE = re.compile(r"(?<![A-Za-z0-9])[A-Z]{2,4}-\d{2,}(?:-[A-Z0-9]+)*(?![A-Za-z0-9])")
 APPENDIX_RE = re.compile(r"^(付録|参考|用語|変更履歴|改訂履歴|別紙|別表)")
 # 文書についての説明の章。「対象と範囲」「背景」は中身（何を変えるか）のことが多いので入れない
-META_HEADING_RE = re.compile(r"位置づけ|位置付け|読み方|文書の構成|本書の構成|構成と読み方|文書一覧|関連文書|参照文書|参考文書|"
-                             r"用語|記法|凡例|はじめに|本書について|この文書について|要件対応|要件との対応|章の対応|トレーサビリティ")
+META_HEADING_RE = re.compile(r"位置づけ|位置付け|読み方|読む順|読者|文書の構成|本書の構成|章立て|章構成|構成と読み方|文書一覧|文書の一覧|"
+                             r"関連文書|関連資料|参照文書|参考文書|参考資料|文書体系|用語|略語|記法|表記|凡例|はじめに|本書について|"
+                             r"この文書について|要件対応|要件との対応|章の対応|トレーサビリティ")
 UNDECIDED_HEADING_RE = re.compile(r"未確定|未決|まだ決めていない|決まっていない|未定")
 NAV_HEADER_RE = re.compile(r"正本|§|章|箇所|出所|出典|参照|本書")      # 参照を置くための列（数えない）
 READER_ROW_RE = re.compile(r"読む人|読者")
@@ -60,7 +75,10 @@ class Chapter:
     units: int = 0
     meta_units: int = 0      # 文書についての前置きの語を含む段落
     rows_max: int = 0        # いちばん大きい表の行数（見出し行を除く）
+    rows_total: int = 0      # 章の表の行数の合計（見出し行を除く）
+    doc_rows: int = 0        # 文書名（基本設計・仕様書…）を含む表の行（参照を置く列は除く）
     shape: str = ""          # 文→表→文 のような並び
+    summary_missing: tuple = ()   # §1 に無い要点（§1 以外は空）
     refs: int = 0            # 章参照（§1・同じ章への参照と、正本・箇所の列は除く）
     ref_units: int = 0       # 本書の別の章を参照する段落（§1・同じ章・他の文書への参照は除く）
     ids: int = 0             # 要件ID（FR-001 の形）
@@ -78,6 +96,10 @@ class Chapter:
     @property
     def label(self) -> str:
         return f"§{self.num} {self.title}" if self.num else self.title
+
+    @property
+    def shape_head(self) -> str:
+        return "→".join(self.shape.split("→")[:SHAPE_PREFIX]) if self.shape else ""
 
 
 def headings(lines: list[str]) -> list[tuple[int, int, str, str]]:
@@ -180,9 +202,9 @@ def shape_of(body: list[str]) -> str:
     return "→".join(seq)
 
 
-def refs_and_ids(body: list[str], own: str) -> tuple[int, int, str]:
-    """章参照と要件IDの数。§1・同じ章（own）への参照、表の見出し行、参照を置くための列は数えない。"""
-    refs = ids = 0
+def refs_and_ids(body: list[str], own: str) -> tuple[int, int, str, int]:
+    """章参照と要件IDの数と、文書名を含む表の行の数。§1・同じ章（own）への参照、表の見出し行、参照を置くための列は数えない。"""
+    refs = ids = doc_rows = 0
     example = ""
     nav: dict[int, bool] = {}
     prev_table = False
@@ -199,6 +221,8 @@ def refs_and_ids(body: list[str], own: str) -> tuple[int, int, str]:
                 prev_table = True
                 continue
             texts = [c for k, c in enumerate(cells) if not nav.get(k)]
+            if any(w in t for t in texts for w in META_TABLE_WORDS):
+                doc_rows += 1
         else:
             prev_table = False
             texts = [s]
@@ -212,7 +236,16 @@ def refs_and_ids(body: list[str], own: str) -> tuple[int, int, str]:
                 if top == "1" or (own and top == own):
                     continue
                 refs += 1
-    return refs, ids, example
+    return refs, ids, example, doc_rows
+
+
+def summary_missing(body: list[str]) -> tuple[str, ...]:
+    """§1 に無い要点。文章と表のセルを合わせた文字列で見る。"""
+    text = "\n".join(s for _, s, _ in visible_lines(body) if s and not SEP_RE.match(s))
+    missing = [name for name, pat in SUMMARY_ITEMS if not pat.search(text)]
+    if "次へ進む条件（値か「原文に無い」）" not in missing and not VALUE_RE.search(text):
+        missing.append("次へ進む条件の値（数値か「原文に無い」）")
+    return tuple(missing)
 
 
 def is_external(text: str, m: re.Match) -> bool:
@@ -243,23 +276,33 @@ def measure(ch: Chapter, body: list[str], ng: dict[str, list[re.Pattern]]) -> Ch
     ch.meta_units = sum(1 for u in us if any(p.search(verbosity.QUOTE_RE.sub("", u.text)) for p in meta))
     ch.ref_units = ref_unit_count(us, own)
     ch.table, ch.figure = verbosity.table_and_figure_chars(body)
-    ch.rows_max = max((len(rows) - 1 for _, rows in verbosity.tables(body)), default=0)
+    sizes = [len(rows) - 1 for _, rows in verbosity.tables(body)]
+    ch.rows_max, ch.rows_total = max(sizes, default=0), sum(sizes)
     ch.shape = shape_of(body)
-    ch.refs, ch.ids, ch.id_example = refs_and_ids(body, own)
+    ch.refs, ch.ids, ch.id_example, ch.doc_rows = refs_and_ids(body, own)
+    if ch.num == "1":
+        ch.summary_missing = summary_missing(body)
     return ch
 
 
 def classify(ch: Chapter) -> str:
     if APPENDIX_RE.match(ch.title):
         return "付録"
+    if ch.num == "1":
+        # §1 は中身で決める。4つの要点が揃っていれば題が「位置づけ」でも要点。無ければ、題が文書の説明なら前置き、そうでなければ
+        # 位置で要点とみなし summary-items が無い項目を知らせる
+        if not ch.summary_missing:
+            return "要点"
+        return "前置き" if META_HEADING_RE.search(ch.title) else "要点"
     if META_HEADING_RE.search(ch.title):
         return "前置き"
-    if ch.num == "1":
-        return "要点"                     # 題が文書の説明でなければ、§1 は位置で要点とみなす（長い §1 は summary-long が知らせる）
-    if ch.units >= 3 and ch.meta_units * 3 >= ch.units * 2:
-        return "前置き"                   # 段落の3分の2以上が「本書は」「本節では」の説明
-    if ch.read and ch.share >= LIMITS["ref_table_share"] and ch.rows_max >= LIMITS["ref_table_rows"]:
-        return "引く表"
+    if ch.units >= 2 and ch.meta_units * 2 >= ch.units:
+        return "前置き"                   # 段落の半分以上が「本書は」「本節では」「読み方」「記法」の説明
+    ref_table = ch.read and ch.share >= LIMITS["ref_table_share"]
+    if ref_table and (ch.rows_total >= LIMITS["ref_table_rows"] or ch.ids >= LIMITS["opaque_id_warn"]):
+        return "引く表"                   # 表の章で、行が多いか要件IDが並ぶ（1つの表が8行でも、要件IDが14回なら引く表）
+    if ref_table and ch.rows_total and ch.doc_rows * 2 >= ch.rows_total:
+        return "前置き"                   # 文書の一覧の表（関連文書・参照文書）
     return "本文"
 
 
@@ -283,13 +326,14 @@ def split(lines: list[str], ng: dict[str, list[re.Pattern]]) -> tuple[Chapter, l
 
 
 def longest_same_shape(chapters: list[Chapter]) -> list[Chapter]:
+    """同じ型で始まる章（先頭3要素が同じ）の最長の連続。全長で比べると一致がまず起きず、「10章が 文→表→文 で始まる」を拾えなかった。"""
     best: list[Chapter] = []
     run: list[Chapter] = []
     for c in chapters:
         if c.kind == "付録" or not c.shape:
             run = []
             continue
-        run = run + [c] if run and c.shape == run[-1].shape else [c]
+        run = run + [c] if run and c.shape_head == run[-1].shape_head else [c]
         if len(run) > len(best):
             best = list(run)
     return best
@@ -320,13 +364,17 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
                                 "冒頭に置くのは「扱うこと／読む人／原文／状態」の表と §1 の要点だけ。文書の説明は要点1〜2行に縮め、"
                                 "引く表は付録へ移す（ここで多くの読み手が降りる）"))
 
-    # 要点の章
+    # 要点の章。題ではなく中身（4つの要点）で見る
     c1 = next((c for c in chapters if c.num == "1"), None)
     if long and (c1 is None or c1.kind != "要点"):
-        why = "無い" if c1 is None else f"文書の説明（{c1.label}）になっている"
+        why = "無い" if c1 is None else f"文書の説明（{c1.label}）になっていて、{'・'.join(c1.summary_missing)}が無い"
         findings.append(Finding("warning", c1.line if c1 else (chapters[0].line if chapters else 1), "summary-missing",
                                 f"要点の章（§1）が{why}。先頭の章に、何を変えるか・次へ進む条件（値）・まだ決めていない点（件数）・"
                                 "決めたこと、の4行を置く"))
+    elif long and c1 and c1.summary_missing:
+        findings.append(Finding("warning", c1.line, "summary-items",
+                                f"§1 に{'・'.join(c1.summary_missing)}が無い。題を「要点」にするだけでは足りない。"
+                                "何を変えるか・次へ進む条件（値か「原文に無い」）・まだ決めていない点（件数）・決めたこと、の4行を置く"))
     if c1 and c1.kind == "要点" and c1.rows_max > lim["summary_rows_warn"]:
         findings.append(Finding("warning", c1.line, "summary-rows",
                                 f"§1 の表が {c1.rows_max}行 > {lim['summary_rows_warn']}行。判断に関わる行（次へ進む条件に関わる未決・矛盾）だけ残し、"
@@ -339,15 +387,16 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
         later = [d for d in chapters[k + 1:] if d.kind in ("要点", "本文")]
         if later:
             span = f"§{later[0].num}" + (f"〜§{later[-1].num}" if len(later) > 1 else "")
+            what = f"表 {c.share:.0%}・{c.rows_total}行" + (f"・要件ID {c.ids}回" if c.ids else "")
             findings.append(Finding("warning", c.line, "reference-in-path",
-                                    f"引くための表の章「{c.label}」（表 {c.share:.0%}・{c.rows_max}行）が読む路の途中にある（あとに {span} が続く）。"
+                                    f"引くための表の章「{c.label}」（{what}）が読む路の途中にある（あとに {span} が続く）。"
                                     "付録へ移し、本文からは「付録B」と参照する"))
 
-    # 同じ型の章が続く
+    # 同じ型で始まる章が続く
     run = longest_same_shape(chapters)
     if long and len(run) >= lim["same_shape_run"]:
         findings.append(Finding("warning", run[0].line, "same-shape",
-                                f"§{run[0].num}〜§{run[-1].num} の{len(run)}章が同じ型「{run[0].shape}」。章の問いに合わせて型を変える"
+                                f"§{run[0].num}〜§{run[-1].num} の{len(run)}章が同じ型「{run[0].shape_head}」で始まる。章の問いに合わせて型を変える"
                                 "（判断・分岐の章は図を主役に、担当×周期の取り決めは表、順序は工程表、2案の差は対照表）。"
                                 "同じ手触りが続くと、読み手は進んでいる感覚を失う"))
 
@@ -404,10 +453,10 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
 
 
 def report(path: Path, pre: Chapter, chapters: list[Chapter], findings: list[Finding]) -> str:
-    out = [f"# {path} の構造（章ごと。読む字数＝文章＋表＋図のラベル）", "",
-           "| 章 | 読む字数 | 表の割合 | 型 | 参照 | ID | 区分 |", "|---|---|---|---|---|---|---|"]
+    out = [f"# {path} の構造（章ごと。読む字数＝文章＋表＋図のラベル。型は先頭3要素で比べる）", "",
+           "| 章 | 読む字数 | 表の割合 | 表の行 | 型 | 参照 | ID | 区分 |", "|---|---|---|---|---|---|---|---|"]
     for c in ([pre] if pre.read else []) + chapters:
-        out.append(f"| {c.label} | {c.read:.0f} | {c.share:.0%} | {c.shape or '—'} | {c.refs} | {c.ids} | {c.kind} |")
+        out.append(f"| {c.label} | {c.read:.0f} | {c.share:.0%} | {c.rows_total} | {c.shape or '—'} | {c.refs} | {c.ids} | {c.kind} |")
     front = [pre] + [c for c in chapters[:next((k for k, c in enumerate(chapters) if c.kind not in ('前置き', '引く表')), len(chapters))]]
     path_read = sum(c.read for c in chapters if c.kind in ("要点", "本文"))
     body = [c for c in chapters if c.kind == "本文"]
@@ -416,7 +465,9 @@ def report(path: Path, pre: Chapter, chapters: list[Chapter], findings: list[Fin
     out += ["",
             f"前置き {sum(c.read for c in front):.0f}字（本文の中身まで）／読み通す章の合計 {path_read:.0f}字（引く表の章と付録を除く）／"
             f"本文の章参照 {sum(c.refs for c in body)}回・別の章を参照する段落 {sum(c.ref_units for c in body)}/{n_units}／"
-            f"同じ型の最長の連続 {len(run)}章" + (f"（{run[0].shape}）" if run else "")]
+            f"同じ型で始まる章の最長の連続 {len(run)}章" + (f"（{run[0].shape_head}）" if run else "")]
+    if chapters and chapters[0].num == "1" and chapters[0].summary_missing:
+        out.append(f"§1 に無い要点: {'・'.join(chapters[0].summary_missing)}")
     out += [f"  WARNING {path}:{f.line} {f.rule}: {f.message}" for f in findings] or ["  構造の warning なし"]
     return "\n".join(out)
 
