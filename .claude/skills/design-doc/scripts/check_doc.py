@@ -5,23 +5,29 @@
   python3 check_doc.py decks/<name>/design/<doc>.md            # 章参照・章ごとの図・Mermaid の種類・placeholder・claims.csv
   python3 check_doc.py --render decks/<name>/design/<doc>.md   # さらに Mermaid を PNG にする → design/_check/<doc>-fig-NN.png（Read で目視）
   python3 check_doc.py --hook                                  # Stop hook。git で変更のある decks/**/design/*.md を検査（描画も行う）
-  python3 check_doc.py --candidates design/_source/<doc>.md    # 原文の削除候補・一般論の多い段落・繰り返しの一覧（書き直す前に）
+  python3 check_doc.py --candidates design/_source/<doc>.md    # 原文の削除候補・一般論の多い段落・繰り返し・構造の warning の一覧（書き直す前に）
+  python3 check_doc.py --structure design/_source/<doc>.md     # 原文の章ごとの読む字数・表の割合・型・参照の数と、前置き・引く表・同じ型の連続
   python3 check_doc.py --original design/_source/<doc>.md design/<doc>.md   # 原文と書き直しの字数・段落数・一般論の比較
   python3 check_doc.py --paragraphs design/_source/<doc>.md   # 原文の全段落の一覧（4分類の作業表）
 
 block:   本文にない章への参照（§3.4・3.4節・3章。「基本設計 §5.1」のように文書名つきの外部参照は見ない）、
          Mermaid の1行目が図の種類でない、Mermaid の描画エラー、placeholder（TODO・TBD・XXX・〇〇。`[要確認]` は未決の印として可）、
          claims.csv の列・状態の誤り、
-         冗長さ: 削除候補（数字・主張ID・§・`コード`・「固有の語」・[要確認] のどれも無く、一般論・前置き・ヘッジだけの段落）、
+         冗長さ: 削除候補（数字・主張ID・§・`コード`・「固有の語」・[要確認] のどれも無く、一般論・前置き・ヘッジだけの段落。
+         「〜を〜する」の作業の文があれば block にせず warning）、
          文書内の同じ文の繰り返し（全角20字以上）、同じフォルダの別の設計書と同じ文（全角30字以上）
 warning: `## ` の章の直後に図（Mermaid・表・画像）が無い（読む字数1500字以上の文書だけ）、章番号（## 3. / ### 3.1）のない見出し、
          1段落200字超・1章の文章1000字超、一般論・前置き・ヘッジが1段落に2つ以上・文章1000字あたり3つ超、バズワード、
          表のセルが一般論だけ・表どうしで同じセル、同じ主張ID を3か所以上（再掲）、
-         読む字数（文章＋表＋図のラベル）が上限（原文と、原文の中身の1.5倍の小さい方。原文は design/_source/<同じ名前>.md）を超えた、ひし形のラベルの1行が8字超、
+         読む字数（文章＋表。図のラベルは数えない）が上限（原文と、原文の中身の1.5倍の小さい方。原文は design/_source/<同じ名前>.md）を超えた、
+         ひし形のラベルの1行が8字超、図のラベルに章参照（§）がある、半角の文字を含む行が一番長いラベル（描くと右端が欠ける）、
          claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）、主張IDが本文に見えている、
-         同じ数値を3回以上・全行が同じ値の列・§1 が読む字数の3割超・§1 の外の [要確認]
+         同じ数値を3回以上・全行が同じ値の列・§1 が読む字数の3割超・§1 と付録の外の [要確認]
+         構造（structure.py）: 前置き（冒頭の表・文書の説明の章・引く表の章）が本文の中身まで1000字超、§1 が無いか文書の説明になっている、
+         §1 の表が8行以上、引く表の章（表7割以上・10行以上）が読む路の途中、同じ型の章が3章以上続く、読み通す章の合計が6000字超、
+         読む人が2者以上なのに読む章が無い、未決の一覧が末尾にあり本文から3回以上参照、本文の段落の半分超が別の章を参照、要件IDが本文に5回以上
 辞書: references/ng_doc.md（一般論・前置き）と slides の references/ng_words.md（ヘッジ・バズワード）。閾値は verbosity.py の LIMITS
-info:    図の PNG の場所、半角の文字を含む図のラベル（描くと右端が欠けることがあるので PNG で確かめる）、読む字数
+info:    図の PNG の場所、読む字数
 終了コード: 0 = block なし / 2 = block あり
 """
 from __future__ import annotations
@@ -40,6 +46,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import claims as claims_mod  # noqa: E402
+import structure  # noqa: E402
 import verbosity  # noqa: E402
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
@@ -47,15 +54,18 @@ NUMBERED_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+")
 FENCE_RE = re.compile(r"^(`{3,}|~{3,})\s*(\{?mermaid\}?)?\s*$")
 # 本文中の章参照。同じ表のセルの中で、参照の直前12字か直後6字に文書名（「基本設計 §5.1」「原文 §3.2」「§12 は原文に無い」）があれば他の文書への参照として見ない
 # 「3章」は章の数（「章は11」）と区別できないので、「第3章」の形だけを参照として見る
-REF_RE = re.compile(r"§\s*(?P<a>\d+(?:\.\d+)*)|(?P<b>\d+(?:\.\d+)+)節|第(?P<c>\d+)章")
-DOC_WORDS = ("原文", "基本設計", "処理設計", "ML設計", "精度検証", "運用・移行", "運用設計", "移行設計", "設計書", "文書", "仕様書", "マニュアル")
+REF_RE = structure.REF_RE
+DOC_WORDS = structure.DOC_WORDS
 MERMAID_TYPES = re.compile(r"^(flowchart|graph|gantt|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|pie|journey|"
                            r"timeline|mindmap|quadrantChart|gitGraph|xychart-beta|block-beta|sankey-beta|requirementDiagram|"
                            r"C4Context|C4Container|C4Component|packet-beta|kanban|architecture-beta)\b")
 PLACEHOLDER_RE = re.compile(r"\bTODO\b|\bTBD\b|\bFIXME\b|lorem|\[insert[^\]]*\]|\bXXX\b|\[__\]|〇〇|○○", re.I)
 HOOK_MAX_BLOCKS = 3
 # Mermaid の見た目をデッキ（theme/custom.scss）にそろえる1行。図の先頭に置く（設計書は16px、スライドは fontSize を 24px に）
-MERMAID_INIT = ('%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", '
+# flowchart の padding（既定 15）を広げ、htmlLabels を切るのは、半角の文字が測った幅より広く描かれて右端が欠けるため
+# （2026-10-05 の確認: 余白でノードの欠けが減り、SVG のラベルで辺のラベルの欠けが消えた。半角が多い行が一番長いノードは、それでも欠ける）
+MERMAID_INIT = ('%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, '
+                '"themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", '
                 '"primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", '
                 '"edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", '
                 '"critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%')
@@ -192,7 +202,8 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
                                     "1行8字以内にして <br> で折り、半角の ? § 空白を避ける"))
                 break
         # quarto の PNG では、半角の文字（数字・.・-・空白・§）が測った幅より広く描かれ、ノードや辺のラベルの一番長い行の
-        # 右端が欠けることがある（「0.7以上」→「0.7以」、「原文 §3」→「原文 §」）。欠けない場合もあるので info で案内し、PNG で確かめる
+        # 右端が欠ける（「0.7以上」→「0.7以」、「原文 §3」→「原文 §」。2026-10-05 にこの環境でも辺・ノードの両方で再現した）。
+        # 目視と描き直しの往復を1回で済ませるため warning にする
         plain = "\n".join(l for l in body.splitlines() if not l.strip().startswith(("%%", "classDef", "class ", "style ")))
         risky = []
         for m in re.finditer(r'\[\[?"?([^\]"]+)"?\]?\]|\{"?([^}"]+)"?\}|\(\["?([^\]"]+)"?\]\)|\|"?([^|"]+)"?\|', plain):
@@ -201,10 +212,17 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
             if len(re.findall(r"[\x20-\x24\x26-\x7e§]", longest)) >= 2:
                 risky.append(longest)
         if risky:
-            issues.append(Issue("info", ln, "mermaid-halfwidth",
-                                "半角の文字を含むラベル（" + "、".join(f"「{x[:14]}」" for x in risky[:6]) + "）は、描くと右端が欠けることがある。"
-                                "PNG で端を確かめ、欠けていれば全角だけの行を一番長くするよう <br> で折るか（「スコアが<br>0.7以上」）、"
-                                "半角を減らす（「原文 §3」→「原文の3章」）"))
+            issues.append(Issue("warning", ln, "mermaid-halfwidth",
+                                "半角の文字を含む行が一番長いラベル（" + "、".join(f"「{x[:14]}」" for x in risky[:6]) + "）は、描くと右端が欠ける。"
+                                "全角だけの行を一番長くするよう <br> で折るか（「スコアが<br>0.7以上」）、半角を減らす（「原文 §3」→「原文の3章」）。"
+                                "直したら PNG で端を確かめる"))
+        # 図のラベルの章参照。図の中の「§6」は読み手に何も伝えず（ラベルは名詞にする）、描くと欠けやすい
+        reflabs = [next(g for g in m.groups() if g) for m in verbosity.LABEL_RE.finditer(plain)]
+        reflabs = [x for x in reflabs if REF_RE.search(x)]
+        if reflabs:
+            issues.append(Issue("warning", ln, "mermaid-ref-label",
+                                "図のラベルに章参照（" + "、".join(f"「{x[:14]}」" for x in reflabs[:4]) + "）がある。"
+                                "ラベルは短い名詞にし、参照は図の下の文に書く（「等しいときの扱いは未決（§1.1）」）"))
         if "%%{init" not in body:
             issues.append(Issue("warning", ln, "mermaid-theme",
                                 "Mermaid に色と文字の指定（%%{init: …}%%）が無い。既定の紫の図になり、スライドの色とそろわない。"
@@ -227,6 +245,10 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
     findings, metrics, _ = verbosity.analyze(path)
     issues.extend(Issue(f.severity, f.line, f.rule, f.message) for f in findings)
     issues.append(Issue("info", 1, "metrics", metrics.fmt()))
+
+    # 構造（前置き・引く表の位置・章の型・読む人・未決の位置・章参照の密度）。冗長さを0にしても構造が同じなら読む気は戻らない
+    sfindings, _, _ = structure.analyze(path)
+    issues.extend(Issue(f.severity, f.line, f.rule, f.message) for f in sfindings)
 
     # 主張の表（デッキのフォルダの claims.csv）
     for cand in (path.parent / "claims.csv", path.parent.parent / "claims.csv"):
@@ -371,7 +393,8 @@ def main() -> int:
     ap.add_argument("files", nargs="*", type=Path)
     ap.add_argument("--render", action="store_true", help="Mermaid を PNG にして design/_check/ に置く")
     ap.add_argument("--hook", action="store_true", help="Claude Code Stop hook として動く")
-    ap.add_argument("--candidates", action="store_true", help="削除候補・一般論の多い段落・繰り返しの一覧を出す（原文に使う）")
+    ap.add_argument("--candidates", action="store_true", help="削除候補・一般論の多い段落・繰り返し・構造の warning の一覧を出す（原文に使う）")
+    ap.add_argument("--structure", action="store_true", help="章ごとの読む字数・表の割合・型・参照の数と、構造の warning を出す（原文に使う）")
     ap.add_argument("--original", type=Path, help="原文。書き直しと字数・段落数・一般論を比べる")
     ap.add_argument("--paragraphs", action="store_true", help="原文の全段落の一覧（4分類の作業表）を出す")
     ap.add_argument("--mermaid-init", nargs="?", const="16px", metavar="SIZE",
@@ -388,14 +411,19 @@ def main() -> int:
     if args.paragraphs:
         sys.argv = [sys.argv[0], "--paragraphs"] + [str(f) for f in args.files]
         return verbosity.main()
+    if args.structure:
+        for f in args.files:
+            findings, pre, chapters = structure.analyze(f)
+            print(structure.report(f, pre, chapters, findings))
+        return 0
     if args.candidates or args.original:
         argv = (["--original", str(args.original)] if args.original else []) + [str(f) for f in args.files]
         sys.argv = [sys.argv[0]] + argv
         if not args.original:
             rc = verbosity.main()
-            for f in args.files:          # 原文の章参照の誤り（存在しない章を指す）も出す
+            for f in args.files:          # 原文の章参照の誤り（存在しない章を指す）と構造の warning も出す（削るだけでは直らない）
                 for i in check_document(f):
-                    if i.rule in ("ref-missing", "placeholder"):
+                    if i.rule in ("ref-missing", "placeholder") or i.rule in structure.RULES:
                         print("  原文の" + i.fmt(f))
             return rc
         verbosity.main()      # 比べた上で、書き直しの検査も続けて行う

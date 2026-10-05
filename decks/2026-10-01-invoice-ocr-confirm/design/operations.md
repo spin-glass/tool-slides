@@ -7,7 +7,7 @@
 | 項目 | 内容 |
 |---|---|
 | この文書が扱うこと | 日常の運用（誰がいつ何を確認するか）、判断基準（合格・異常）、移行の進め方と体制 |
-| 読む人 | 経理課・情報システム課・導入ベンダーの担当者。移行の可否を判断する人は §1 だけ読めばよい |
+| 読む人 | 経理課（§3〜§4）・情報システム課（§4〜§5）・導入ベンダー（§4.3、§5）の担当者。移行の可否を判断する人は §1 だけ読めばよい |
 | 関連文書 | 基本設計（読み取り規則・データ契約の正本）／処理設計（本番の設定と更新・復旧の正本）／精度検証（指標・合格条件の正本）／説明用スライド（`../index.qmd`） |
 | 原文 | 運用・移行設計（架空、2026-09-15、9章）。章の対応は付録B |
 | 状態 | 改稿案（2026-10-01）。特記の無い記述は原文の方針。決定・想定・参考値・未決・提案はその場に書く |
@@ -59,7 +59,7 @@
 ## 4. 判断基準と例外・変更への対応
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 flowchart TB
   A[項目ごとの確信度] --> B{閾値と比べる}
   B -->|上回る| C[採用]
@@ -94,7 +94,7 @@ flowchart TB
 ### 4.3 異常の対応と切り分け
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 flowchart LR
   A[アラート] --> B[一次対応<br>経理課]
   B -->|解決| E[記録・報告]
@@ -114,7 +114,7 @@ flowchart LR
 ## 5. 移行の進め方と体制
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 gantt
   title 移行の4段階
   dateFormat YYYY-MM-DD

@@ -4,7 +4,9 @@
 文章を「段落・箇条書きの1項目・引用」の単位に分け、次を数える。表・コード（Mermaid）・見出し・HTML コメントは数えない。
   一般論・前置き・ヘッジ（references/ng_doc.md と slides の ng_words.md の辞書）
   削除候補: 数字・主張ID（C1）・§・`コード`・「固有の語」・[要確認] のどれも無く、一般論・前置き・ヘッジだけの単位
+          （「〜を〜する」の作業の文があれば削除候補にせず、語だけ外す warning: filler-action）
   同じ文の繰り返し（文書内）、同じフォルダの別の設計書と同じ文（文書間）
+構造（前置き・引く表・章の型・読む人・未決の位置・章参照の密度）は structure.py。
 
 使い方:
   python3 verbosity.py design/_source/ops.md            # 削除候補と一般論の多い段落の一覧（原文に使う）
@@ -41,12 +43,27 @@ LIMITS = {
     "number_repeat_warn": 3,      # 同じ「数値＋単位」（300件・40%）を本文にこの回数以上書いたら warning
     "summary_share_warn": 0.3,    # §1（要点）の読む字数が全体のこの割合を超えたら warning
     "short_doc_chars": 1500,      # 読む字数がこれ未満の文書は「短い文書」: 章ごとの図を求めない（枠を縮める）
+    # 構造（structure.py）。14章・約1.6万字の運用設計で、冗長さを0にしても読む気が戻らなかった原因から決めた初期値
+    "front_matter_chars": 1000,   # 本文の中身が始まるまでの前置き（冒頭の表、文書の説明の章、引く表の章）の読む字数
+    "ref_table_share": 0.7,       # 表の割合がこれ以上で、
+    "ref_table_rows": 10,         # 1つの表の行数がこれ以上の章は「引く表」: 付録に置く
+    "same_shape_run": 3,          # 同じ型（文→表→文）の章がこの数以上続いたら warning
+    "path_chars_warn": 6000,      # 読み通す章（引く表の章と付録を除く）の合計の読む字数（1回で読める量）
+    "summary_rows_warn": 7,       # §1 の表の行数がこれを超えたら、残りは付録へ
+    "ref_unit_share_warn": 0.5,   # 本文の段落のうち、本書の別の章を参照する段落の割合（§1・同じ章・他の文書への参照は除く）
+    "opaque_id_warn": 5,          # 要件ID（FR-001 の形）が本文（付録を除く）にこの回数以上で warning
 }
 NUM_UNIT_RE = re.compile(r"(?<![0-9.§C])(\d+(?:\.\d+)?)\s*(%|％|件|名|か月|ヶ月|営業日|日|分|時間|年|回|円)")
 ID_RE = re.compile(r"(?<![A-Za-z0-9_-])C\d+(?![A-Za-z0-9_-])")
 LABEL_RE = re.compile(r'\["([^"]*)"\]|\[([^\]"]*)\]|\{"?([^}"]*)"?\}|\(\["?([^\]"]*)"?\]\)|\|"?([^|"]*)"?\|')
 
 INFO_RE = re.compile(r"[0-9０-９]|(?<![A-Za-z0-9_-])C\d+(?![A-Za-z0-9_-])|§|`[^`]+`|\[要確認\]|「[^」]+」")
+# 作業の文（「〜を〜する」。動詞は運用の作業のもの）。中身の語（数字・§・「」）が無くても、手順を書いた段落は削除候補にしない
+# 「保全業務を大きく変革する」「環境は変化しており」のような一般論も「を＋動詞」を含むので、動詞を作業の語に限る
+ACTION_RE = re.compile(r"を[^。、「」]{0,10}?(?:再抽出|再実行|再開|再起動|再学習|再集計|再作成|作り直|停止|中止|止め|戻[すし]|復旧|復元|"
+                       r"確認|点検|巡回|検査|検知|判定|測定|評価|監視|比較|照合|分析|分類|学習|推論|"
+                       r"報告|連絡|通知|依頼|承認|申請|提出|回答|登録|更新|削除|保存|保管|記録|集計|抽出|取り込|読み込|"
+                       r"送付|送信|受領|受け付け|受付|切り替え|切替|交換|差し替え|実行|反映|作成|調整|設定|設置|配置|起動|公開|配信|消化|廃止)")
 QUOTE_RE = re.compile(r"「[^」]*」")
 ITEM_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+")
 SENT_SPLIT_RE = re.compile(r"(?<=[。！？])")
@@ -85,13 +102,19 @@ class Metrics:
     fillers: Counter = field(default_factory=Counter)
 
     @property
+    def text(self) -> float:
+        """読む字数のうち図のラベルを除いた分（文章＋表）。上限の比較はこれで行う。
+        図は読む負荷が文章と違い、原文に図が無いと「図を1枚足せば上限を超える」形になっていた（冗長でない原文で起きた）。"""
+        return self.chars + self.table
+
+    @property
     def core(self) -> float:
-        """削除候補と繰り返しを除いた、中身の量。"""
-        return max(self.read - self.cut, 0.0)
+        """削除候補と繰り返しを除いた、中身の量（図を除く）。"""
+        return max(self.text - self.cut, 0.0)
 
     def read_limit(self) -> float:
-        """この文書を原文としたときの、書き直しの読む字数の上限。"""
-        return min(self.read * LIMITS["read_growth_warn"], self.core * LIMITS["core_growth_warn"])
+        """この文書を原文としたときの、書き直しの読む字数（図を除く）の上限。"""
+        return min(self.text * LIMITS["read_growth_warn"], self.core * LIMITS["core_growth_warn"])
 
     @property
     def read(self) -> float:
@@ -272,6 +295,12 @@ def has_info(unit: Unit) -> bool:
     return bool(INFO_RE.search(unit.raw))
 
 
+def has_action(text: str, hits: list[tuple[str, str]]) -> bool:
+    """「〜を〜する」の作業の文があるか。「品質の向上を継続的に推進する」のように、一般論の語が動詞側にあるものは作業と見ない。"""
+    words = [w for _, w in hits]
+    return any(not any(w in m.group(0) for w in words) for m in ACTION_RE.finditer(text))
+
+
 def sentences(unit: Unit) -> list[str]:
     return [re.sub(r"\s+", "", s) for s in SENT_SPLIT_RE.split(unit.text) if s.strip()]
 
@@ -297,7 +326,13 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None, siblings:
         metrics.filler += len(hits)
         metrics.fillers.update(w for _, w in hits)
         words = "、".join(dict.fromkeys(w for _, w in hits))
-        if hits and not has_info(u):
+        if hits and not has_info(u) and has_action(u.text, hits):
+            # 手順を書いた段落（「止まった期間の入力を再抽出して取り込みを再実行する必要がある」）。削除候補にすると作業が消える
+            candidates.append((u, f"作業の文だが値・担当・頻度が無い。一般論の語（{words}）だけ外す"))
+            findings.append(Finding("warning", u.line, "filler-action",
+                                    f"一般論・前置き・ヘッジ（{words}）を含むが、作業（「〜を〜する」）を書いている。段落は削らず、"
+                                    "一般論の語を値・担当・頻度に置き換えるか外す。置き換える値が原文に無ければ、欠けとして §1.1 の未決にする"))
+        elif hits and not has_info(u):
             metrics.candidates += 1
             metrics.cut += n
             candidates.append((u, f"中身の語が無く、一般論・前置き・ヘッジだけ（{words}）"))
@@ -400,26 +435,27 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None, siblings:
                                 f"同じ主張を{LIMITS['restate_warn']}か所以上に書いている（{', '.join(many[:8])}）。"
                                 "書くのは正本の章と §1 の要点の2か所まで。ほかは「§4.2 を参照」にし、数値を再掲しない"))
 
-    # [要確認] は §1 の「まだ決めていない点」の表で1回だけ。本文では「未決（§1.1）」と参照する
+    # [要確認] は §1 の「まだ決めていない点」の表（7行を超える分は付録「未決の一覧」）で1回だけ。本文では「未決（§1.1）」と参照する
     sec, outside = "", []
     for i, raw in enumerate(re.sub(r"<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), "\n".join(lines), flags=re.S).splitlines(), 1):
         if raw.startswith("## "):
             sec = raw
-        elif "[要確認]" in raw and not re.match(r"^##\s+1[.\s]", sec):
+        elif "[要確認]" in raw and not re.match(r"^##\s+(1[.\s]|付録|参考|用語|変更履歴|改訂履歴|別紙|別表)", sec):
             outside.append(i)
     if outside:
         findings.append(Finding("warning", outside[0], "tbd-outside-summary",
-                                f"§1 の外に [要確認] がある（{', '.join(map(str, outside[:8]))}行）。未決は §1 の表に1回だけ書き、"
+                                f"§1 の外に [要確認] がある（{', '.join(map(str, outside[:8]))}行）。未決は §1 の表（7行を超える分は付録）に1回だけ書き、"
                                 "本文では「未決（§1.1）」と参照する"))
 
-    # 原文（design/_source/<同じ名前>.md）より読む量が増えていないか
+    # 原文（design/_source/<同じ名前>.md）より読む量（図を除く）が増えていないか
     source = path.parent / "_source" / path.name
     if siblings and source.exists():
         _, m0, _ = analyze(source, ng, siblings=False)
-        if m0.read and metrics.read > m0.read_limit():
+        if m0.text and metrics.text > m0.read_limit():
             findings.append(Finding("warning", 1, "read-growth",
-                                    f"読む字数 {metrics.read:.0f} が上限 {m0.read_limit():.0f} を超えた（原文 {m0.read:.0f}、"
-                                    f"原文から削除候補と繰り返しを除いた中身 {m0.core:.0f} の{LIMITS['core_growth_warn']}倍、の小さい方）。"
+                                    f"読む字数（図を除く）{metrics.text:.0f} が上限 {m0.read_limit():.0f} を超えた（原文 {m0.text:.0f}、"
+                                    f"原文から削除候補と繰り返しを除いた中身 {m0.core:.0f} の{LIMITS['core_growth_warn']}倍、の小さい方。"
+                                    f"図のラベル {metrics.figure:.0f}字は数えない）。"
                                     "同じ事実の再掲・状態の列・本文の主張ID・原文に無い未決の追加を見直す"))
 
     # 同じフォルダの別の設計書と同じ文（共通事項の複製）
@@ -465,8 +501,8 @@ def main() -> int:
     if args.original:
         _, m0, _ = analyze(args.original, ng, siblings=False)
         print(f"原文   {args.original}: {m0.fmt()}")
-        print(f"  書き直しの読む字数の上限: {m0.read_limit():.0f}（原文 {m0.read:.0f} と、削れる量を除いた中身 {m0.core:.0f} の"
-              f"{LIMITS['core_growth_warn']}倍、の小さい方）")
+        print(f"  書き直しの読む字数（図を除く）の上限: {m0.read_limit():.0f}（原文 {m0.text:.0f} と、削れる量を除いた中身 {m0.core:.0f} の"
+              f"{LIMITS['core_growth_warn']}倍、の小さい方。図のラベルは数えない）")
     for f in args.files:
         findings, m, cands = analyze(f, ng, siblings=not args.original)
         print(f"{'書き直し' if args.original else '検査'} {f}: {m.fmt()}")
@@ -477,7 +513,7 @@ def main() -> int:
             print(f"  {u.line:4}行 [{why}] {u.text[:60]}{'…' if len(u.text) > 60 else ''}")
         if cands and not args.original:
             print("  ※ 候補は出発点。判断を含む文（「導入が望ましいと考えられる」）はヘッジを外して残し、"
-                  "扱いが必要な話題（障害時・セキュリティ）は未決にする（SKILL.md フェーズ2.1）")
+                  "扱いが必要な話題（障害時・セキュリティ）は未決にする。「作業の文」は削らず語だけ外す（SKILL.md フェーズ2.1）")
     return 0
 
 
