@@ -10,6 +10,10 @@
 
 閾値の切り口には近道がある: threshold_for_loss / flagged / moved / moved_figure。
 
+図の関数は図を返さない（Quarto のセルの最後の式が図だと同じ図が2つ出るため）。図が要るときだけ return_fig=True。
+画像ごとの説明（caption）は、枠の幅を超える行を「＋・、」の後ろか「（」の前で折り返す（caption_lines）。
+タイトルの枚数は、写真の枚数なら claim、写真の集合に当たらない測った数なら measured で確かめる。
+
 図は1枚の画像になるので revealjs / pptx / PDF のどれでも同じ見た目で出る。
 寸法は「1単位 = サムネイル1枚の幅」で組み、文字は単位に比例させる。列数を省くと、スライドの図の領域
 （タイトル・bullets 2つ・出典行を除いた約1180×400px）で1枚が最も大きくなる列数を選ぶ。
@@ -22,8 +26,8 @@ qmd からの使い方:
     items = imgfig.load_table("data/table.csv", "data/thumbs")
     wrong = [it for it in items if it["true"] != it["pred"]]
     groups = imgfig.split_by(wrong, lambda it: (it["true"], it["pred"]))          # 枚数の多い順
-    imgfig.grid_figure(groups[0][1], caption=lambda it: f"{it['true']}→{it['pred']}\n{it['note']}");   # 最も多い群を大きく
-    imgfig.flow_figure([(f"{t} → {p}", g) for (t, p), g in groups[1:]]);                               # 残りの小さい群を詰めて
+    imgfig.grid_figure(groups[0][1], caption=lambda it: f"{it['true']}→{it['pred']}\n{it['note']}")    # 最も多い群を大きく
+    imgfig.flow_figure([(f"{t} → {p}", g) for (t, p), g in groups[1:]])                                # 残りの小さい群を詰めて
 
 CLI（qmd を書かずに1枚の図にする）:
     python imgfig.py groups --table table.csv --thumbs thumbs/ --by true,pred --where result=wrong --out groups.png
@@ -317,6 +321,31 @@ def claim(text: str, counts: dict, outside=None) -> str:
     return text
 
 
+def measured(text: str, counts: dict) -> str:
+    """写真の集合に当たらない枚数（人手で数え直した件数・データから測った値）をタイトルで言う文を、計算した値で確かめる。
+
+        imgfig.measured("人手で分類し直した120枚では、誤りは9枚だった", {120: len(relabeled), 9: n_wrong})
+
+    文の「N枚」はすべて counts に入れ、値は計算した数（int）を渡す。合わなければ止まる（assert と同じ）。
+    render_check は、claim か measured で確かめていないタイトルの枚数を知らせる。写真を並べて見せる枚数は
+    measured ではなく claim で確かめる（写っている対象を確認の表と照らすため）。返り値は text。"""
+    nums = [int(n) for n in COUNT_RE.findall(text)]
+    counts = {int(n): v for n, v in counts.items()}
+    missing = sorted(set(nums) - set(counts))
+    if missing:
+        raise AssertionError(f"「{text}」の {'・'.join(map(str, missing))} 枚に当たる値を渡していない")
+    for n, v in counts.items():
+        if isinstance(v, bool) or not isinstance(v, (int, np.integer)):
+            raise TypeError(f"「{text}」の {n} 枚には、計算した数（int）を渡す（{type(v).__name__} を渡した）")
+        if int(v) != n:
+            raise AssertionError(f"「{text}」の {n} 枚は、計算した値では {int(v)}。数か文を直す")
+    if os.environ.get("IMGFIG_REPORT"):
+        with open(os.environ["IMGFIG_REPORT"], "a", encoding="utf-8") as f:
+            f.write(json.dumps({"measured": text, "counts": {str(n): int(v) for n, v in counts.items()}},
+                               ensure_ascii=False) + "\n")
+    return text
+
+
 def slide_titles(html_path) -> list[str]:
     """描画した revealjs の HTML から、スライドごとのタイトル（h2 の文字。無ければ空）を取り出す。"""
     import html as _html
@@ -330,16 +359,16 @@ def slide_titles(html_path) -> list[str]:
 
 
 def check_claims(html_path, report) -> list[str]:
-    """claim の文と写真の食い違いと、タイトルで写真の枚数を言うのに imgfig.claim で確かめていないスライドを知らせる。"""
+    """claim の文と写真の食い違いと、タイトルで枚数を言うのに imgfig.claim・imgfig.measured で確かめていないスライドを知らせる。"""
     recs = [json.loads(line) for line in open(report, encoding="utf-8") if line.strip()] \
         if report and Path(report).exists() else []
-    recs = [r for r in recs if "claim" in r]
-    out = [f"「{r['claim']}」: {w}" for r in recs for w in r.get("warnings", [])]
-    said = {"".join(r["claim"].split()) for r in recs}
+    claims = [r for r in recs if "claim" in r]
+    out = [f"「{r['claim']}」: {w}" for r in claims for w in r.get("warnings", [])]
+    said = {"".join(r["claim"].split()) for r in claims} | {"".join(r["measured"].split()) for r in recs if "measured" in r}
     for sn, title in enumerate(slide_titles(html_path), 1):
         if COUNT_RE.search(title) and "".join(title.split()) not in said:
-            out.append(f"スライド{sn}: タイトル「{title}」の枚数を imgfig.claim で確かめていない。文が指す範囲の写真を確認の表から"
-                       "選び直し、`imgfig.claim(タイトル, {数: 写真, …})` で数える（合わなければタイトルを直す）")
+            out.append(f"スライド{sn}: タイトル「{title}」の枚数を確かめていない。写真の枚数なら `imgfig.claim(タイトル, {{数: 写真, …}})`、"
+                       "写真の集合に当たらない測った数（人手で数え直した件数など）なら `imgfig.measured(タイトル, {数: 計算した値})` で確かめる")
     return out
 
 
@@ -544,7 +573,7 @@ class Canvas:
     """
 
     def __init__(self, w_units: float, h_units: float, width_in: float = 12.0, max_height_in: float = 5.6,
-                 cell_h: float = 1.0, kind: str = ""):
+                 cell_h: float = 1.0, kind: str = "", return_fig: bool = False):
         plt.rcParams["font.family"] = japanese_fonts()
         scale = min(width_in / w_units, max_height_in / h_units)
         self.fig = plt.figure(figsize=(w_units * scale, h_units * scale))
@@ -555,6 +584,7 @@ class Canvas:
         self.unit_in = scale            # 1単位の実寸（インチ）
         self.pt = scale * 72.0          # 1単位あたりのポイント数
         self.cell_h, self.kind, self.n_thumbs = cell_h, kind, 0
+        self.return_fig = return_fig    # 既定は None を返す（Quarto のセルの最後の式が図だと、同じ図が2つ出る）
         self.captions: list[dict] = []     # 写真ごとの説明（render_check が確認の表 data/look.csv と照らす）
         self.groups: list[dict] = []       # 群の見出しと、その群の写真
 
@@ -571,7 +601,7 @@ class Canvas:
         if self.n_thumbs and px_tall < MIN_UNIT_PX:
             warnings.warn(f"サムネイルが小さい（bullets を置かなくても、スライド上で約{px_tall:.0f}px）。"
                           "見せる枚数を減らす（pick）か、図を分ける。全数は appendix に回せる", stacklevel=3)
-        return self.fig
+        return self.fig if self.return_fig else None
 
     def group(self, title, items):
         """群の見出しと写真を記録する（見出しが1つのクラスを言うとき、ほかのクラスも写る写真が入っていないかを照らすため）。"""
@@ -605,13 +635,36 @@ class Canvas:
         self.ax.add_patch(Rectangle((x0, y0), fw, fh, fc="none", ec=color, lw=0.035 * self.pt, zorder=3))
         self.n_thumbs += 1
         self.captions.append({"id": item.id, "caption": str(caption) if caption else ""})
-        for n, line in enumerate(str(caption).split("\n") if caption else []):
+        for n, (line, first) in enumerate(caption_lines(caption, caption_size) if caption else []):
             self.text(x + 0.5, y + self.cell_h + caption_size * 0.7 + n * CAPTION_LINE, line, size=caption_size,
-                      color=color if n == 0 else INK)
+                      color=color if first else INK)
 
 
 CAPTION_H = 0.3              # 説明文1行ぶんの高さ
 CAPTION_LINE = 0.24          # 2行目以降の行送り
+CAPTION_W = 1.12             # 説明文1行の幅の上限（_text_w の値。余白0.12を含むので、文字の幅で1単位＝枠の幅。超えると隣の列の説明と重なる）
+CAPTION_BREAK_RE = re.compile(r"(?<=[＋・、，,／/ ])|(?=[（(])")   # 「犬＋」「猫（…）」のように、区切り・空白の後ろか括弧の前で折る
+
+
+def caption_lines(text, size: float = 0.16, width: float = CAPTION_W) -> list[tuple[str, bool]]:
+    """説明文を、枠の幅に収まるよう折り返した行にする。返り値は (行, 1行目の段落の行か)。
+
+    改行はそのまま行を分ける。1行が枠より長いとき（「犬＋猫＋オウム（主役は車）」など）は、「＋・、」の後ろか
+    「（」の前で折り、それでも長い語は文字で折る。折らないと、隣の列の説明と重なる。"""
+    out: list[tuple[str, bool]] = []
+    for n, para in enumerate(str(text).split("\n")):
+        line = ""
+        for tok in (t for t in CAPTION_BREAK_RE.split(para) if t):
+            if line and _text_w(line + tok, size) > width:
+                out.append((line.rstrip(), n == 0))
+                line = ""
+            line += tok
+            while _text_w(line, size) > width and len(line) > 1:
+                k = max(1, max((i for i in range(1, len(line)) if _text_w(line[:i], size) <= width), default=1))
+                out.append((line[:k], n == 0))
+                line = line[k:]
+        out.append((line, n == 0))
+    return out
 
 
 def _cell_h(items, aspect) -> float:
@@ -630,10 +683,10 @@ def _cell_h(items, aspect) -> float:
 
 
 def _cap_h(items, caption) -> float:
-    """説明文の高さ（単位）。caption が改行を含む文字列を返すときは行数ぶん取る。"""
+    """説明文の高さ（単位）。改行と、枠の幅での折り返し（caption_lines）の行数ぶん取る。"""
     if not caption:
         return 0.0
-    lines = max((str(caption(it)).count("\n") + 1 for it in items), default=1)
+    lines = max((len(caption_lines(caption(it))) for it in items), default=1)
     return CAPTION_H + (lines - 1) * CAPTION_LINE
 
 
@@ -1195,7 +1248,7 @@ def main() -> int:
             print("条件に合う画像はない")
             return 0
         cap = (lambda it: it[a.caption]) if a.caption else None
-        fig = flow_figure([(" → ".join(v), g) for v, g in groups], k=a.k, how=a.how, caption=cap)
+        fig = flow_figure([(" → ".join(v), g) for v, g in groups], k=a.k, how=a.how, caption=cap, return_fig=True)
         fig.savefig(a.out, dpi=200)
         print("; ".join(f"{' → '.join(v)}: {len(g)}" for v, g in groups), "->", a.out)
         return 0
@@ -1258,7 +1311,7 @@ def main() -> int:
         items = _where(load_table(a.table, a.thumbs), a.where)
         mute = None if a.show_diagonal else (lambda r, c: r == c)
         fig = matrix_figure(items, lambda it: it[a.row], lambda it: it[a.col], k=a.k, mute=mute,
-                            row_title=a.row, col_title=a.col)
+                            row_title=a.row, col_title=a.col, return_fig=True)
         fig.savefig(a.out, dpi=200)
         print(f"{len(items)} images -> {a.out}")
         return 0
@@ -1271,7 +1324,7 @@ def main() -> int:
     if not mvd:
         print(f"threshold {t0:.4f} -> {t1:.4f}: 判定が変わる画像はない")
         return 0
-    fig = moved_figure(ev, t0, t1, caption=lambda it: it.label)
+    fig = moved_figure(ev, t0, t1, caption=lambda it: it.label, return_fig=True)
     fig.savefig(a.out, dpi=200)
     n_out = sum(not i.normal for i in mvd)
     print(f"threshold {t0:.4f} -> {t1:.4f}: {len(mvd)} images change "

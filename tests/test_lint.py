@@ -2,7 +2,9 @@
 
     python3 -m unittest discover -s tests -v
 """
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -60,6 +62,85 @@ class Fixtures(unittest.TestCase):
         deck = lint.parse_deck(ROOT / "tests/fixtures/image_checks.qmd")
         self.assertIn("decided-by", deck.meta)
         self.assertIn("決めた人", lint.title_list(deck))
+
+
+
+def deck_text(body: str, budget: int = 2, status: str = "approved", action: str = "試す") -> str:
+    return (f"---\ntitle: t\n---\n\n<!-- audience: 試し -->\n<!-- action: {action} -->\n<!-- minutes: 3 -->\n"
+            f"<!-- budget: {budget} -->\n<!-- status: {status} -->\n\n" + body)
+
+
+TWO = "## 一つ目の枚は短い事実を述べる\n\n<!-- type: text -->\n\n- 事実\n\n## 二つ目の枚も短い事実を述べる\n\n<!-- type: text -->\n\n- 事実\n"
+
+
+class Feedback(unittest.TestCase):
+    """2026-10-05 の利用者の指摘: <style> を字数に数える、承認後の budget・タイトルの変更、選ぶ枚の図、標本の宣言。"""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+
+    def write(self, text: str) -> Path:
+        path = self.dir / "index.qmd"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def rules(self, path: Path, severity: str, baseline=None) -> list[str]:
+        return [i.rule for i in lint.check_deck(lint.parse_deck(path), NG, baseline) if i.severity == severity]
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.dir, check=True, capture_output=True)
+
+    def test_style_blocks_are_not_body_text(self):
+        css = "\n".join(f".reveal .pair > div:nth-child({n}) {{ border-left: 6px solid #b35900; padding-left: 24px; }}"
+                        for n in range(12))
+        path = self.write(deck_text(TWO.replace("- 事実\n\n## 二つ目", f"- 事実\n\n<style>\n{css}\n</style>\n\n## 二つ目", 1)))
+        deck = lint.parse_deck(path)
+        self.assertNotIn("body-chars", self.rules(path, "block"))
+        self.assertEqual(len(deck.slides[0].raw_html), 14)                  # <style>〜</style> は本文に入れない
+        self.assertEqual(len(deck.slides[0].body), 1)
+
+    def test_budget_and_titles_changed_after_approval(self):
+        path = self.write(deck_text(TWO))
+        self.git("init", "-q")
+        self.git("add", ".")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "approved")
+        three = TWO + "## 三つ目の枚を後から足した\n\n<!-- type: text -->\n\n- 事実\n"
+        path.write_text(deck_text(three, budget=3), encoding="utf-8")
+        base = lint.approved_baseline(path)
+        self.assertIsNotNone(base)
+        self.assertIn("budget-changed", self.rules(path, "block", base))
+        self.assertIn("approved-title-changed", self.rules(path, "warning", base))
+        path.write_text(deck_text(three, budget=3) + "\n<!-- reapproved: 本人「3枚目を足してよい」 2026-10-05 -->\n",
+                        encoding="utf-8")
+        self.assertNotIn("budget-changed", self.rules(path, "block", base))      # 承認し直した記録があれば止めない
+        self.assertNotIn("approved-title-changed", self.rules(path, "warning", base))
+        path.write_text(deck_text(three, budget=3) + "\n<!-- reapproved: 承認済み -->\n", encoding="utf-8")
+        self.assertIn("budget-changed", self.rules(path, "block", base))         # 本人の原文と日付が無い記録は見ない
+
+    def test_choice_deck_needs_evidence_on_the_last_slide(self):
+        body = TWO.replace("## 二つ目の枚も短い事実を述べる", "## 案Bを選ぶ")
+        path = self.write(deck_text(body, action="案Aと案Bのどちらを採るか選ぶ"))
+        self.assertIn("action-evidence", self.rules(path, "warning"))
+        table = body.replace("## 案Bを選ぶ\n\n<!-- type: text -->\n\n- 事実",
+                             "## 案Bを選ぶ\n\n<!-- type: table -->\n\n| 案 | 誤り |\n|---|---|\n| A | 9 |\n| B | 4 |")
+        path.write_text(deck_text(table, action="案Aと案Bのどちらを採るか選ぶ"), encoding="utf-8")
+        self.assertNotIn("action-evidence", self.rules(path, "warning"))
+        path.write_text(deck_text(body, action="次の資料で試す"), encoding="utf-8")
+        self.assertNotIn("action-evidence", self.rules(path, "warning"))   # 選ぶデッキでなければ見ない
+
+    def test_denominator_is_declared_on_every_slide_with_numbers(self):
+        body = ('## 人手で分類し直した写真では、誤りが9枚だった {denominator="人手で分類し直した写真"}\n\n'
+                "<!-- type: text -->\n\n- 事実\n\n"
+                "## 全体の写真では、誤りが30枚だった\n\n<!-- type: text -->\n\n- 事実\n\n"
+                "## 日付と出典だけの枚は数字の枚に入れない\n\n<!-- type: text -->\n\n- 2026-09-30 に集計\n\n"
+                "[出典: 調査 2024]{.source}\n")
+        path = self.write(deck_text(body, budget=3))
+        deck = lint.parse_deck(path)
+        self.assertEqual(deck.slides[0].denominator, "人手で分類し直した写真")
+        self.assertEqual(deck.slides[0].title, "人手で分類し直した写真では、誤りが9枚だった")
+        issues = [i for i in lint.check_deck(deck, NG) if i.rule == "denominator-missing"]
+        self.assertEqual([i.slide.index for i in issues], [2])
+        self.assertIn("標本: 人手で分類し直した写真", lint.title_list(deck))
 
 
 class Decks(unittest.TestCase):

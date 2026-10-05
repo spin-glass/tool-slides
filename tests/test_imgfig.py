@@ -128,6 +128,47 @@ class Layout(unittest.TestCase):
         self.assertEqual(imgfig._cap_h(items, lambda it: "a\nb" if it.id == "p1" else "a"),
                          imgfig.CAPTION_H + imgfig.CAPTION_LINE)
 
+    def test_figures_return_none_unless_asked(self):
+        items = self.photos([(256, 171)] * 3)
+        try:
+            self.assertIsNone(imgfig.grid_figure(items))                   # セルの最後に ; が無くても図は1つ
+            fig = imgfig.grid_figure(items, return_fig=True)
+            self.assertTrue(hasattr(fig, "savefig"))
+        finally:
+            imgfig.plt.close("all")
+
+    def test_captions_wrap_to_the_cell_width(self):
+        self.assertEqual(imgfig.caption_lines("端の小さな傷"), [("端の小さな傷", True)])    # 6字は1行に収まる
+        lines = imgfig.caption_lines("犬＋猫（奥にオウムも）\nラベル 犬 0.92")
+        self.assertEqual(lines[0], ("犬＋猫", True))                       # 「＋」の後ろか「（」の前で折る
+        self.assertTrue(all(imgfig._text_w(t, 0.16) <= imgfig.CAPTION_W for t, _ in lines))
+        self.assertEqual([first for _, first in lines][-1], False)         # 2つ目の段落（データ）は黒
+        items = self.photos([(256, 171)] * 2)
+        self.assertEqual(imgfig._cap_h(items, lambda it: "犬＋猫（奥にオウムも）"),
+                         imgfig.CAPTION_H + 2 * imgfig.CAPTION_LINE)       # 折り返した行の高さも取る
+
+    def test_measured_counts_need_computed_values(self):
+        with self.assertRaises(AssertionError):
+            imgfig.measured("人手で分類し直した120枚では、誤りは9枚だった", {120: 120, 9: 8})
+        with self.assertRaises(AssertionError):
+            imgfig.measured("人手で分類し直した120枚では、誤りは9枚だった", {120: 120})
+        with self.assertRaises(TypeError):                                   # 「確かめた」とだけ書く宣言は受けない
+            imgfig.measured("人手で分類し直した120枚では、誤りは9枚だった", {120: "assert", 9: 9})
+        d = Path(tempfile.mkdtemp())
+        report = d / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.measured("人手で分類し直した120枚では、誤りは9枚だった", {120: 120, 9: 9})
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+        (d / "index.html").write_text(
+            '<section class="slide level2"><h2>人手で分類し直した120枚では、誤りは9枚だった</h2></section>'
+            '<section class="slide level2"><h2>別の集計では30枚だった</h2></section>', encoding="utf-8")
+        found = imgfig.check_claims(d / "index.html", report)
+        self.assertEqual(len(found), 1, found)                     # measured で確かめた1枚目は知らせない
+        self.assertTrue(found[0].startswith("スライド2"))
+        self.assertIn("imgfig.measured", found[0])
+
     def test_flow_wraps_groups_and_keeps_room_for_headings(self):
         lines = imgfig._flow_lines([12, 3, 3, 3, 2, 1], [2.0] * 6, width=12)
         self.assertEqual([[g for g, *_ in line] for line in lines], [[0], [1, 2, 3], [4, 5]])
