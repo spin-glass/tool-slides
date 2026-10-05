@@ -11,6 +11,11 @@
 画像: `![代替テキスト](パス)` のファイルが無ければ block、代替テキストが空なら warning。
       図を描くコードセル（plt. / imgfig. など）に `#| fig-alt:` が無ければ warning。
       画像を並べた図（imgfig.*_figure）のスライドに選び方（すべて・等間隔・上位…）の記載が無ければ warning。
+承認後: git の HEAD の版が status: approved なら、budget の書き換えを block、本編のタイトルの変更・追加を warning
+      （本人の承認を取り直した記録 <!-- reapproved: 本人「…」 YYYY-MM-DD --> を新しく書けば見ない）。
+行動が「選ぶ・判断する」のデッキで、最後の枚に図も表も無ければ warning（判断の根拠を付録へ送らない）。
+標本: 見出しの {denominator="…"} を1枚でも書いたデッキでは、数字のある本編の枚に宣言が無ければ warning。
+本文の字数・行数に <style>・<script> の中は数えない。
 
 終了コード（通常モード）: 0=block違反なし / 2=block違反あり
 閾値は下の LIMITS。最初の2〜3デッキで較正する（references/evidence.md）。
@@ -108,6 +113,15 @@ TYPE_MARKUP = {
     "images": "imgfig.*_figure(...) か ![…](…)",
 }
 INLINE_STYLE_RE = re.compile(r"\bstyle\s*=\s*[\"']")
+RAW_OPEN_RE = re.compile(r"^\s*<(style|script)\b", re.I)          # 見た目の調整の <style>・<script> は本文として数えない
+# 承認後の変更（budget・タイトル）を本人が承認し直した記録。本人の原文を「」で写す
+REAPPROVED_RE = re.compile(r"<!--\s*reapproved\s*:\s*(.*?)\s*-->", re.S)
+# 行動が「選ぶ」デッキ（最後の枚に、選択肢を比べる図か表を置く）。「決める」は確認型の「決めた点を聞く」にも出るので見ない
+ACTION_CHOICE_RE = re.compile(r"選ぶ|選択|選んで|選定|採否|どれを|どちらを|判断する|承認する")
+# 枚ごとの標本（分母）: 見出しの属性 {denominator="人手で分類し直した写真"}
+DENOMINATOR_RE = re.compile(r"\bdenominator\s*=\s*\"([^\"]*)\"")
+SOURCE_SPAN_RE = re.compile(r"\[[^\]]*\]\{[^}]*\.source\b[^}]*\}")
+DATE_RE = re.compile(r"\d{4}[-/年]\d{1,2}(?:[-/月]\d{1,2}日?)?|\d{4}年")
 
 
 # ---- 文字幅 ---------------------------------------------------------------
@@ -187,6 +201,8 @@ class Slide:
     types: list[str] = field(default_factory=list)                     # <!-- type: pair --> のスライドの型
     divs: list[str] = field(default_factory=list)                      # fenced div の属性（{.columns .pair} など）
     cells: list[tuple[str, str]] = field(default_factory=list)        # 実行するセル (情報 {python}/{mermaid}, 中身)
+    raw_html: list[tuple[int, str]] = field(default_factory=list)     # <style>・<script> の行（本文に数えない）
+    denominator: str | None = None                                    # 見出しの {denominator="…"}（この枚の数字の標本）
 
 
 @dataclass
@@ -212,8 +228,8 @@ def parse_front_matter(lines: list[str]) -> tuple[int, dict[str, str]]:
     return 0, {}
 
 
-def parse_deck(path: Path) -> Deck:
-    text = path.read_text(encoding="utf-8")
+def parse_deck(path: Path, text: str | None = None) -> Deck:
+    text = path.read_text(encoding="utf-8") if text is None else text
     lines = text.splitlines()
     start, fm = parse_front_matter(lines)
     default_echo = fm.get("echo", "false").lower() == "true"
@@ -230,6 +246,7 @@ def parse_deck(path: Path) -> Deck:
     preamble_line = None
     code_start = 0
     cell_info = ""
+    raw_tag = None            # <style>/<script> の中（閉じタグまで本文に数えない）
 
     def in_notes() -> bool:
         return any(".notes" in a or a == "notes" for _, a in div_stack)
@@ -273,6 +290,21 @@ def parse_deck(path: Path) -> Deck:
             info = m.group(3).strip()
             cell_info = info
             in_code = (m.group(2), info.startswith("{"), default_echo)
+            continue
+
+        # <style>・<script>（見た目の調整。本文の字数・行数に数えない）
+        if raw_tag:
+            if cur:
+                cur.raw_html.append((ln, raw))
+            if re.search(rf"</{raw_tag}\s*>", raw, re.I):
+                raw_tag = None
+            continue
+        m = RAW_OPEN_RE.match(raw)
+        if m:
+            if cur:
+                cur.raw_html.append((ln, raw))
+            if not re.search(rf"</{m.group(1)}\s*>", raw, re.I):
+                raw_tag = m.group(1).lower()
             continue
 
         # HTMLコメント（複数行も）
@@ -323,8 +355,11 @@ def parse_deck(path: Path) -> Deck:
         # スライド区切り
         m = HEADING_RE.match(raw)
         if m and len(m.group(1)) <= 2:
+            attrs = re.search(r"\{([^}]*)\}\s*$", m.group(2))
             title = re.sub(r"\s*\{[^}]*\}\s*$", "", m.group(2)).strip()
             cur = Slide(len(slides) + 1, ln, title, len(m.group(1)), appendix)
+            den = DENOMINATOR_RE.search(attrs.group(1)) if attrs else None
+            cur.denominator = den.group(1).strip() if den else None
             slides.append(cur)
             continue
         if HR_RE.match(raw):
@@ -410,7 +445,52 @@ def check_title(s: Slide, title_limit: float = LIMITS["title_chars_block"]) -> l
     return out
 
 
-def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
+def approved_baseline(path: Path) -> Deck | None:
+    """git の HEAD にある同じデッキの版を、承認済み（status: approved）なら返す（承認後の budget・タイトルの変更を見るため）。"""
+    try:
+        root = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=Path(path).resolve().parent,
+                              capture_output=True, text=True, check=True).stdout.strip()
+        rel = Path(path).resolve().relative_to(Path(root).resolve()).as_posix()
+        r = subprocess.run(["git", "show", f"HEAD:{rel}"], cwd=root, capture_output=True, encoding="utf-8")
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    base = parse_deck(Path(path), r.stdout)
+    return base if base.meta.get("status", (0, ""))[1] == "approved" else None
+
+
+def _reapprovals(deck: Deck) -> set[str]:
+    """本人が承認し直した記録 <!-- reapproved: 本人「…」 YYYY-MM-DD -->（本人の原文と日付があるものだけ）。"""
+    found = REAPPROVED_RE.findall("\n".join(deck.all_lines))
+    return {" ".join(v.split()) for v in found if "「" in v and re.search(r"\d{4}-\d{2}-\d{2}", v)}
+
+
+def check_approved_changes(deck: Deck, baseline: Deck | None) -> list[Issue]:
+    """承認済みの版（git の HEAD）と比べて、budget とタイトルの変更を知らせる。承認し直した記録が新しく足されていれば見ない。"""
+    status = deck.meta.get("status", (0, ""))[1]
+    if baseline is None or status != "approved" or (_reapprovals(deck) - _reapprovals(baseline)):
+        return []
+    issues: list[Issue] = []
+    old, new = baseline.meta.get("budget", (0, ""))[1], deck.meta.get("budget", (0, ""))[1]
+    if old.isdigit() and new.isdigit() and old != new:
+        issues.append(Issue("block", deck.meta["budget"][0], None, "budget-changed",
+                            f"承認済みの budget を {old} から {new} に書き換えている。枚数は本人と合意した約束なので、"
+                            f"超えるなら appendix へ送るか、本人に承認を取り直して `<!-- reapproved: 本人「…」 YYYY-MM-DD -->` を書く"))
+    before = [t.title for t in baseline.slides if not t.appendix and t.level == 2]
+    after = [t for t in deck.slides if not t.appendix and t.level == 2]
+    changed = [t for t in after if t.title not in before]
+    gone = [t for t in before if t not in {x.title for x in after}]
+    if changed or gone:
+        what = "、".join([f"「{t.title}」" for t in changed[:3]] + [f"消えた「{t}」" for t in gone[:2]])
+        issues.append(Issue("warning", changed[0].line if changed else 1, changed[0] if changed else None,
+                            "approved-title-changed",
+                            f"承認済みの骨子から本編のタイトルが変わった（{what}）。タイトルは本人に変更を提案し、承認を得てから"
+                            f"変える。承認を得たら `<!-- reapproved: 本人「…」 YYYY-MM-DD -->` を書く（SKILL.md フェーズ3）"))
+    return issues
+
+
+def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | None = None) -> list[Issue]:
     issues: list[Issue] = []
     uses_imgfig = any("imgfig" in line for line in deck.all_lines)    # 写真の図を使うデッキ（枚数を手で書かせない）
     asserted = {int(n) for line in deck.all_lines if re.match(r"\s*assert\b", line)
@@ -458,6 +538,30 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]]) -> list[Issue]:
     if budget is not None and len(main) > budget:
         issues.append(Issue("block", main[budget].line, main[budget], "budget",
                             f"本編{len(main)}枚 > budget {budget}枚。統合・削除するか `<!-- appendix -->` 以降へ移す"))
+    issues.extend(check_approved_changes(deck, baseline))
+
+    # 行動が「選ぶ」デッキ: 最後の枚（行動を頼む枚）に、選択肢を比べる図か表を置く（根拠を付録へ送らない）
+    action = deck.meta.get("action", (0, ""))[1]
+    if main and status == "approved" and not confirm and ACTION_CHOICE_RE.search(action):
+        last = main[-1]
+        shown = (last.figures or last.images or any(re.match(r"\s*\|", t) for _, t in last.body)
+                 or any(IMGFIG_RE.search(c) or MERMAID_RE.match(i) or "Markdown(" in c for i, c in last.cells))
+        if not shown and (last.body or last.cells):
+            moved = any(t.figures or t.images for t in deck.slides if t.appendix)
+            issues.append(Issue("warning", last.line, last, "action-evidence",
+                                "行動が「選ぶ・判断する」のデッキなのに、最後の枚（行動を頼む枚）に図も表も無い。選択肢を比べる図か表を"
+                                "この枚に置く" + ("（付録の図を本編へ戻す。本編の字数・箇条書きの上限に当たるなら、文を減らす）" if moved else "")))
+
+    # 枚ごとの標本（分母）。1枚でも {denominator="…"} を書いたデッキでは、数字のある本編の枚すべてに書く
+    if any(t.denominator for t in deck.slides):
+        for t in main:
+            if t.level != 2 or t.denominator:
+                continue
+            texts = [t.title] + [x for _, x in t.body]
+            if any(INLINE_CODE_RE.search(x) or re.search(r"\d", DATE_RE.sub("", SOURCE_SPAN_RE.sub("", x))) for x in texts):
+                issues.append(Issue("warning", t.line, t, "denominator-missing",
+                                    "数字のある枚に標本の宣言が無い。見出しの末尾に `{denominator=\"人手で分類し直した写真\"}` のように、"
+                                    "この枚の数字が何の集まりから数えたものかを書く（デッキに標本が2つ以上あるとき、取り違えを防ぐ）"))
 
     hedge_total = 0
     for s in deck.slides:
@@ -651,6 +755,8 @@ def title_list(deck: Deck) -> str:
             line += f"\n      確認点: {chk}"
         if s.types:
             line += f"\n      型: {', '.join(s.types)}"
+        if s.denominator:
+            line += f"\n      標本: {s.denominator}"
         if s.claims:
             line += f"\n      主張: {', '.join(s.claims)}"
         out.append(line)
@@ -714,7 +820,7 @@ def run_hook() -> int:
     for p in changed_decks(root):
         deck = parse_deck(p)
         rel = p.relative_to(root) if p.is_relative_to(root) else p
-        for i in check_deck(deck, ng):
+        for i in check_deck(deck, ng, approved_baseline(p)):
             if i.severity == "block":
                 blocks.append(i.fmt(rel))
 
@@ -758,7 +864,7 @@ def main() -> int:
         if args.titles:
             print(title_list(deck))
             continue
-        issues = check_deck(deck, ng)
+        issues = check_deck(deck, ng, approved_baseline(f))
         nb = sum(i.severity == "block" for i in issues)
         nw = len(issues) - nb
         for i in issues:
