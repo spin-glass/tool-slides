@@ -52,6 +52,22 @@ class Fixtures(unittest.TestCase):
         self.assertEqual(sorted(rules("slide_types.qmd", "block")), ["type-multiple", "type-unknown"])
         self.assertIn("型: pair", lint.title_list(deck))
 
+    def test_undefined_classes_and_cell_fig_size(self):
+        deck = lint.parse_deck(ROOT / "tests/fixtures/classes_and_fig_size.qmd")
+        found = [(i.rule, i.slide.index, i.message) for i in lint.check_deck(deck, NG)
+                 if i.rule in ("class-undefined", "cell-fig-size")]
+        self.assertEqual([(r, n) for r, n, _ in found], [("class-undefined", 1), ("cell-fig-size", 2)])
+        self.assertIn(".e4", found[0][2])
+        self.assertNotIn(".e2", found[0][2])                   # theme/custom.scss にある
+        self.assertNotIn("nostretch", found[0][2])             # Quarto の組み込み
+        self.assertIn("figsize", found[1][2])
+
+    def test_committed_decks_use_defined_classes(self):
+        for qmd in lint.all_decks(ROOT):
+            with self.subTest(deck=qmd.parent.name):
+                issues = lint.check_deck(lint.parse_deck(qmd), NG)
+                self.assertEqual([i.fmt(qmd) for i in issues if i.rule in ("class-undefined", "cell-fig-size")], [])
+
     def test_committed_decks_choose_types(self):
         for qmd in lint.all_decks(ROOT):
             with self.subTest(deck=qmd.parent.name):

@@ -276,3 +276,20 @@ $line: #d0d7de;                       // 表の横線・区切り
 .reveal .accent-2 {
   color: $accent-2;
 }
+
+// ---- 本文中の強調（3段階）----
+// [92.9%]{.e1} のように、文中の数字・語だけに付ける。1枚に e1 は1か所までを目安にする。
+// 色だけで区別させない（色覚の違い）ため、どれも太字にする。e1 は青＝結論の数字、e2 は橙＝対比・注意、e3 は黒の太字。
+.reveal .e1 {
+  font-weight: 700;
+  color: $link-color;
+}
+
+.reveal .e2 {
+  font-weight: 700;
+  color: $accent-2-text;
+}
+
+.reveal .e3 {
+  font-weight: 700;
+}

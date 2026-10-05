@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # quarto render（revealjs）→ Chrome headless で全スライドを 1280x720 の PNG にする。
 # 出力: <deck>/_check/slide-NN.png（Read で全枚を目視する）
-# 使い方: render_check.sh <deck>      （index.qmd を含むフォルダ、または .qmd のパス）
+# 使い方: render_check.sh <deck> [--pdf]   （index.qmd を含むフォルダ、または .qmd のパス）
+#   --pdf: 検収した PNG を1枚1ページに綴じた PDF を <deck>/<フォルダ名>.pdf に書く。文字は選択できないが、
+#          画面と同じ見た目になる（?print-pdf は縦長の枚を2ページに分け、ページ数がずれる）
 #
 # デッキが Quarto プロジェクト（_quarto.yml を持つフォルダ）の中にあれば、そのプロジェクトで描画する。
 # 外にあるときは、このスキルのリポジトリの _quarto.yml・theme・filters で一時プロジェクトを組んで描画し、
@@ -11,7 +13,15 @@ set -euo pipefail
 SKILL_DIR="$(cd -P "$(dirname "$0")/.." && pwd)"   # シンボリックリンク経由でも実体を指す
 REPO="$(cd -P "$SKILL_DIR/../../.." && pwd)"       # <repo>/.claude/skills/slides の3つ上
 
-TARGET="${1:?usage: render_check.sh <deck>}"
+PDF=0
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --pdf) PDF=1 ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+TARGET="${ARGS[0]:?usage: render_check.sh <deck> [--pdf]}"
 [[ -d "$TARGET" ]] && TARGET="$TARGET/index.qmd"
 [[ -f "$TARGET" ]] || { echo "not found: $TARGET" >&2; exit 1; }
 QMD="$(cd "$(dirname "$TARGET")" && pwd)/$(basename "$TARGET")"
@@ -117,7 +127,7 @@ wait
 echo "$N slides -> $OUT"
 ls "$OUT"/slide-*.png
 
-# 本文が下端を越える・出典行にかかる枚を測る（図の高さを手で決めると、本文が1行増えたときに後から溢れる）。
+# 本文が下端を越える枚と、本文が出典行・確認点の帯（position: absolute の要素）に重なる枚を測る（図の高さを手で決めると、本文が1行増えたときに後から溢れる）。
 # 描画した HTML の隣に計測用の写しを置き、Chrome headless の --dump-dom で各スライドの下端の位置を受け取る。
 LAYOUT_HTML="${HTML%.html}.__layout.html"
 "$PY" - "$HTML" "$LAYOUT_HTML" <<'PYEOF'
@@ -125,29 +135,44 @@ import sys
 src, dst = sys.argv[1], sys.argv[2]
 js = r"""<script>
 window.addEventListener('load', function () {
+  // 帯（出典 .source・確認点 .check など、position: absolute で置いた要素）と、流れて並ぶ本文（段落・表・図）が
+  // 重なる量と、本文の下端を測る。Web フォントの読み込み前に測ると折り返しが変わるため、fonts.ready を待つ。
+  var FLOW = 'img, p, li, table, td, th, pre, h2, h3, figure, blockquote, dl, svg, canvas, video, iframe, .cell-output-display';
   function run() {
     var H = Reveal.getConfig().height, out = [];
     Reveal.getSlides().forEach(function (s, i) {
       Reveal.slide(i);
       var scale = Reveal.getScale(), top = document.querySelector('.reveal .slides').getBoundingClientRect().top;
-      var srcEl = s.querySelector('.source'), srcTop = null, srcBox = null;
-      if (srcEl) { srcBox = srcEl.getBoundingClientRect(); srcTop = (srcBox.top - top) / scale; }
-      var bottom = 0, over = 0, imgs = [];
-      s.querySelectorAll('img, p, li, table, pre, h2, h3, figure, .cell-output-display').forEach(function (el) {
-        if (el.closest('aside.notes') || (srcEl && (srcEl === el || srcEl.contains(el) || el.contains(srcEl)))) return;
+      var y = function (v) { return (v - top) / scale; };
+      var bands = [];
+      s.querySelectorAll('*').forEach(function (el) {
+        if (el.closest('aside.notes') || getComputedStyle(el).position !== 'absolute') return;
+        if (bands.some(function (b) { return b.el.contains(el); })) return;   // 帯の中の要素は帯の一部
+        var r = el.getBoundingClientRect(); if (!r.height || !r.width) return;
+        var cls = (el.className && el.className.baseVal === undefined ? el.className : '').trim().split(/\s+/)[0];
+        bands.push({el: el, r: r, name: cls ? '.' + cls : el.tagName.toLowerCase()});
+      });
+      var bottom = 0, hits = {}, imgs = [];
+      s.querySelectorAll(FLOW).forEach(function (el) {
+        if (el.closest('aside.notes')) return;
+        if (bands.some(function (b) { return b.el === el || b.el.contains(el) || el.contains(b.el); })) return;
         var r = el.getBoundingClientRect(); if (!r.height) return;
-        var b = (r.bottom - top) / scale; bottom = Math.max(bottom, b);
-        if (srcBox && b > srcTop + 2 && r.left < srcBox.right && r.right > srcBox.left) over = Math.max(over, b - srcTop);
+        bottom = Math.max(bottom, y(r.bottom));
+        bands.forEach(function (b) {
+          var dy = Math.min(r.bottom, b.r.bottom) - Math.max(r.top, b.r.top);
+          if (dy > 2 && r.left < b.r.right && r.right > b.r.left) hits[b.name] = Math.max(hits[b.name] || 0, dy / scale);
+        });
       });
       s.querySelectorAll('img').forEach(function (im) {
         if (!im.closest('aside.notes')) imgs.push(Math.round(im.getBoundingClientRect().height / scale));
       });
-      out.push({n: i + 1, bottom: Math.round(bottom), height: H, source: srcTop === null ? null : Math.round(srcTop),
-                over_source: Math.round(over), imgs: imgs});
+      Object.keys(hits).forEach(function (k) { hits[k] = Math.round(hits[k]); });
+      out.push({n: i + 1, bottom: Math.round(bottom), height: H, overlaps: hits, imgs: imgs});
     });
     document.body.setAttribute('data-layout', JSON.stringify(out));
   }
-  if (Reveal.isReady()) { run(); } else { Reveal.on('ready', run); }
+  function start() { (document.fonts ? document.fonts.ready : Promise.resolve()).then(run); }
+  if (Reveal.isReady()) { start(); } else { Reveal.on('ready', start); }
 });
 </script>"""
 html = open(src, encoding="utf-8").read()
@@ -165,22 +190,25 @@ if not m:
 bad = 0
 for r in json.loads(html.unescape(m.group(1))):
     over_edge = r["bottom"] - r["height"]
-    over = max(over_edge, r["over_source"] or 0)
+    band, band_over = max(r["overlaps"].items(), key=lambda kv: kv[1], default=("", 0))
+    over = max(over_edge, band_over)
     if over <= 8:      # 数px は図の余白の重なり。小さいものは知らせない
         continue
     bad += 1
-    src_over = r["over_source"] or 0
-    where = (f"下端を約{over_edge}px 越えている" if over_edge >= src_over else
-             f"出典行に約{src_over}px かかっている（図の下の余白のこともあるので、スクショで出典が読めるか確かめる）")
+    if over_edge >= band_over:
+        where = f"下端を約{over_edge}px 越えている"
+    else:
+        name = {".source": "出典行", ".check": "確認点の帯"}.get(band, f"帯（{band}）")
+        where = f"{name}に約{band_over}px 重なっている（図の下の余白のこともあるので、スクショで読めるか確かめる）"
     tall = max(r["imgs"] or [0])
     if tall > over:
         k = (tall - over) / tall
-        fix = f"図（高さ約{tall}px）を約{k:.2f}倍にすると収まる（imgfig の図なら max_height_in を今の値×{k:.2f}、Quarto の図なら fig-height を同じ割合で縮める）"
+        fix = f"図（高さ約{tall}px）を約{k:.2f}倍にすると収まる（imgfig の図なら max_height_in を今の値×{k:.2f}、matplotlib の図なら figsize の高さを同じ割合で縮める）"
     else:
         fix = "箇条書きか表を減らすか、本文をノートへ移す"
     num = r["n"]
     print(f"WARNING スライド{num}: 本文が{where}。{fix}")
-print(f"下端のはみ出し: {bad} 枚")
+print(f"本文の溢れ・帯との重なり: {bad} 枚")
 '
 rm -f "$LAYOUT_HTML"
 
@@ -205,7 +233,7 @@ fi
 
 # 図の写真ごとの説明・群の見出しを、確認の表（data/look.csv: id, classes, note）と照らす
 if [[ -s "$REPORT" && -f "$DECK_DIR/data/look.csv" ]]; then
-  "$PY" "$(dirname "$0")/imgfig.py" check-look --report "$REPORT" --look "$DECK_DIR/data/look.csv" --html "$HTML"
+  "$PY" "$(dirname "$0")/imgfig.py" check-look --report "$REPORT" --look "$DECK_DIR/data/look.csv" --html "$HTML" --qmd "$QMD"
 elif [[ -s "$REPORT" ]] && grep -q '"captions": \[{' "$REPORT"; then
   echo "WARNING 写真の図があるが data/look.csv が無い（元の写真で確かめた、写っている対象の表を作る）"
 fi
@@ -217,4 +245,18 @@ if [[ -d "$FIG_DIR" ]]; then
   find "$FIG_DIR" -type f -size +1024k | while read -r f; do
     echo "WARNING 図が1MBを超える: $(basename "$f")（写真の図はデッキの YAML に fig-format: jpeg と fig-dpi: 200 を書く）"
   done
+fi
+
+# 検収した PNG から PDF を作る（--pdf）。画面と同じ見た目・同じ枚数になる
+if [[ "$PDF" == 1 ]]; then
+  PDF_OUT="$DECK_DIR/$(basename "$DECK_DIR").pdf"
+  "$PY" - "$OUT" "$PDF_OUT" <<'PYEOF'
+import sys
+from pathlib import Path
+from PIL import Image
+pngs = sorted(Path(sys.argv[1]).glob("slide-*.png"))
+pages = [Image.open(p).convert("RGB") for p in pngs]
+pages[0].save(sys.argv[2], save_all=True, append_images=pages[1:], resolution=96)
+print(f"PDF -> {sys.argv[2]}（{len(pages)} ページ。検収した PNG を綴じたもの）")
+PYEOF
 fi

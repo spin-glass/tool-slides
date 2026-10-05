@@ -1,0 +1,30 @@
+---
+title: "クラスと図の大きさの検査"
+---
+
+<!-- audience: 検査 -->
+<!-- action: 検査する -->
+<!-- minutes: 3 -->
+<!-- budget: 3 -->
+<!-- status: approved -->
+
+## 強調のクラスはテーマにあるものだけが効く {.nostretch}
+<!-- type: text -->
+
+- 正解率は [92.9%]{.e2}、誤りは [7件]{.e4}
+
+::: {.callout-note}
+組み込みのクラスは知らせない
+:::
+
+## セルで図の高さを決めても効かない
+<!-- type: chart -->
+
+```{python}
+#| fig-alt: "横長の図"
+#| fig-height: 1.15
+import matplotlib.pyplot as plt
+plt.plot([1, 2], [1, 2]);
+```
+
+[出典: 検査]{.source}

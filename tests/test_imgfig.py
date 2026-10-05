@@ -387,6 +387,94 @@ class Layout(unittest.TestCase):
         self.assertEqual(rows[0]["px"], 182)                       # 6列×2段、横長の枠、説明文1行
         self.assertGreaterEqual(rows[0]["px_tall"], rows[0]["px"])
 
+    def test_grid_title_is_drawn_and_checked_as_a_group(self):
+        items = self.photos([(256, 171)] * 4)
+        report = Path(tempfile.mkdtemp()) / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            plain = imgfig.grid_figure(items, cols=4, return_fig=True)
+            titled = imgfig.grid_figure(items, cols=4, title="猫と判定した写真", counts=True, return_fig=True)
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+        try:
+            w0, h0 = plain.get_size_inches()
+            w1, h1 = titled.get_size_inches()
+            self.assertGreater(h1 / w1, h0 / w0)                          # 見出しの分だけ縦に伸びる
+        finally:
+            imgfig.plt.close("all")
+        rows = [json.loads(line) for line in report.read_text().splitlines()]
+        self.assertEqual(rows[0]["groups"], [])
+        self.assertEqual(rows[1]["groups"], [{"title": "猫と判定した写真 4枚", "ids": [it.id for it in items]}])
+
+    def test_thumb_in_fixes_the_photo_size_across_figures(self):
+        items = self.photos([(256, 171)] * 6)
+        try:
+            a = imgfig.grid_figure(items[:3], cols=3, caption=lambda it: "a", thumb_in=1.1, return_fig=True)
+            b = imgfig.grid_figure(items, cols=3, caption=lambda it: "a\nb\nc", thumb_in=1.1, return_fig=True)
+            c = imgfig.panels_figure([("x", items[:2]), ("y", items[2:4])], cols_each=[2, 2], thumb_in=1.1,
+                                     return_fig=True)
+            self.assertAlmostEqual(a.get_size_inches()[0], 3 * 1.1)       # 説明の行数・段数によらず1枚1.1インチ
+            self.assertAlmostEqual(b.get_size_inches()[0], 3 * 1.1)
+            self.assertAlmostEqual(c.get_size_inches()[0], (4 + 0.5) * 1.1)
+            with self.assertWarns(UserWarning):                            # スライドの幅を超える
+                imgfig.grid_figure(items, cols=6, thumb_in=3.0)
+        finally:
+            imgfig.plt.close("all")
+
+    def test_use_japanese_font_sets_rcparams(self):
+        fonts = imgfig.use_japanese_font()
+        self.assertEqual(list(imgfig.plt.rcParams["font.family"]), fonts)
+        self.assertEqual(fonts[-1], "sans-serif")
+
+    def test_check_look_reports_photos_missing_from_the_look_table(self):
+        items = self.photos([(256, 171)] * 3)
+        d = Path(tempfile.mkdtemp())
+        (d / "look.csv").write_text("id,classes,note\np0,猫,\n", encoding="utf-8")
+        with self.assertWarns(UserWarning):
+            looked = imgfig.load_look(items, d / "look.csv")
+        report = d / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.grid_figure(looked, caption=imgfig.seen)
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+            imgfig.plt.close("all")
+        found = imgfig.check_look(report, d / "look.csv")
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("確認の表（look.csv）に無い写真 2 枚（p1, p2）", found[0])
+
+    def test_negative_headings_check_that_the_class_is_absent(self):
+        items = self.photos([(256, 171)] * 3)          # p0: 内観だけ、p1: 内観と料理、p2: 料理だけ
+        d = Path(tempfile.mkdtemp())
+        (d / "look.csv").write_text("id,classes,note\np0,内観,\np1,内観;料理,\np2,料理,\n", encoding="utf-8")
+        looked = imgfig.load_look(items, d / "look.csv")
+        report = d / "report.jsonl"
+        os.environ["IMGFIG_REPORT"] = str(report)
+        try:
+            imgfig.panels_figure([("料理でない", looked[:2]), ("料理", looked[2:])], caption=imgfig.seen)
+        finally:
+            del os.environ["IMGFIG_REPORT"]
+            imgfig.plt.close("all")
+        found = imgfig.check_look(report, d / "look.csv")
+        self.assertEqual(len(found), 1, found)          # p0（料理が写らない）は知らせず、p1 だけ
+        self.assertIn("料理が写らない群だと述べているが、確認の表（classes 列）では p1 に料理が写る（内観・料理）", found[0])
+
+    def test_counts_checked_comment_skips_title_counts(self):
+        d = Path(tempfile.mkdtemp())
+        (d / "index.qmd").write_text(
+            "## 645枚で明らかな誤りが65枚から41枚に減る {denominator=\"全体\"}\n\n"
+            "<!-- counts: checked plans/design_spec_numbers.md で検算 -->\n\n"
+            "## 別の集計では30枚だった\n\n<!-- counts: checked -->\n", encoding="utf-8")
+        (d / "index.html").write_text(
+            '<section class="slide level2"><h2>645枚で明らかな誤りが65枚から41枚に減る</h2></section>'
+            '<section class="slide level2"><h2>別の集計では30枚だった</h2></section>', encoding="utf-8")
+        self.assertEqual(imgfig.checked_titles(d / "index.qmd"),
+                         {"645枚で明らかな誤りが65枚から41枚に減る": "plans/design_spec_numbers.md で検算"})
+        found = imgfig.check_claims(d / "index.html", None, d / "index.qmd")
+        self.assertEqual(len(found), 1, found)          # 理由の無い宣言は外さない
+        self.assertTrue(found[0].startswith("スライド2"))
+        self.assertIn("counts: checked", found[0])
+
 
 @unittest.skipUnless(imgfig, "matplotlib / pillow が必要")
 class OutlierDeck(unittest.TestCase):
