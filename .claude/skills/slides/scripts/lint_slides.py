@@ -121,6 +121,18 @@ ACTION_CHOICE_RE = re.compile(r"選ぶ|選択|選んで|選定|採否|どれを|
 # 枚ごとの標本（分母）: 見出しの属性 {denominator="人手で分類し直した写真"}
 DENOMINATOR_RE = re.compile(r"\bdenominator\s*=\s*\"([^\"]*)\"")
 SOURCE_SPAN_RE = re.compile(r"\[[^\]]*\]\{[^}]*\.source\b[^}]*\}")
+# 本文・見出し・div で使うクラス（{.e1} など）。テーマに定義が無いと、書いても見た目が変わらず素通りする
+ATTR_BLOCK_RE = re.compile(r"\{([^{}]*)\}")
+CLASS_TOKEN_RE = re.compile(r"(?<![\w-])\.([A-Za-z][\w-]*)")
+CSS_PATH_RE = re.compile(r"[\w./~-]+\.s?css\b")
+# Quarto・reveal.js・このリポジトリのフィルタが用意するクラス（テーマに書かなくても効く）
+BUILTIN_CLASSES = {
+    "columns", "column", "notes", "aside", "footer", "incremental", "nonincremental", "fragment", "smaller", "scrollable",
+    "center", "nostretch", "absolute", "hidden", "unnumbered", "unlisted", "panel-tabset", "content-visible",
+    "content-hidden", "lightbox", "mark", "underline", "smallcaps", "strike", "grow", "shrink", "semi-fade-out",
+    "current-visible", "appendix", "stretch", "auto-animate", "nocite",
+}
+BUILTIN_PREFIXES = ("r-", "fade-", "highlight-", "callout", "quarto-", "cell-", "fig-", "tbl-")
 DATE_RE = re.compile(r"\d{4}[-/年]\d{1,2}(?:[-/月]\d{1,2}日?)?|\d{4}年")
 
 
@@ -203,6 +215,8 @@ class Slide:
     cells: list[tuple[str, str]] = field(default_factory=list)        # 実行するセル (情報 {python}/{mermaid}, 中身)
     raw_html: list[tuple[int, str]] = field(default_factory=list)     # <style>・<script> の行（本文に数えない）
     denominator: str | None = None                                    # 見出しの {denominator="…"}（この枚の数字の標本）
+    heading_attrs: str = ""                                            # 見出しの {…}（{.nostretch} など）
+    fig_size_opts: list[tuple[int, str]] = field(default_factory=list)  # {python} のセルの #| fig-width / fig-height
 
 
 @dataclass
@@ -276,6 +290,9 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
                         cur.code.extend(body)
                     if executable and not hidden:
                         cur.cells.append((cell_info, "\n".join(l for _, l in body)))
+                    if executable and re.match(r"\{python", cell_info):
+                        cur.fig_size_opts.extend((n, l.strip()) for n, l in code_buf
+                                                 if re.match(r"#\|\s*fig-(?:width|height)\s*:", l.strip()))
                     if executable and not hidden and any(PLOT_RE.search(l) for _, l in body):
                         cur.figures.append((code_start, any(re.match(r"#\|\s*fig-alt\s*:\s*\S", o.strip()) for o in opts),
                                             any(IMGFIG_RE.search(l) for _, l in body)))
@@ -360,6 +377,7 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
             cur = Slide(len(slides) + 1, ln, title, len(m.group(1)), appendix)
             den = DENOMINATOR_RE.search(attrs.group(1)) if attrs else None
             cur.denominator = den.group(1).strip() if den else None
+            cur.heading_attrs = attrs.group(1) if attrs else ""
             slides.append(cur)
             continue
         if HR_RE.match(raw):
@@ -490,6 +508,43 @@ def check_approved_changes(deck: Deck, baseline: Deck | None) -> list[Issue]:
     return issues
 
 
+def _style_files(deck: Deck) -> list[Path]:
+    """デッキに効くスタイルのファイル: スキルのリポジトリの theme/custom.scss（render_check.sh がプロジェクトの外の
+    デッキに当てる）、デッキを含む Quarto プロジェクトの _quarto.yml とデッキの YAML が名指す .scss/.css。"""
+    deck_dir = deck.path.resolve().parent
+    files = [SKILL_DIR.parent.parent.parent / "theme" / "custom.scss"]
+    front_end, _ = parse_front_matter(deck.all_lines)
+    refs = [(deck_dir, "\n".join(deck.all_lines[:front_end]))]
+    for d in [deck_dir, *deck_dir.parents]:
+        if (d / "_quarto.yml").exists():
+            refs.append((d, (d / "_quarto.yml").read_text(encoding="utf-8")))
+            break
+    for base, text in refs:
+        files += [base / Path(m).expanduser() for m in CSS_PATH_RE.findall(text)]
+    return [f for f in dict.fromkeys(files) if f.is_file()]
+
+
+def defined_classes(deck: Deck) -> set[str] | None:
+    """テーマ・デッキの <style> に定義のあるクラス。スタイルのファイルが1つも見つからなければ None（検査しない）。"""
+    files = _style_files(deck)
+    if not files:
+        return None
+    text = "\n".join(f.read_text(encoding="utf-8", errors="replace") for f in files)
+    text += "\n".join(t for s in deck.slides for _, t in s.raw_html)
+    text = re.sub(r"/\*.*?\*/|//[^\n]*", "", text, flags=re.S)   # コメントの中の「.e1」は定義でない
+    return set(re.findall(r"\.([A-Za-z][\w-]*)", text))
+
+
+def used_classes(s: Slide) -> list[tuple[int, str]]:
+    """スライドで使うクラス（見出しの {…}、fenced div、本文の [文字]{.cls}）。"""
+    found = [(s.line, c) for c in CLASS_TOKEN_RE.findall(s.heading_attrs)]
+    found += [(s.line, c) for a in s.divs for c in CLASS_TOKEN_RE.findall(a if a.startswith("{") else "." + a)]
+    for ln, t in s.body:
+        for block in ATTR_BLOCK_RE.findall(INLINE_CODE_RE.sub("", t)):
+            found += [(ln, c) for c in CLASS_TOKEN_RE.findall(block)]
+    return found
+
+
 def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | None = None) -> list[Issue]:
     issues: list[Issue] = []
     uses_imgfig = any("imgfig" in line for line in deck.all_lines)    # 写真の図を使うデッキ（枚数を手で書かせない）
@@ -527,6 +582,7 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
     title_limit = LIMITS["confirm_title_chars_block"] if confirm else LIMITS["title_chars_block"]
     has_undecided = any(s.undecided for s in deck.slides)
     claims, claim_errors = load_claims_for(deck.path.parent)
+    known_classes = defined_classes(deck)
     for e in claim_errors:
         issues.append(Issue("block", 1, None, "claims-file", e))
 
@@ -622,6 +678,19 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
         elif s.types and status != "ghost" and (s.body or s.cells) and not SLIDE_TYPES[s.types[0]](s):
             issues.append(Issue("warning", s.line, s, "type-markup",
                                 f"型 {s.types[0]} なのに `{TYPE_MARKUP[s.types[0]]}` が無い。型の書き方で書くか、型を選び直す"))
+        if known_classes is not None:
+            unknown_cls = [(ln, c) for ln, c in used_classes(s) if c not in known_classes
+                           and c not in BUILTIN_CLASSES and not c.startswith(BUILTIN_PREFIXES)]
+            if unknown_cls:
+                names = ", ".join(dict.fromkeys(f".{c}" for _, c in unknown_cls))
+                issues.append(Issue("warning", unknown_cls[0][0], s, "class-undefined",
+                                    f"クラス {names} はテーマ（theme/custom.scss）にもデッキの <style> にも定義が無く、書いても"
+                                    "見た目が変わらない。テーマにある部品（slide_types.md）を使うか、theme/custom.scss に足す"))
+        for ln, opt in s.fig_size_opts:
+            issues.append(Issue("warning", ln, s, "cell-fig-size",
+                                f"`{opt}` は Jupyter（{{python}} のセル）では効かず、文書の既定（_quarto.yml の fig-width・"
+                                "fig-height）で描かれる。図の大きさは `plt.subplots(figsize=(幅, 高さ))` か imgfig の "
+                                "max_height_in・thumb_in で決める"))
         styled = [ln for ln, t in s.body if INLINE_STYLE_RE.search(t)]
         if styled:
             issues.append(Issue("warning", styled[0], s, "inline-style",

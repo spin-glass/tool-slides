@@ -44,6 +44,7 @@ Devin は互換として `~/.claude/skills/` を読むので、上のリンク�
 | lint（違反＋タイトル連読） | `python3 .claude/skills/slides/scripts/lint_slides.py decks/<name>/index.qmd` |
 | タイトル連読だけ | `python3 .claude/skills/slides/scripts/lint_slides.py --titles decks/<name>/index.qmd` |
 | 全枚スクショ | `.claude/skills/slides/scripts/render_check.sh decks/<name>` → `decks/<name>/_check/slide-NN.png` |
+| PDF（画面と同じ見た目） | `.claude/skills/slides/scripts/render_check.sh decks/<name> --pdf` → `decks/<name>/<name>.pdf`（検収した PNG を綴じる） |
 | 出力 | `QUARTO_PYTHON=.venv/bin/python quarto render decks/<name>/index.qmd`（`--to revealjs` / `pptx` / `beamer`） |
 | 群ごとに画像を並べた図を作る | `.venv/bin/python .claude/skills/slides/scripts/imgfig.py groups --table table.csv --thumbs thumbs/ --by true,pred --out groups.png`（ほかに `matrix`、閾値用の `moved`） |
 | 設計書の検査（章参照・章ごとの図・Mermaid を PNG に） | `python3 .claude/skills/design-doc/scripts/check_doc.py --render decks/<name>/design/<doc>.md` → `design/_check/<doc>-fig-NN.png` |

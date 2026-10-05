@@ -18,6 +18,8 @@
 寸法は「1単位 = サムネイル1枚の幅」で組み、文字は単位に比例させる。列数を省くと、スライドの図の領域
 （タイトル・bullets 2つ・出典行を除いた約1180×400px）で1枚が最も大きくなる列数を選ぶ。
 1枚の大きさはスライド上で150px以上が目安（1つの図に12〜16枚まで）。100pxを切ると何が写っているかが読めない。
+枚をまたいで写真の大きさを揃えるときは、どの図の関数にも thumb_in=（1枚の幅のインチ）を渡す。
+自前の matplotlib の図（plt.subplots）は、描く前に use_japanese_font() を呼ぶ（呼ばないと日本語が豆腐になる）。
 大きさの目安は render_check.sh が図ごとに表示する（環境変数 IMGFIG_REPORT のファイルに書き出したものを読む）。
 
 qmd からの使い方:
@@ -76,6 +78,7 @@ SLIDE_BOX = (1180, 400)      # 図に使える領域の目安（px）。1280×72
 SLIDE_BOX_TALL = (1180, 500) # bullets を置かないスライドで、図に使える領域の目安
 MIN_UNIT_PX = 100            # スライド上でこれより小さいサムネイルは、何が写っているかが読めない
 WIDE_CELL = 0.8              # 横長の写真が大半のときの枠の高さ（幅を1として）
+FULL_WIDTH_IN = 13.3         # _quarto.yml の fig-width（スライドの幅いっぱい）
 
 
 def japanese_fonts() -> list[str]:
@@ -84,6 +87,14 @@ def japanese_fonts() -> list[str]:
 
     have = {f.name for f in font_manager.fontManager.ttflist}
     return [f for f in FONT_CANDIDATES if f in have] + ["sans-serif"]
+
+
+def use_japanese_font() -> list[str]:
+    """matplotlib の文字を日本語フォントにする。imgfig・figs の図の関数は中で呼ぶが、plt.subplots などで自前の図を
+    描くときは呼ばれないため、描く前に1回呼ぶ（呼ばないと日本語が豆腐になる）。返り値は設定したフォントの列。"""
+    fonts = japanese_fonts()
+    plt.rcParams["font.family"] = fonts
+    return fonts
 
 
 # ---- 表 -------------------------------------------------------------------
@@ -143,6 +154,10 @@ def load_look(items, look_csv, id_col: str = "id") -> list[Item]:
 
     with open(look_csv, newline="", encoding="utf-8") as f:
         look = {r[id_col]: r for r in csv.DictReader(f)}
+    missing = [it.id for it in items if it.id not in look]
+    if missing:      # Quarto は warning: false で警告を隠すので、render_check も図の写真ごとに知らせる
+        warnings.warn(f"確認の表 {look_csv} に無い写真 {len(missing)} 枚（{', '.join(missing[:6])}）。説明（seen）が空になる。"
+                      "元の写真で見て1枚1行を足す", stacklevel=2)
     return [dataclasses.replace(it, attrs={**it.attrs, **{k: v for k, v in look[it.id].items() if k != id_col}})
             if it.id in look else it for it in items]
 
@@ -358,17 +373,49 @@ def slide_titles(html_path) -> list[str]:
     return out
 
 
-def check_claims(html_path, report) -> list[str]:
-    """claim の文と写真の食い違いと、タイトルで枚数を言うのに imgfig.claim・imgfig.measured で確かめていないスライドを知らせる。"""
+COUNTS_CHECKED_RE = re.compile(r"<!--\s*counts\s*:\s*checked\b\s*(.*?)\s*-->", re.S)
+
+
+def _plain_title(md: str) -> str:
+    """qmd の見出しの文字を、描画した HTML の h2 の文字に近づける（属性 {…}・[文字]{.cls}・強調の記号を除き、空白を詰める）。"""
+    t = re.sub(r"\s*\{[^{}]*\}\s*$", "", md.strip())
+    t = re.sub(r"\[([^\]]*)\]\{[^{}]*\}", r"\1", t)
+    t = re.sub(r"[*_`]", "", t)
+    return "".join(t.split())
+
+
+def checked_titles(qmd_path) -> dict[str, str]:
+    """qmd で `<!-- counts: checked 理由 -->` を書いたスライドの、タイトル（空白を詰めたもの）→ 理由。
+    数値一覧（設計書の数の表など）で検算済みの、写真の集合に当たらない数のタイトルを、claim・measured の検査から外す。
+    理由が空の宣言は数えない（何で確かめたかを残す）。"""
+    if not qmd_path or not Path(qmd_path).exists():
+        return {}
+    out, title = {}, None
+    for line in Path(qmd_path).read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^##\s+(.*)$", line)
+        if m:
+            title = _plain_title(m.group(1))
+            continue
+        for reason in COUNTS_CHECKED_RE.findall(line):
+            if title is not None and reason.strip():
+                out[title] = reason.strip()
+    return out
+
+
+def check_claims(html_path, report, qmd_path=None) -> list[str]:
+    """claim の文と写真の食い違いと、タイトルで枚数を言うのに imgfig.claim・imgfig.measured で確かめていないスライドを知らせる。
+    qmd を渡すと、`<!-- counts: checked 理由 -->` を書いたスライドは「確かめていない」の対象から外す。"""
     recs = [json.loads(line) for line in open(report, encoding="utf-8") if line.strip()] \
         if report and Path(report).exists() else []
     claims = [r for r in recs if "claim" in r]
     out = [f"「{r['claim']}」: {w}" for r in claims for w in r.get("warnings", [])]
     said = {"".join(r["claim"].split()) for r in claims} | {"".join(r["measured"].split()) for r in recs if "measured" in r}
+    said |= set(checked_titles(qmd_path))
     for sn, title in enumerate(slide_titles(html_path), 1):
         if COUNT_RE.search(title) and "".join(title.split()) not in said:
             out.append(f"スライド{sn}: タイトル「{title}」の枚数を確かめていない。写真の枚数なら `imgfig.claim(タイトル, {{数: 写真, …}})`、"
-                       "写真の集合に当たらない測った数（人手で数え直した件数など）なら `imgfig.measured(タイトル, {数: 計算した値})` で確かめる")
+                       "写真の集合に当たらない測った数（人手で数え直した件数など）なら `imgfig.measured(タイトル, {数: 計算した値})` で確かめる。"
+                       "数値一覧などで検算済みなら、その枚に `<!-- counts: checked 何で確かめたか -->` と書く")
     return out
 
 
@@ -418,6 +465,8 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
       （closeup の全体と4区画）で確かめていない（look.csv の closeup 列が yes でない）
     - 「写っていない」「以外」などを言う見出しの群に、決めきれない（unsure のある）写真が入っている
     - note に「不明」「決めきれない」などとあるのに、unsure 列が空（決めきれない写真を「写っていない」と数えてしまう）
+    - 図に載せた写真が確認の表に無い（群を足したときに表へ足し忘れると、説明が空になる）
+    見出しが「料理でない」「犬が写っていない」のように否定なら、そのクラスが写る写真を知らせる。
     """
     import re as _re
 
@@ -442,6 +491,11 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
             out.append(f"図{n}: 分類の対象またはラベルのクラスが写っていないとした写真のうち、拡大で確かめていない "
                        f"{len(todo)} 枚（{', '.join(todo)}）。`imgfig.py closeup` で全体と4区画の拡大を作って1枚ずつ "
                        "Read で開き、区画ごとに分類の対象を探す。確かめたら look.csv の closeup 列に yes と書く")
+        unknown = list(dict.fromkeys(c["id"] for c in rec.get("captions", []) if c["id"] not in look))
+        if unknown:
+            out.append(f"図{n}: 確認の表（{Path(look_csv).name}）に無い写真 {len(unknown)} 枚（{', '.join(unknown[:8])}"
+                       f"{' ほか' if len(unknown) > 8 else ''}）。群を足したときは、元の写真で見て1枚1行を確認の表に足す"
+                       "（無いと説明 imgfig.seen が空になる）")
         for cap in rec.get("captions", []):
             classes = look.get(cap["id"])
             if cap["id"] in look and cap["caption"]:
@@ -464,10 +518,21 @@ def check_look(report, look_csv, id_col: str = "id") -> list[str]:
             if len(named) != 1:
                 continue
             k = named[0]
+            negative = bool(_re.search(rf"{_re.escape(k)}\s*(?:が|は)?\s*(?:写っていない|写らない|いない|無い|ない|でない|ではない|以外)", title))
             for i in g["ids"]:
                 classes = look.get(i)
-                if classes and (k not in classes or any(c != k for c in classes)):
-                    out.append(f"図{n}: 見出し「{title}」の群の {i} は、確認の表では「{'・'.join(classes)}」")
+                if i not in look:
+                    continue
+                shown = "・".join(classes) if classes else "（分類の対象なし）"
+                if negative and k in classes:
+                    out.append(f"図{n}: 見出し「{title}」は{k}が写らない群だと述べているが、確認の表（classes 列）では "
+                               f"{i} に{k}が写る（{shown}）。{i} を別の群に移すか、見出しを直す")
+                elif not negative and classes and k not in classes:
+                    out.append(f"図{n}: 見出し「{title}」は{k}の群だと述べているが、確認の表（classes 列）では {i} に"
+                               f"{k}が写っていない（{shown}）。{i} を別の群に移すか、見出しを直す")
+                elif not negative and any(c != k for c in classes):
+                    out.append(f"図{n}: 見出し「{title}」は{k}だけの群に読めるが、確認の表（classes 列）では {i} に"
+                               f"{k}以外も写る（{shown}）。「両方写る」などの群に分けるか、見出しを直す")
     return out
 
 
@@ -570,12 +635,18 @@ class Canvas:
     """左上が原点、1単位 = サムネイル1枚の幅。width_in × max_height_in に収まるよう全体を縮める。
 
     cell_h はサムネイルの枠の高さ（単位）。横長の写真が大半なら 1 より小さくすると、同じ図の高さで1枚が大きくなる。
+    thumb_in を渡すと、width_in・max_height_in によらず1枚の幅をその実寸（インチ）にする。図全体の大きさは
+    列数・段数・見出し・説明の行数で決まる。枚をまたいで写真の大きさを揃えるときに、各枚の図に同じ値を渡す
+    （max_height_in を揃えても、説明が2行の図と3行の図では写真の大きさが変わる）。
     """
 
     def __init__(self, w_units: float, h_units: float, width_in: float = 12.0, max_height_in: float = 5.6,
-                 cell_h: float = 1.0, kind: str = "", return_fig: bool = False):
-        plt.rcParams["font.family"] = japanese_fonts()
-        scale = min(width_in / w_units, max_height_in / h_units)
+                 cell_h: float = 1.0, kind: str = "", return_fig: bool = False, thumb_in: float | None = None):
+        use_japanese_font()
+        scale = float(thumb_in) if thumb_in else min(width_in / w_units, max_height_in / h_units)
+        if thumb_in and w_units * scale > FULL_WIDTH_IN + 0.05:
+            warnings.warn(f"thumb_in={thumb_in} では図の幅が {w_units * scale:.1f} インチになり、スライドの幅"
+                          f"（{FULL_WIDTH_IN} インチ）を超えて縮められる。列数を減らすか thumb_in を小さくする", stacklevel=3)
         self.fig = plt.figure(figsize=(w_units * scale, h_units * scale))
         self.ax = self.fig.add_axes([0, 0, 1, 1])
         self.ax.axis("off")
@@ -720,17 +791,27 @@ def _counted(title, total, shown):
 
 
 # ---- 図 -------------------------------------------------------------------
-def grid_figure(items, cols: int | None = None, caption=None, color=None, aspect=None, **canvas_kw):
+def grid_figure(items, cols: int | None = None, caption=None, color=None, aspect=None, title=None,
+                counts: bool = False, **canvas_kw):
     """1つの群を左上から順に並べる。caption は Item → 文字列（不要なら None。改行で2行にできる）。
 
     cols を省くと、スライド上で1枚が最も大きくなる列数にする。aspect は枠の高さ（幅を1として。省くと写真に合わせる）。
+    title を渡すと、panels_figure と同じ形の見出し（何の例か）を図の上に書く。counts=True で見出しに「N枚」を付ける。
+    見出しは群の見出しとして記録され、render_check が確認の表と照らす。
     """
     items = list(items)
     ch, cap = _cell_h(items, aspect), _cap_h(items, caption)
     pitch = ch + cap
-    cols = cols or _best((n, n, _rows(len(items), n) * pitch) for n in range(1, 13))
-    c = Canvas(cols, _rows(len(items), cols) * pitch, cell_h=ch, kind="grid", **canvas_kw)
-    _grid(c, items, 0, 0, cols, caption, color, cap)
+    head = 0.5 if title else 0.0
+    cols = cols or _best((n, n, head + _rows(len(items), n) * pitch) for n in range(1, 13))
+    c = Canvas(cols, head + _rows(len(items), cols) * pitch, cell_h=ch, kind="grid", **canvas_kw)
+    if title:
+        line = color or BLUE
+        title = _counted(title, len(items), len(items)) if counts else str(title)
+        c.text(0.04, head / 2 - 0.04, title, size=0.2, ha="left", weight="bold", color=line)
+        c.group(title, items)
+        c.hline(head - 0.06, 0.04, cols - 0.04, color=line, lw=0.02)
+    _grid(c, items, 0, head, cols, caption, color, cap)
     return c.finish()
 
 
@@ -1213,6 +1294,7 @@ def main() -> int:
     ck.add_argument("--look", required=True)
     ck.add_argument("--html", help="描画した HTML。スライドの文字の枚数を、ラベルの数・確認の表の数と照らす")
     ck.add_argument("--data", help="データの表の置き場所（省略時は look.csv と同じフォルダ）")
+    ck.add_argument("--qmd", help="デッキの qmd。`<!-- counts: checked 理由 -->` を書いた枚を、タイトルの枚数の検査から外す")
 
     cu = sub.add_parser("closeup", help="写っていないとした写真を、全体と4区画の拡大で並べた確認用の画像にする（1枚ずつ）")
     cu.add_argument("--look", required=True, help="確認の表（data/look.csv）。classes が空か、label_class が classes に無い行を選ぶ")
@@ -1257,7 +1339,7 @@ def main() -> int:
         found = check_look(a.report, a.look)
         if a.html and Path(a.html).exists():
             found += check_counts(a.html, a.look, a.data)
-            found += check_claims(a.html, a.report)
+            found += check_claims(a.html, a.report, a.qmd)
         for line in found:
             print(f"WARNING {line}")
         print(f"確認の表との照合: 食い違い {len(found)} 件")
