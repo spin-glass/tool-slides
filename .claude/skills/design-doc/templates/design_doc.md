@@ -64,14 +64,26 @@
 ## 4. 判断基準と例外・変更・非機能への対応
 
 <!-- 原文の条件と分岐の数を変えない。矢印は原文が順序か分岐を書いているときだけ引く。矛盾は原文の規則ごとに1本の枝にし、どちらも主経路にせず、図の下に食い違いを1文で書く。
-     図のラベルは短い名詞にし、値と条件の全文は文か表に書く。矢印が1〜2本で済むなら図にしない -->
+     図のラベルは短い名詞にし、値と条件の全文は文か表に書く。矢印が1〜2本で済むなら図にしない。
+     分岐・合流・戻りが無い流れ（一本道・互いにつながらない行の並び）は図にせず、番号つきの手順か表にする。
+     先頭に `check_doc.py --mermaid-init` の1行、末尾に `--mermaid-classes` の5行。図の直後に「図N 題」の1行 -->
 
 ```mermaid
+%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 flowchart TB
-  A[入力] --> B{判定の条件}
-  B -->|満たす| C[結果1]
-  B -->|満たさない| D[結果2]
+  A(["入力"]) --> B{"判定の<br>条件"}
+  B -->|"満たす"| C["結果1"]
+  B -->|"満たさない"| D["結果2"]
+  class A start
+  class B gate
+  classDef start fill:#f6f8fa,stroke:#57606a,color:#1f2328
+  classDef gate fill:#ffffff,stroke:#0b5cad,color:#1f2328
+  classDef sign fill:#ffffff,stroke:#8c959f,color:#1f2328
+  classDef human fill:#fff4e5,stroke:#b35900,color:#1f2328
+  classDef band fill:#ffffff,stroke:#d0d7de,color:#57606a
 ```
+
+図1 （題）
 
 ### 4.1 判定の規則
 
@@ -86,6 +98,7 @@ flowchart TB
 <!-- 2つの段階・記述の関係が原文に無ければ、表の並びで順序を決めず「関係は未決」と書く -->
 
 ```mermaid
+%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 gantt
   dateFormat YYYY-MM-DD
   axisFormat %m月
@@ -93,6 +106,8 @@ gantt
   段階1 :a1, 2026-01-01, 30d
   段階2 :crit, a2, after a1, 30d
 ```
+
+図2 （題）
 
 | 段階 | 期間（想定） | 次へ進む条件 |
 |---|---|---|
