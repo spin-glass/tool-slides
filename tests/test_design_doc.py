@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / ".claude/skills/slides/scripts"))
 sys.path.insert(0, str(ROOT / ".claude/skills/design-doc/scripts"))
 import check_doc  # noqa: E402
 import claims  # noqa: E402
+import structure  # noqa: E402
 import verbosity  # noqa: E402
 import lint_slides as lint  # noqa: E402
 
@@ -123,12 +124,8 @@ class DesignDoc(unittest.TestCase):
         self.assertEqual(doc_rules(doc, "warning"), [])
 
 
-class Restatement(unittest.TestCase):
-    """同じ数値・全行が同じ列・長い §1・§1 の外の [要確認]・本文に見えている主張ID・原文の中身から決める上限。"""
-
-    CLAIMS = ("id,doc,section,claim,status,evidence,owner,target,note\n"
-              "C1,運用設計,§2,手入力から OCR に変える,決定,定例 2026-09-20,経理課,doc,\n"
-              "C2,運用設計,§6,上限の数値,未決,,経理課長,doc,\n")
+class TempDoc(unittest.TestCase):
+    """一時フォルダに設計書（と claims.csv・原文）を書いて検査する土台。"""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -150,6 +147,14 @@ class Restatement(unittest.TestCase):
 
     def messages(self, path: Path, rule: str) -> list[str]:
         return [i.message for i in check_doc.check_document(path) if i.rule == rule]
+
+
+class Restatement(TempDoc):
+    """同じ数値・全行が同じ列・長い §1・§1 の外の [要確認]・本文に見えている主張ID・原文の中身から決める上限。"""
+
+    CLAIMS = ("id,doc,section,claim,status,evidence,owner,target,note\n"
+              "C1,運用設計,§2,手入力から OCR に変える,決定,定例 2026-09-20,経理課,doc,\n"
+              "C2,運用設計,§6,上限の数値,未決,,経理課長,doc,\n")
 
     def test_same_number_three_times(self):
         path = self.doc("# 題\n\n## 1. 要点\n\n評価用の質問300件で測る。\n\n"
@@ -219,7 +224,8 @@ class Restatement(unittest.TestCase):
                         "  B --> C[3回連続]\n```\n")
         hints = [i for i in check_doc.check_document(path) if i.rule == "mermaid-halfwidth"]
         self.assertEqual(len(hints), 1)
-        self.assertEqual(hints[0].severity, "info")              # 欠けない場合もあるので止めない
+        self.assertEqual(hints[0].severity, "warning")           # 2026-10-05 に辺・ノードの両方で欠けが再現したので、止めないが直す
+        self.assertEqual(len(self.messages(path, "mermaid-ref-label")), 1)   # 辺のラベル「原文 §3」は章参照。図の下の文に書く
         listed = hints[0].message.split("）は")[0]                # 案内文の例を除いた、列挙したラベルの部分
         self.assertIn("原文 §3", listed)
         self.assertIn("0.5以上0.7未満", listed)
@@ -236,6 +242,128 @@ class Restatement(unittest.TestCase):
     def test_figure_after_multiline_comment(self):
         path = self.doc("# 題\n\n## 1. 要点\n\n<!-- 1行目\n     2行目 -->\n\n| 項目 | 要点 | 正本 |\n|---|---|---|\n| 変更 | OCR | §1 |\n")
         self.assertEqual(self.messages(path, "figure-first"), [])
+
+    def test_action_sentence_is_not_a_deletion_candidate(self):
+        path = self.doc("# 題\n\n## 1. 要点\n\n必要に応じてモデルを再学習する。\n\n継続的に改善することが重要である。\n\n"
+                        "止まった期間の入力を再抽出して取り込みを再実行する必要がある。\n\n品質の向上を継続的に推進する。\n")
+        issues = check_doc.check_document(path)
+        self.assertEqual(sorted(i.line for i in issues if i.rule == "filler-action"), [5, 9])     # 作業の文は warning
+        self.assertEqual(sorted(i.line for i in issues if i.rule == "filler-only"), [7, 11])      # 一般論だけ（「を推進する」も）は block
+        _, metrics, cands = verbosity.analyze(path, siblings=False)
+        self.assertEqual(metrics.candidates, 2)                                                  # 作業の文は削れる量に入れない
+        self.assertTrue(any("作業の文" in why for _, why in cands))
+
+    def test_read_limit_excludes_figure_labels(self):
+        info = "経理課が「保留」の項目を毎日20分で確かめ、情報システム課が月次で閾値を評価する。"
+        source = "# 原文\n\n## 1. 概要\n\n" + "\n\n".join(info.replace("毎日", f"{i}日目に") for i in range(8)) + "\n"
+        fig = "\n\n```mermaid\nflowchart LR\n  A[取り込み] --> B[読み取り] --> C[「保留」の確認]\n```\n"
+        same = self.doc(source.replace("# 原文", "# 題") + fig, source=source)
+        self.assertEqual(self.messages(same, "read-growth"), [])          # 図を足しても上限を超えない
+        more = self.doc(source.replace("# 原文", "# 題") + fig + f"\n{info}\n", source=source)
+        self.assertEqual(len(self.messages(more, "read-growth")), 1)     # 文章を足せば超える
+        self.assertIn("図を除く", self.messages(more, "read-growth")[0])
+
+    def test_tbd_allowed_in_appendix(self):
+        path = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 担当 | 決め方 |\n|---|---|---|\n| 上限 [要確認] | 経理課長 | 実測 |\n\n"
+                        "## 付録C 未決の一覧\n\n| 項目 | 担当 |\n|---|---|\n| 通知の経路 [要確認] | 原文に無い |\n")
+        self.assertEqual(self.messages(path, "tbd-outside-summary"), [])
+
+
+def para(i: int) -> str:
+    """数字と担当を含む、削除候補にならない段落（約70字）。"""
+    return (f"経理課が{i}日目に「保留」の項目を{10 + i}分で確かめ、週次で誤りの記録を見直す。"
+            "情報システム課は月次で閾値を評価し、承認を経て反映する。")
+
+
+def table(rows: int, head: str = "| 要件 | 内容 | 本書の章 |", cell: str = "RQ-{i:02d} | 請求書の項目{i}を読み取る | §3") -> str:
+    return "\n".join([head, "|---|---|---|"] + [f"| {cell.format(i=i)} |" for i in range(1, rows + 1)])
+
+
+class Structure(TempDoc):
+    """構造（structure.py）: 前置き・§1・引く表の位置・章の型・読み通す量・読む人・未決の位置・参照する段落の割合・要件ID。"""
+
+    def test_front_matter_summary_reference_and_ids(self):
+        meta = "\n\n".join(f"本書は、請求書の取り込みの運用について第{i}の観点から説明する。本節の読み方と記法は次のとおりであり、本書の構成は付録に示す。"
+                           for i in range(1, 17))
+        body = "\n\n".join(para(i) for i in range(10))
+        doc = self.doc(f"# 題\n\n## 1. 位置づけと読み方\n\n{meta}\n\n## 2. 本書が満たす運用要件\n\n{table(12)}\n\n## 3. 日常の運用\n\n{body}\n")
+        found = check_doc.check_document(doc)
+        rules = {i.rule: i.message for i in found if i.rule in structure.RULES}
+        self.assertIn("§3 日常の運用", rules["front-matter-long"])            # 中身が始まるまでに1000字超
+        self.assertIn("文書の説明", rules["summary-missing"])               # §1 が位置づけ
+        self.assertIn("§2 本書が満たす運用要件", rules["reference-in-path"])  # 引く表の章（表100%・12行）が §3 の前にある
+        self.assertIn("RQ-01", rules["opaque-id"])                          # 要件IDが本文に12回
+        kinds = [c.kind for c in structure.analyze(doc)[2]]
+        self.assertEqual(kinds, ["前置き", "引く表", "本文"])
+        # 表を付録へ移し、§1 を要点にすれば消える
+        fixed = self.doc(f"# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 何を変えるか | 手入力を OCR に |\n\n"
+                         f"## 2. 日常の運用\n\n{body}\n\n## 付録A 原文の要件表との対応\n\n{table(12)}\n")
+        self.assertEqual([i.rule for i in check_doc.check_document(fixed) if i.rule in structure.RULES], [])
+
+    def test_same_shape_and_path_long(self):
+        def chapter(n: int, parts: int = 20) -> str:
+            return (f"## {n}. 章{n}\n\n{para(n)}\n\n| 周期 | 作業 | 担当 |\n|---|---|---|\n| 日次 | 確認 | 経理課 |\n| 週次 | 見直し | 経理課 |\n\n"
+                    + "\n\n".join(para(n * 100 + i) for i in range(parts)))
+        doc = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 何を変えるか | OCR |\n\n" + "\n\n".join(chapter(n) for n in range(2, 7)) + "\n")
+        same = self.messages(doc, "same-shape")
+        self.assertEqual(len(same), 1)
+        self.assertIn("§2〜§6 の5章が同じ型「文→表→文」", same[0])
+        long = self.messages(doc, "path-long")
+        self.assertEqual(len(long), 1)
+        self.assertIn("> 6000字", long[0])
+        # 3章目を図から始めれば連続は2章で止まる
+        varied = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 何を変えるか | OCR |\n\n" + chapter(2) + "\n\n"
+                          + chapter(3).replace(f"## 3. 章3\n\n{para(3)}", "## 3. 章3\n\n```mermaid\nflowchart LR\n  A[入力] --> B[判定]\n```\n\n" + para(3))
+                          + "\n\n" + chapter(4, 3) + "\n")
+        self.assertEqual(self.messages(varied, "same-shape"), [])
+
+    def test_reader_entry(self):
+        head = "# 題\n\n| 項目 | 内容 |\n|---|---|\n| 読む人 | {readers} |\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 変更 | OCR |\n\n## 2. 運用\n\n" + para(1) + "\n"
+        self.assertEqual(len(self.messages(self.doc(head.format(readers="経理課・情報システム課の担当者。可否を判断する人は §1 だけ")), "reader-entry")), 1)
+        self.assertEqual(self.messages(self.doc(head.format(readers="経理課（§2）・情報システム課（§2〜§3）の担当者")), "reader-entry"), [])
+        self.assertEqual(self.messages(self.doc(head.format(readers="経理課の担当者")), "reader-entry"), [])
+
+    def test_undecided_list_at_end(self):
+        body = lambda n: "\n\n".join(para(n * 10 + i) for i in range(6))                    # noqa: E731
+        doc = self.doc(f"# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 変更 | OCR |\n\n"
+                       f"## 2. 運用\n\n通知の経路は未確定である（§4）。\n\n{body(2)}\n\n"
+                       f"## 3. 判断\n\n閾値は未確定である（§4）。\n\n{body(3)}\n\n待つ時間の上限も未確定である（§4）。\n\n"
+                       "## 4. 未確定の事項\n\n| 項目 | 担当 |\n|---|---|\n| 通知の経路 | 原文に無い |\n| 閾値 | 情報システム課 |\n| 待つ時間 | 経理課 |\n")
+        found = self.messages(doc, "undecided-at-end")
+        self.assertEqual(len(found), 1)
+        self.assertIn("3回参照", found[0])
+        early = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 変更 | OCR |\n\n### 1.1 まだ決めていない点\n\n"
+                         "| 項目 | 担当 |\n|---|---|\n| 通知の経路 | 原文に無い |\n\n## 2. 運用\n\n通知の経路は未決（§1.1）。\n\n"
+                         "## 3. 判断\n\n閾値は未決（§1.1）。待つ時間も未決（§1.1）。\n")
+        self.assertEqual(self.messages(early, "undecided-at-end"), [])
+
+    def test_summary_rows(self):
+        rows = "\n".join(f"| 項目{i} | 経理課 | 実測{i} |" for i in range(9))
+        doc = self.doc(f"# 題\n\n## 1. 要点\n\n### 1.1 まだ決めていない点\n\n| 項目 | 担当 | 決め方 |\n|---|---|---|\n{rows}\n\n## 2. 運用\n\n{para(1)}\n")
+        found = self.messages(doc, "summary-rows")
+        self.assertEqual(len(found), 1)
+        self.assertIn("9行", found[0])
+
+    def test_reference_share(self):
+        hop = "詳細は §{n} を見る。"
+        doc = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 変更 | OCR |\n\n"
+                       + "\n\n".join(f"## {n}. 章{n}\n\n{hop.format(n=n % 3 + 2)}\n\n{para(n)}{hop.format(n=n % 3 + 2)}\n\n{para(n + 10)}基本設計 §{n} も見る。"
+                                     for n in range(2, 5)) + "\n")
+        found = self.messages(doc, "ref-share")
+        self.assertEqual(len(found), 1)
+        self.assertIn("67%（6/9）", found[0])                 # 他の文書への参照（基本設計 §n）は数えない
+        external = self.doc("# 題\n\n## 1. 要点\n\n| 項目 | 要点 |\n|---|---|\n| 変更 | OCR |\n\n"
+                            + "\n\n".join(f"## {n}. 章{n}\n\n{para(n)}基本設計 §{n} を見る。\n\n{para(n + 10)}未決（§1.1）。" for n in range(2, 5)) + "\n")
+        self.assertEqual(self.messages(external, "ref-share"), [])
+
+    def test_sample_document_structure(self):
+        _, pre, chapters = structure.analyze(ROOT / "decks/2026-10-01-invoice-ocr-confirm/design/operations.md")
+        self.assertEqual([c.kind for c in chapters], ["要点", "本文", "本文", "本文", "本文", "本文", "付録", "付録"])
+        self.assertEqual(chapters[0].shape, "表")
+        self.assertTrue(chapters[3].shape.startswith("図→"))
+        report = structure.report(Path("x.md"), pre, chapters, [])
+        self.assertIn("| §5 移行の進め方と体制 |", report)
+        self.assertIn("構造の warning なし", report)
 
 
 if __name__ == "__main__":
