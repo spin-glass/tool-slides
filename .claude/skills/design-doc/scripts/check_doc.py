@@ -57,7 +57,10 @@ import verbosity  # noqa: E402
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 NUMBERED_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+")
-FENCE_RE = re.compile(r"^(`{3,}|~{3,})\s*(\{?mermaid\}?)?\s*$")
+# コードフェンスの開始。言語名（sql・ruby・{python}・mermaid）は何でも受け、図として扱うのは mermaid だけ（parse）。
+# mermaid と裸のフェンスだけを開始とみなすと、```sql の開始を見落とし、次の閉じの ``` を開始と取り違えて、
+# 以降の章がコードの中に巻き込まれる（実際の設計書で、章が消えて ref-missing が84件の誤検知になった）
+FENCE_RE = re.compile(r"^(`{3,}|~{3,})\s*\{?([A-Za-z0-9_+.\-]*)\}?.*$")
 # 本文中の章参照。同じ表のセルの中で、参照の直前12字か直後6字に文書名（「基本設計 §5.1」「原文 §3.2」「§12 は原文に無い」）があれば他の文書への参照として見ない
 # 「3章」は章の数（「章は11」）と区別できないので、「第3章」の形だけを参照として見る
 REF_RE = structure.REF_RE
@@ -136,7 +139,7 @@ def parse(path: Path):
                 buf.append(raw)
             continue
         if m:
-            in_fence = (m.group(1), bool(m.group(2)))
+            in_fence = (m.group(1), m.group(2) == "mermaid")
             start = i
             continue
         prose.append((i, raw))

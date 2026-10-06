@@ -15,6 +15,10 @@
   undecided-at-end    未決の一覧の章が末尾にあり、本文から3回以上参照される
   ref-share           本文の段落の半分超が本書の別の章を参照している（§1・同じ章・他の文書への参照は数えない）
   opaque-id           要件ID（FR-001 の形）が本文に5回以上（付録は除く）
+  bold-lead           段落の4割超が太字の文で始まる（段落が8つ以上の文書だけ。均等に撒かれた強調は何も強調しない）
+  figure-dup          図の箱の語の7割以上が、同じ章の表か箇条書きにもある（図と表で同じことを2回読ませる。片方にする）
+  appendix-scatter    本文から付録への参照が5回以上あり、§1 に件数が無い（未決や仮の値を付録に集めて本文から飛ばすと、
+                      読み手は付録に着くまで何件が決まっていないか分からない）
 区分: 冒頭／要点（§1）／前置き（文書の説明）／引く表／本文／付録。閾値は verbosity.py の LIMITS。
 
 使い方:
@@ -33,7 +37,8 @@ import verbosity  # noqa: E402
 from verbosity import LIMITS, Finding, strip_md, zen_len  # noqa: E402
 
 RULES = frozenset(("front-matter-long", "summary-missing", "summary-items", "summary-rows", "reference-in-path", "same-shape",
-                   "path-long", "reader-entry", "undecided-at-end", "ref-share", "opaque-id"))
+                   "path-long", "reader-entry", "undecided-at-end", "ref-share", "opaque-id", "bold-lead", "figure-dup",
+                   "appendix-scatter"))
 # §1 に要る4つの要点。題ではなく中身で見る（題を「要点」に変えるだけで通る検査は、中身を揃える動機にならない）
 SUMMARY_ITEMS = (
     ("何を変えるか", re.compile(r"変える|変更|替える|置き換え|現行|移行後|変更後|導入|切り替え|切替")),
@@ -62,6 +67,11 @@ HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 NUMBERED_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+")
 FENCE_RE = re.compile(r"^(`{3,}|~{3,})\s*\{?(\w*)")
 SEP_RE = re.compile(r"^\|\s*:?-{3,}")
+# Mermaid の箱のラベル（["…"]・[…]・(["…"])・{"…"}）。辺のラベル |"…"| は数えない
+NODE_LABEL_RE = re.compile(r'[\[\(\{]+"([^"]+)"[\]\)\}]+|\[([^\]"|]+)\]|\{([^}"|]+)\}')
+LABEL_NUM_RE = re.compile(r"^(?:\d+[.)]?|[①-⑳])\s*")
+APPENDIX_REF_RE = re.compile(r"付録\s*([A-Za-zＡ-Ｚ0-9０-９]+)")
+COUNT_RE = re.compile(r"\d+\s*(?:件|点|項目)")
 
 
 @dataclass
@@ -339,6 +349,82 @@ def longest_same_shape(chapters: list[Chapter]) -> list[Chapter]:
     return best
 
 
+def _norm(text: str) -> str:
+    """比べるための正規化: <br>・Markdown の記号・空白と句読点を除く。"""
+    t = re.sub(r"<br\s*/?>", "", text)
+    t = re.sub(r"[*_`|（）()「」、。・:：\-\s]", "", t)
+    return t
+
+
+def _bigrams(t: str) -> set[str]:
+    return {t[k:k + 2] for k in range(len(t) - 1)} if len(t) >= 2 else {t}
+
+
+def bold_leads(lines: list[str]) -> tuple[int, int, int]:
+    """(太字で始まる段落, 段落, 最初の太字の段落の行)。段落は空行の後の文の行（表・箇条書き・コード・見出しは除く）。"""
+    paras = bold = first = 0
+    prev_blank = True
+    for is_table, s, raw in visible_lines(lines):
+        if not s:
+            prev_blank = True
+            continue
+        if prev_blank and not is_table and not verbosity.ITEM_RE.match(raw) and not s.startswith(("![", "<", ">")):
+            paras += 1
+            if s.startswith("**"):
+                bold += 1
+                first = first or lines.index(raw) + 1   # visible_lines はコードの行を返さないので、行番号は元の行から引く
+        prev_blank = False
+    return bold, paras, first
+
+
+def mermaid_labels(lines: list[str]) -> list[tuple[int, list[str]]]:
+    """Mermaid のブロックごとに (0始まりの開始行, 箱のラベルの一覧)。init の行・classDef・class の行は見ない。"""
+    out: list[tuple[int, list[str]]] = []
+    fence: str | None = None
+    cur: list[str] | None = None
+    start = 0
+    for i, raw in enumerate(lines):
+        s = raw.strip()
+        if fence:
+            if s.startswith(fence) and s.strip(fence[0]) == "":
+                if cur is not None:
+                    out.append((start, cur))
+                fence, cur = None, None
+            elif cur is not None and not s.startswith(("%%", "classDef", "class ", "style ", "linkStyle")):
+                for m in NODE_LABEL_RE.finditer(s):
+                    label = LABEL_NUM_RE.sub("", _norm(next(g for g in m.groups() if g)))
+                    if len(label) >= 2:
+                        cur.append(label)
+            continue
+        m = FENCE_RE.match(s)
+        if m:
+            fence = m.group(1)
+            cur = [] if m.group(2) == "mermaid" else None
+            start = i
+    return out
+
+
+def figure_duplicates(lines: list[str], hs: list[tuple[int, int, str, str]]) -> list[tuple[int, int, int]]:
+    """表か箇条書きと同じ中身の図。(図の開始行, 箱の数, 同じ章の表・箇条書きにある箱の数) の一覧。
+    章は図の直前の見出しから、それと同じか上のレベルの次の見出しまで。箱の語の2文字の組の6割以上が表・箇条書きにあれば、ある箱とみなす。"""
+    out = []
+    for start, labels in mermaid_labels(lines):
+        if len(labels) < LIMITS["figure_dup_min_labels"]:
+            continue
+        before = [h for h in hs if h[0] < start]
+        level = before[-1][1] if before else 1
+        end = next((i for i, lv, _, _ in hs if i > start and lv <= level), len(lines))
+        text = _norm("".join(s for is_table, s, raw in visible_lines(lines[start:end])
+                             if is_table or verbosity.ITEM_RE.match(raw)))
+        if not text:
+            continue
+        have = _bigrams(text)
+        hit = sum(1 for lab in labels if len(_bigrams(lab) & have) >= 0.6 * len(_bigrams(lab)))
+        if hit >= LIMITS["figure_dup_share_warn"] * len(labels):
+            out.append((start, len(labels), hit))
+    return out
+
+
 def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
     """(findings, 冒頭, 章の一覧) を返す。"""
     ng = ng if ng is not None else verbosity.load_ng()
@@ -449,6 +535,40 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
         findings.append(Finding("warning", 1, "opaque-id",
                                 f"要件ID（{ex}）が本文に{n_ids}回（付録を除く）。読み手は ID の中身を知れないので、本文では要件の内容を書き、"
                                 "ID は付録の対応表だけに置く"))
+
+    # 太字の文で始まる段落の割合（均等に撒かれた強調は何も強調しない）
+    bold, paras, first_bold = bold_leads(lines)
+    if paras >= lim["bold_lead_min_paras"] and bold / paras > lim["bold_lead_share_warn"]:
+        findings.append(Finding("warning", first_bold, "bold-lead",
+                                f"段落の{bold / paras:.0%}（{bold}/{paras}）が太字の文で始まる > {lim['bold_lead_share_warn']:.0%}。"
+                                "強調が均等に撒かれると何も強調されない。太字は §1 と、決定・例外・本人が決める点の文だけにする"))
+
+    # 表か箇条書きと同じ中身の図
+    for start, n_labels, hit in figure_duplicates(lines, hs):
+        findings.append(Finding("warning", start + 1, "figure-dup",
+                                f"図の箱{n_labels}個のうち{hit}個の語が、同じ章の表か箇条書きにもある。図と表で同じことを2回読ませている。"
+                                "分岐・合流・戻りが無ければ図を消して表（手順なら番号つきの箇条書き）を残し、あれば表の側を減らす"))
+
+    # 付録への参照が本文に散らばり、§1 に件数が無い
+    s1 = chapters[0] if chapters and chapters[0].num == "1" else None
+    s1_text = ""
+    if s1:
+        nxt = chapters[1].line - 1 if len(chapters) > 1 else len(lines)
+        s1_text = "\n".join(s for _, s, _ in visible_lines(lines[s1.line:nxt]))
+    refs: dict[str, int] = {}
+    for k, c in enumerate(chapters):
+        if c.kind == "付録" or c is s1:
+            continue
+        end = chapters[k + 1].line - 1 if k + 1 < len(chapters) else len(lines)
+        for _, s, _ in visible_lines(lines[c.line:end]):
+            for m in APPENDIX_REF_RE.finditer(s):
+                refs[m.group(1)] = refs.get(m.group(1), 0) + 1
+    n_app = sum(refs.values())
+    if n_app >= lim["appendix_ref_warn"] and not COUNT_RE.search(s1_text):
+        many = "、".join(f"付録{k}×{v}" for k, v in sorted(refs.items(), key=lambda kv: -kv[1])[:3])
+        findings.append(Finding("warning", s1.line if s1 else 1, "appendix-scatter",
+                                f"本文から付録への参照が{n_app}回（{many}）あるのに、§1 に件数が無い。未決や仮の値を付録に集めて本文から"
+                                "飛ばすと、読み手は付録に着くまで何件が決まっていないか分からない。§1 に件数と、切替・判断に関わる行を置く"))
     return findings, pre, chapters
 
 

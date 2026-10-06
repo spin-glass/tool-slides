@@ -52,6 +52,12 @@ LIMITS = {
     "summary_rows_warn": 7,       # §1 の表の行数がこれを超えたら、残りは付録へ
     "ref_unit_share_warn": 0.5,   # 本文の段落のうち、本書の別の章を参照する段落の割合（§1・同じ章・他の文書への参照は除く）
     "opaque_id_warn": 5,          # 要件ID（FR-001 の形）が本文（付録を除く）にこの回数以上で warning
+    # 本文のレビュー（2026-10-06、14章の運用・移行設計）で見つかった、読み手の手間を増やす形
+    "bold_lead_min_paras": 8,     # 段落がこれ以上ある文書で、
+    "bold_lead_share_warn": 0.4,  # 太字の文で始まる段落の割合がこれを超えたら warning（ほぼ全段落が太字だと何も強調されない）
+    "figure_dup_min_labels": 3,   # 箱がこれ以上ある図で、
+    "figure_dup_share_warn": 0.7, # 箱の語がこの割合以上、同じ章の表か箇条書きにあれば warning（図と表で同じことを2回読ませる）
+    "appendix_ref_warn": 5,       # 本文（§1 と付録を除く）から付録への参照がこの回数以上で、§1 に件数が無ければ warning
 }
 NUM_UNIT_RE = re.compile(r"(?<![0-9.§C])(\d+(?:\.\d+)?)\s*(%|％|件|名|か月|ヶ月|営業日|日|分|時間|年|回|円)")
 ID_RE = re.compile(r"(?<![A-Za-z0-9_-])C\d+(?![A-Za-z0-9_-])")
