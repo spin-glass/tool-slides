@@ -1,0 +1,11 @@
+%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+flowchart LR
+  P1["段階1<br>並行運用"] --> P2["段階2<br>比較"] --> G{"条件を<br>満たす？"}
+  G -->|"はい"| P3["段階3<br>切替"] --> P4["段階4<br>手入力の廃止"]
+  G -.->|"いいえ"| P2
+  class G gate
+  classDef start fill:#f6f8fa,stroke:#57606a,color:#1f2328
+  classDef gate fill:#ffffff,stroke:#0b5cad,color:#1f2328
+  classDef sign fill:#ffffff,stroke:#8c959f,color:#1f2328
+  classDef human fill:#fff4e5,stroke:#b35900,color:#1f2328
+  classDef band fill:#ffffff,stroke:#d0d7de,color:#57606a

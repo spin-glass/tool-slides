@@ -9,6 +9,8 @@
   python3 check_doc.py --structure design/_source/<doc>.md     # 原文の章ごとの読む字数・表の割合・型・参照の数と、前置き・引く表・同じ型の連続
   python3 check_doc.py --original design/_source/<doc>.md design/<doc>.md   # 原文と書き直しの字数・段落数・一般論の比較
   python3 check_doc.py --paragraphs design/_source/<doc>.md   # 原文の全段落の一覧（4分類の作業表）
+  python3 check_doc.py --mermaid-init [24px]                  # Mermaid の先頭に置く色と文字の1行
+  python3 check_doc.py --mermaid-classes                      # 流れ図の末尾に貼る共通の classDef 5行
 
 block:   本文にない章への参照（§3.4・3.4節・3章。「基本設計 §5.1」のように文書名つきの外部参照は見ない）、
          Mermaid の1行目が図の種類でない、Mermaid の描画エラー、placeholder（TODO・TBD・XXX・〇〇。`[要確認]` は未決の印として可）、
@@ -21,6 +23,9 @@ warning: `## ` の章の直後に図（Mermaid・表・画像）が無い（読�
          表のセルが一般論だけ・表どうしで同じセル、同じ主張ID を3か所以上（再掲）、
          読む字数（文章＋表。図のラベルは数えない）が上限（原文と、原文の中身の1.5倍の小さい方。原文は design/_source/<同じ名前>.md）を超えた、
          ひし形のラベルの1行が8字超、図のラベルに章参照（§）がある、半角の文字を含む行が一番長いラベル（描くと右端が欠ける）、
+         図（2026-10-06）: 箱のラベルの1行が12字超・辺は8字超・「。」で2文、つながらない流れが3つ以上（→表）、
+         分岐も合流も戻りも無い4個以上の一本道（→番号つきの手順）、共通の5つ以外の classDef・style、図の下に「図N 題」が無い、
+         init が古い版（themeCSS が無い）、
          claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）、主張IDが本文に見えている、
          同じ数値を3回以上・全行が同じ値の列・§1 が読む字数の3割超・§1 と付録の外の [要確認]
          構造（structure.py）: 前置き（冒頭の表・文書の説明の章・引く表の章）が本文の中身まで1000字超、§1 が無いか文書の説明になっている、
@@ -69,11 +74,29 @@ HOOK_MAX_BLOCKS = 3
 # flowchart の padding（既定 15）を広げ、htmlLabels を切るのは、文字が測った幅より広く描かれて右端が欠けるため
 # （2026-10-05 の確認: 手元では辺のラベルの欠けが消えた。箱のラベルは直らない。別の環境では全角だけの「廃止」「並行運用」も欠けたので、
 #   箱は PNG を見て <br> で折るか短くする手当てが要る。この init は辺の分の緩和にすぎない）
-MERMAID_INIT = ('%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, '
+# 最上位の fontFamily と themeCSS は 2026-10-06 に足した（Mermaid 11.16.1 で確認）。themeVariables の fontFamily だけでは
+# 描画の書体が既定（trebuchet ms）のまま。辺のラベルの背景は既定で半透明（opacity 0.5）で、下の線が文字に透けて重なる
+MERMAID_INIT = ('%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", '
+                '"themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, '
                 '"themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", '
                 '"primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", '
                 '"edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", '
                 '"critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%')
+# 流れ図の図形の意味を全図で固定する classDef（図の末尾に5行そのまま貼る。`--mermaid-classes` が出す）。
+# 指定の無い四角（青）＝処理・状態。橙（human）は1つの図に1か所まで
+MERMAID_CLASSES = {
+    "start": "fill:#f6f8fa,stroke:#57606a,color:#1f2328",   # 起点・きっかけ（角丸 `A(["…"])` と組む）
+    "gate": "fill:#ffffff,stroke:#0b5cad,color:#1f2328",    # 判定（ひし形 `G{"…"}` と組む）
+    "sign": "fill:#ffffff,stroke:#8c959f,color:#1f2328",    # 見分け方・条件
+    "human": "fill:#fff4e5,stroke:#b35900,color:#1f2328",   # 人の判断が要る点
+    "band": "fill:#ffffff,stroke:#d0d7de,color:#57606a",    # まとまり（subgraph。題を必ず付ける）
+}
+MERMAID_CLASSES_TEXT = "\n".join(f"  classDef {k} {v}" for k, v in MERMAID_CLASSES.items())
+LABEL_NODE_MAX = 12     # 箱のラベルの1行（全角）。超えると Mermaid が語の途中で自動的に折り返す（「未処／理」「何／件」）
+LABEL_EDGE_MAX = 8      # 辺のラベルの1行（全角）。長い条件は線と重なる。「見分け方」の箱に出すか2行に折る
+CAPTION_RE = re.compile(r"^(?:>\s*)?(?:\*{1,2})?[図表]\s*[0-9０-９]")
+ARROW_RE = re.compile(r"\s*(?:<?-{2,}[->ox]?|<?={2,}[=>]?|<?-\.+-?>?|~{3,})\s*")
+SHAPE_RE = re.compile(r'([A-Za-z_][\w-]*)\s*(?:\[\[.*?\]\]|\[\(.*?\)\]|\(\[.*?\]\)|\(\(.*?\)\)|\{\{.*?\}\}|\[.*?\]|\(.*?\)|\{.*?\}|>.*?\])')
 
 
 @dataclass
@@ -232,6 +255,11 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
             issues.append(Issue("warning", ln, "mermaid-theme",
                                 "Mermaid に色と文字の指定（%%{init: …}%%）が無い。既定の紫の図になり、スライドの色とそろわない。"
                                 "`check_doc.py --mermaid-init` が出す1行を図の先頭に置く"))
+        elif "themeCSS" not in body:
+            issues.append(Issue("warning", ln, "mermaid-theme",
+                                "色と文字の指定（%%{init: …}%%）が古い版。書体が既定のままになり、辺のラベルに線が透ける。"
+                                "`check_doc.py --mermaid-init` が出す今の1行に置き換える"))
+        issues.extend(check_mermaid_figure(ln, body, lines))
     if render and blocks:
         pngs, errors = render_mermaid([b for _, b in blocks], path.parent / "_check", path.stem)
         for e in errors:
@@ -290,6 +318,155 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
     order = {"block": 0, "warning": 1, "info": 2}
     issues.sort(key=lambda x: (order[x.severity], x.line))
     return issues
+
+
+def mermaid_block_end(lines: list[str], start: int) -> int:
+    """開始行（1始まり）の Mermaid ブロックの閉じのフェンスの行（1始まり）。"""
+    fence = lines[start - 1].strip()[:3]
+    for j in range(start, len(lines)):
+        if lines[j].strip().startswith(fence) and lines[j].strip().strip(fence[0]) == "":
+            return j + 1
+    return len(lines)
+
+
+def flowchart_graph(body: str):
+    """flowchart の節点（subgraph の id を除く）・辺・subgraph の所属を返す。見えない辺（~~~）は数えない。"""
+    nodes: set[str] = set()
+    edges: set[tuple[str, str]] = set()
+    member: list[tuple[str, str]] = []      # (subgraph, 節点)
+    subs: set[str] = set()
+    stack: list[str] = []
+    for raw in body.splitlines():
+        line = raw.strip()
+        if not line or line.startswith(("%%", "classDef", "class ", "style ", "linkStyle", "direction", "click ")) \
+                or re.match(r"^(flowchart|graph)\b", line):
+            continue
+        if line == "end":
+            if stack:
+                stack.pop()
+            continue
+        m = re.match(r'^subgraph\s+([A-Za-z_][\w-]*)?', line)
+        if m:
+            sid = m.group(1) or f"_sub{len(subs)}"
+            subs.add(sid)
+            if stack:
+                member.append((stack[-1], sid))
+            stack.append(sid)
+            continue
+        line = re.sub(r"\|[^|]*\|", "", line)                          # 辺のラベル
+        line = re.sub(r"--\s+[^->|]+?\s+(-->|---)", r"\1", line)        # A -- 文字 --> B
+        line = SHAPE_RE.sub(lambda mm: mm.group(1), line)
+        for stmt in line.split(";"):
+            parts = ARROW_RE.split(stmt)
+            arrows = ARROW_RE.findall(stmt)
+            groups = [[x.strip() for x in p.split("&") if re.fullmatch(r"[A-Za-z_][\w-]*", x.strip())] for p in parts]
+            for g in groups:
+                for n in g:
+                    if n not in subs:
+                        nodes.add(n)
+                    if stack:
+                        member.append((stack[-1], n))
+            for k, a in enumerate(arrows):
+                if "~" in a or k + 1 >= len(groups):
+                    continue
+                for x in groups[k]:
+                    for y in groups[k + 1]:
+                        edges.add((x, y))
+    return nodes, edges, member, subs
+
+
+def check_mermaid_figure(ln: int, body: str, lines: list[str]) -> list[Issue]:
+    """図の形（表・手順にすべき流れ図）、ラベルの長さ、共通の classDef、図の下の題を見る。"""
+    out: list[Issue] = []
+    head = next((l.strip() for l in body.splitlines() if l.strip() and not l.strip().startswith("%%")), "")
+    is_flow = bool(re.match(r"^(flowchart|graph)\b", head))
+    plain = "\n".join(l for l in body.splitlines() if not l.strip().startswith(("%%", "classDef", "class ", "style ")))
+    # ラベルの長さと「。」（1つの箱に2文を詰めない）
+    if is_flow:
+        long_lines, sentences = [], []
+        for m in verbosity.LABEL_RE.finditer(plain):
+            g = m.groups()
+            if g[2]:
+                continue                         # ひし形は mermaid-diamond が見る
+            lab = next((x for x in g if x), "")
+            limit = LABEL_EDGE_MAX if g[4] else LABEL_NODE_MAX
+            for part in re.split(r"<br\s*/?>", lab):
+                if zen_len_safe(part) > limit:
+                    long_lines.append((part.strip(), limit))
+            if "。" in lab.rstrip("。"):
+                sentences.append(lab)
+        if long_lines:
+            out.append(Issue("warning", ln, "mermaid-label",
+                             "ラベルの1行が長い（" + "、".join(f"「{x[:16]}」>{n}字" for x, n in long_lines[:5]) + "）。"
+                             f"箱は1行全角{LABEL_NODE_MAX}字、辺は{LABEL_EDGE_MAX}字まで。自動の折り返しは語の途中で切れるので、"
+                             "意味の切れ目に <br> を入れる。辺の長い条件は「見分け方」の箱（class sign）に出す"))
+        if sentences:
+            out.append(Issue("warning", ln, "mermaid-label",
+                             "1つのラベルに「。」で区切った文が複数ある（" + "、".join(f"「{x[:14]}」" for x in sentences[:3]) + "）。"
+                             "箱には1つのことだけを書き、事象の並びは読点か改行にする"))
+        # 図の形: 互いにつながらない行が3つ以上なら表、分岐も合流も戻りも無い一本道なら番号つきの手順
+        nodes, edges, member, subs = flowchart_graph(body)
+        parent = {n: n for n in nodes | subs}
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+        for a, b in list(edges) + member:
+            if a in parent and b in parent:
+                parent[find(a)] = find(b)
+        comps: dict[str, set[str]] = {}
+        for n in nodes:
+            comps.setdefault(find(n), set()).add(n)
+        multi = [c for c in comps.values() if len(c) >= 2]
+        outdeg: dict[str, int] = {}
+        indeg: dict[str, int] = {}
+        for a, b in edges:
+            outdeg[a] = outdeg.get(a, 0) + 1
+            indeg[b] = indeg.get(b, 0) + 1
+        if len(multi) >= 3:
+            out.append(Issue("warning", ln, "mermaid-shape",
+                             f"互いにつながらない流れが{len(multi)}つ並んでいる。行と列の対応（いつ・何を・どうする）なので、"
+                             "図をやめて表にする（行＝周期や段、列＝何を・どうする）"))
+        elif len(nodes) >= 4 and len(multi) == 1 and max(outdeg.values(), default=0) <= 1 \
+                and max(indeg.values(), default=0) <= 1 and len(edges) < len(nodes | subs):
+            out.append(Issue("warning", ln, "mermaid-shape",
+                             f"分岐も合流も戻りも無い一本道（{len(nodes)}個）。矢印が情報を足していないので、番号つきの手順（1. 2. …）にする。"
+                             "条件つきの手順が隠れているなら、その条件をひし形に出して図に残す"))
+    # 共通の classDef 以外の色（図ごとに色を決めない）
+    custom = []
+    for l in body.splitlines():
+        t = l.strip()
+        m = re.match(r"^classDef\s+([\w-]+)\s+(.*?);?$", t)
+        if m and MERMAID_CLASSES.get(m.group(1)) != m.group(2).replace(" ", ""):
+            custom.append(f"classDef {m.group(1)}")
+        elif t.startswith("style "):
+            custom.append(t[:24])
+    if custom:
+        out.append(Issue("warning", ln, "mermaid-classdef",
+                         "共通の5つ以外の色の指定（" + "、".join(custom[:4]) + "）。図ごとに色を決めず、"
+                         "`check_doc.py --mermaid-classes` の5行（start・gate・sign・human・band）を貼って class で割り当てる"))
+    # 図の下の題（「図3 …」）
+    end = mermaid_block_end(lines, ln)
+    j = end
+    while j < len(lines):
+        t = lines[j].strip()
+        if not t:
+            j += 1
+            continue
+        if t.startswith("<!--"):
+            while j < len(lines) and "-->" not in lines[j]:
+                j += 1
+            j += 1
+            continue
+        break
+    nxt = lines[j].strip() if j < len(lines) else ""
+    if not CAPTION_RE.match(nxt):
+        out.append(Issue("warning", ln, "mermaid-caption",
+                         "図のすぐ下に番号と題の1行が無い。「図3 取り込み失敗時の一次切り分け」のように置く"
+                         "（読み方の注記は、破線など説明の要る記号を使った図だけ、同じ行に1文で足す）"))
+    return out
 
 
 def zen_len_safe(s: str) -> float:
@@ -404,9 +581,14 @@ def main() -> int:
     ap.add_argument("--paragraphs", action="store_true", help="原文の全段落の一覧（4分類の作業表）を出す")
     ap.add_argument("--mermaid-init", nargs="?", const="16px", metavar="SIZE",
                     help="Mermaid の先頭に置く色と文字の1行を出す（スライドでは 24px）")
+    ap.add_argument("--mermaid-classes", action="store_true",
+                    help="流れ図の末尾に貼る共通の classDef 5行を出す（start・gate・sign・human・band）")
     args = ap.parse_args()
     if args.mermaid_init:
         print(MERMAID_INIT.replace('"16px"', f'"{args.mermaid_init}"'))
+        return 0
+    if args.mermaid_classes:
+        print(MERMAID_CLASSES_TEXT)
         return 0
     if args.hook:
         return run_hook()

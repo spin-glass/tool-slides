@@ -59,15 +59,21 @@
 ## 4. 判断基準と例外・変更への対応
 
 ```mermaid
-%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 flowchart TB
   A[項目ごとの確信度] --> B{閾値と比べる}
   B -->|上回る| C[採用]
   B -->|下回る| D[「保留」]
   B -->|等しい| E[扱いは未決]
+  class B gate
+  classDef start fill:#f6f8fa,stroke:#57606a,color:#1f2328
+  classDef gate fill:#ffffff,stroke:#0b5cad,color:#1f2328
+  classDef sign fill:#ffffff,stroke:#8c959f,color:#1f2328
+  classDef human fill:#fff4e5,stroke:#b35900,color:#1f2328
+  classDef band fill:#ffffff,stroke:#d0d7de,color:#57606a
 ```
 
-> 1つの項目が「保留」でも、ほかの項目は採用する。等しいときの扱いは未決（§1.1）。
+図1 項目ごとの採否の規則。1つの項目が「保留」でも、ほかの項目は採用する。等しいときの扱いは未決（§1.1）。
 
 項目ごとに閾値と比べる規則にそろえ、「保留」を含む請求書の割合に上限を置く（決定）。精度検証 §5.3 の「請求書の全項目が閾値以上なら採用」は使わず、規則の正本は基本設計 §4.2 にする。
 
@@ -94,16 +100,23 @@ flowchart TB
 ### 4.3 異常の対応と切り分け
 
 ```mermaid
-%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 flowchart LR
   A[アラート] --> B[一次対応<br>経理課]
   B -->|解決| E[記録・報告]
   B -->|未解決| C{切り分け}
   C -->|システム| D1[情報システム課]
   C -->|読み取り| D2[導入ベンダー]
-  classDef vendor stroke:#b35900,stroke-width:2px
-  class D2 vendor
+  class C gate
+  class D2 human
+  classDef start fill:#f6f8fa,stroke:#57606a,color:#1f2328
+  classDef gate fill:#ffffff,stroke:#0b5cad,color:#1f2328
+  classDef sign fill:#ffffff,stroke:#8c959f,color:#1f2328
+  classDef human fill:#fff4e5,stroke:#b35900,color:#1f2328
+  classDef band fill:#ffffff,stroke:#d0d7de,color:#57606a
 ```
+
+図2 異常の対応と切り分け
 
 <!-- claims: C12 -->
 
@@ -114,7 +127,7 @@ flowchart LR
 ## 5. 移行の進め方と体制
 
 ```mermaid
-%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
 gantt
   title 移行の4段階
   dateFormat YYYY-MM-DD
@@ -126,6 +139,8 @@ gantt
   本番切替 :a3, after a2, 7d
   定常運用 :a4, after a3, 21d
 ```
+
+図3 移行の4段階（開始日は仮）
 
 | 段階 | 期間（想定） | 次へ進む条件 |
 |---|---|---|
