@@ -1,0 +1,7 @@
+%%{init: {"theme": "base", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "themeCSS": ".edgeLabel rect{opacity:1}", "flowchart": {"padding": 24, "htmlLabels": false}, "themeVariables": {"fontSize": "16px", "fontFamily": "Hiragino Sans, Noto Sans JP, sans-serif", "primaryColor": "#eef4fb", "primaryBorderColor": "#0b5cad", "primaryTextColor": "#1f2328", "lineColor": "#57606a", "edgeLabelBackground": "#ffffff", "taskBkgColor": "#eef4fb", "taskBorderColor": "#0b5cad", "taskTextColor": "#1f2328", "critBkgColor": "#b35900", "critBorderColor": "#b35900", "gridColor": "#d0d7de", "sectionBkgColor": "#ffffff"}}}%%
+flowchart TD
+  T1["1 評価用の請求書を読み直し 何件がどう変わるかを出す"] --> T2["2 固定の評価セットで 正解率を確認"]
+  T2 --> T3["3 経理課へ事前に相談"]
+  T3 --> T4["4 承認を経る"]
+  T4 --> T5["5 項目定義に触れる変更なら周知"]
+  T5 --> T6["6 反映 翌月の締めから"]

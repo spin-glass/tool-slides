@@ -85,7 +85,7 @@ class DesignDoc(unittest.TestCase):
         self.assertEqual(sorted(set(blocks)), ["mermaid-type", "placeholder", "ref-missing"])
         self.assertEqual(blocks.count("ref-missing"), 2)        # §4.2 と 7章
         warnings = doc_rules(FIX / "design/bad.md", "warning")
-        self.assertEqual(sorted(set(warnings)), ["heading-number", "mermaid-theme"])   # 短い文書には章ごとの図を求めない
+        self.assertEqual(sorted(set(warnings)), ["heading-number", "mermaid-caption", "mermaid-theme"])   # 短い文書には章ごとの図を求めない
 
     def test_verbose_document(self):
         doc = FIX / "design/verbose.md"
@@ -402,3 +402,77 @@ class Structure(TempDoc):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Figures(TempDoc):
+    """図の形・ラベルの長さ・共通の色・図の下の題・init の版（実際の設計書の図の問題を架空の題材で再現した fixtures）。"""
+
+    FIGS = FIX / "design/figures"
+
+    def fig_doc(self, *names: str, caption: bool = True) -> Path:
+        parts = ["# 題\n\n## 1. 図\n"]
+        for n in names:
+            parts.append("```mermaid\n" + (self.FIGS / f"{n}.mmd").read_text(encoding="utf-8").rstrip() + "\n```\n")
+            if caption:
+                parts.append("図1 題\n")
+        return self.doc("\n".join(parts))
+
+    def rules(self, path: Path) -> list[str]:
+        return sorted(i.rule for i in check_doc.check_document(path) if i.rule.startswith("mermaid"))
+
+    def test_rows_without_flow_become_a_table(self):
+        for name in ("before-cycles", "before-alert-levels"):
+            msgs = self.messages(self.fig_doc(name), "mermaid-shape")
+            self.assertEqual(len(msgs), 1, name)
+            self.assertIn("表にする", msgs[0])
+
+    def test_straight_line_becomes_a_numbered_list(self):
+        msgs = self.messages(self.fig_doc("before-release"), "mermaid-shape")
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("一本道（6個）", msgs[0])
+
+    def test_branching_figures_are_kept(self):
+        for name in ("before-fallback", "before-triage", "before-migration"):
+            self.assertEqual(self.messages(self.fig_doc(name), "mermaid-shape"), [], name)
+
+    def test_long_labels_and_sentences(self):
+        msgs = self.messages(self.fig_doc("before-alert-levels"), "mermaid-label")
+        self.assertEqual(len(msgs), 2)                                      # 長い行と「。」の2文
+        self.assertTrue(any("読み取りの停止。" in m for m in msgs))
+        edge = self.messages(self.fig_doc("before-triage"), "mermaid-label")
+        self.assertTrue(any(">8字" in m for m in edge))                     # 辺の長い条件
+
+    def test_redesigned_figures_pass(self):
+        for name in ("after-fallback", "after-triage", "after-migration", "after-release"):
+            self.assertEqual(self.rules(self.fig_doc(name)), [], name)
+
+    def test_subgraph_membership_connects_flows(self):
+        # まとまり（subgraph）どうしの矢印でつながる3つの流れは、ばらばらの行の並びではない
+        self.assertEqual(self.messages(self.fig_doc("after-release"), "mermaid-shape"), [])
+
+    def test_caption_required(self):
+        path = self.fig_doc("after-migration", caption=False)
+        self.assertEqual(self.rules(path), ["mermaid-caption"])
+        ok = self.doc("# 題\n\n## 1. 図\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n<!-- メモ -->\n\n> 図2 説明\n")
+        self.assertEqual(self.messages(ok, "mermaid-caption"), [])
+
+    def test_custom_colors(self):
+        text = (self.FIGS / "after-migration.mmd").read_text(encoding="utf-8") + "  classDef ai stroke:#d1495b\n  style P1 fill:#f00\n"
+        path = self.doc(f"# 題\n\n## 1. 図\n\n```mermaid\n{text}```\n\n図1 題\n")
+        msgs = self.messages(path, "mermaid-classdef")
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("classDef ai", msgs[0])
+        self.assertIn("style P1", msgs[0])
+
+    def test_outdated_init(self):
+        old = ('%%{init: {"theme": "base", "flowchart": {"padding": 24, "htmlLabels": false}, '
+               '"themeVariables": {"fontSize": "16px"}}}%%')
+        path = self.doc(f"# 題\n\n## 1. 図\n\n```mermaid\n{old}\nflowchart LR\n  A --> B\n```\n\n図1 題\n")
+        msgs = self.messages(path, "mermaid-theme")
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("古い版", msgs[0])
+
+    def test_printed_init_and_classes(self):
+        self.assertIn('"themeCSS": ".edgeLabel rect{opacity:1}"', check_doc.MERMAID_INIT)
+        self.assertTrue(check_doc.MERMAID_INIT.startswith('%%{init: {"theme": "base", "fontFamily"'))
+        self.assertEqual(check_doc.MERMAID_CLASSES_TEXT.count("classDef "), 5)
