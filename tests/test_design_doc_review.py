@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / ".claude/skills/design-doc/scripts"))
+import check_doc  # noqa: E402
 import structure  # noqa: E402
 
 FIXTURE = ROOT / "tests/fixtures/design_review/patterns.md"
@@ -57,6 +58,23 @@ class ReviewPatterns(unittest.TestCase):
         for doc in docs:
             with self.subTest(doc=doc.name):
                 self.assertEqual(found(doc), {})
+
+
+
+class CodeFences(unittest.TestCase):
+    def test_language_fences_do_not_swallow_chapters(self):
+        """```sql・```ruby も開始と認める（裸と mermaid だけだと、閉じの ``` を開始と取り違えて §2 が消えていた）。"""
+        doc = ("# 架空\n\n## 1. 要点\n\n詳しくは §2 と §3 を見る。\n\n```sql\nSELECT 1;\n```\n\n## 2. 運用\n\n運用する。\n\n"
+               "```{python}\nprint(1)\n```\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n## 3. 移行\n\n移行する。\n")
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "doc.md"
+            p.write_text(doc, encoding="utf-8")
+            _, headings, blocks, _ = check_doc.parse(p)
+            self.assertEqual([num for _, _, num, _ in headings if num], ["1", "2", "3"])
+            self.assertEqual(len(blocks), 1)                       # 図として扱うのは mermaid だけ
+            rules = [i.rule for i in check_doc.check_document(p)]
+            self.assertNotIn("ref-missing", rules)
+            self.assertNotIn("mermaid-type", rules)
 
 
 if __name__ == "__main__":
