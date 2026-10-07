@@ -10,15 +10,20 @@
   summary-rows        §1 の表が 8行以上（未決の全一覧を §1 に置いている）
   reference-in-path   引く表の章（表が7割以上で、表の行が合計10行以上か要件IDが5回以上）が読む路の途中にある
   same-shape          同じ型で始まる章（先頭3要素が同じ）が3章以上続く（長い文書だけ）
-  path-long           読み通す章（引く表の章と付録を除く）の合計が 6000字超
+  path-long           読み通す章の合計が 6000字超。冒頭の表に読む人ごとの章があれば、読む人ごとの経路の最長で測る（無ければ
+                      引く表の章と付録を除く全部の章）
   reader-entry        冒頭の表の「読む人」が2者以上なのに、それぞれが読む章（§）を添えていない
   undecided-at-end    未決の一覧の章が末尾にあり、本文から3回以上参照される
   ref-share           本文の段落の半分超が本書の別の章を参照している（§1・同じ章・他の文書への参照は数えない）
   opaque-id           要件ID（FR-001 の形）が本文に5回以上（付録は除く）
   bold-lead           段落の4割超が太字の文で始まる（段落が8つ以上の文書だけ。均等に撒かれた強調は何も強調しない）
   figure-dup          図の箱の語の7割以上が、同じ章の表か箇条書きにもある（図と表で同じことを2回読ませる。片方にする）
-  appendix-scatter    本文から付録への参照が5回以上あり、§1 に件数が無い（未決や仮の値を付録に集めて本文から飛ばすと、
-                      読み手は付録に着くまで何件が決まっていないか分からない）
+  appendix-scatter    本文から付録への参照が5回以上あり、§1 に付録への入口（「付録B」の参照）が無い（未決や仮の値を付録に集めて
+                      本文から飛ばすと、読み手は付録に着くまで何が決まっていないか分からない）
+  reader-path-dep     読む人ごとの章（冒頭の表の「経理課（§2〜§3）」）が、その人の読まない章を参照している（§1 と提案の章への
+                      参照は数えない）
+  table-dup           表の直前・直後の短い段落が、表にあることを書いている（表の見出しの語の7割以上、段落の語の7割以上が表にある、
+                      または表の行数と同じ「2つの」「3件」を言う。figure-dup の表版）
 区分: 冒頭／要点（§1）／前置き（文書の説明）／引く表／本文／付録。閾値は verbosity.py の LIMITS。
 
 使い方:
@@ -38,7 +43,7 @@ from verbosity import LIMITS, Finding, strip_md, zen_len  # noqa: E402
 
 RULES = frozenset(("front-matter-long", "summary-missing", "summary-items", "summary-rows", "reference-in-path", "same-shape",
                    "path-long", "reader-entry", "undecided-at-end", "ref-share", "opaque-id", "bold-lead", "figure-dup",
-                   "appendix-scatter"))
+                   "appendix-scatter", "table-dup", "reader-path-dep"))
 # §1 に要る4つの要点。題ではなく中身で見る（題を「要点」に変えるだけで通る検査は、中身を揃える動機にならない）
 SUMMARY_ITEMS = (
     ("何を変えるか", re.compile(r"変える|変更|替える|置き換え|現行|移行後|変更後|導入|切り替え|切替")),
@@ -72,6 +77,10 @@ NODE_LABEL_RE = re.compile(r'[\[\(\{]+"([^"]+)"[\]\)\}]+|\[([^\]"|]+)\]|\{([^}"|
 LABEL_NUM_RE = re.compile(r"^(?:\d+[.)]?|[①-⑳])\s*")
 APPENDIX_REF_RE = re.compile(r"付録\s*([A-Za-zＡ-Ｚ0-9０-９]+)")
 COUNT_RE = re.compile(r"\d+\s*(?:件|点|項目)")
+ROW_COUNT_RE = re.compile(r"([0-9０-９]+|[一二三四五六七八九十])\s*(?:つ|件|個|種類|列|行|点|項目|段階|通り|区分|者)")
+PROPOSAL_RE = re.compile(r"提案|未採択")
+CAPTION_RE = re.compile(r"^(図|表)\s*[0-9０-９]+")
+KANJI_NUM = {k: v for v, k in enumerate("一二三四五六七八九十", 1)}
 
 
 @dataclass
@@ -390,7 +399,10 @@ def mermaid_labels(lines: list[str]) -> list[tuple[int, list[str]]]:
                 if cur is not None:
                     out.append((start, cur))
                 fence, cur = None, None
-            elif cur is not None and not s.startswith(("%%", "classDef", "class ", "style ", "linkStyle")):
+                continue
+            if cur is not None and not cur and re.match(r"^(erDiagram|classDiagram)\b", s):
+                cur = None           # { … } は属性の並び、| は関係の記号で、箱のラベルではない（比べる語が無い）
+            elif cur is not None and s and not s.startswith(("%%", "classDef", "class ", "style ", "linkStyle")):
                 for m in NODE_LABEL_RE.finditer(s):
                     label = LABEL_NUM_RE.sub("", _norm(next(g for g in m.groups() if g)))
                     if len(label) >= 2:
@@ -422,6 +434,90 @@ def figure_duplicates(lines: list[str], hs: list[tuple[int, int, str, str]]) -> 
         hit = sum(1 for lab in labels if len(_bigrams(lab) & have) >= 0.6 * len(_bigrams(lab)))
         if hit >= LIMITS["figure_dup_share_warn"] * len(labels):
             out.append((start, len(labels), hit))
+    return out
+
+
+READER_SPAN_RE = re.compile(r"([^（(・、,，/／\s][^（(・、,，/／]*?)\s*[（(]([^）)]*§[^）)]*)[）)]")
+SPAN_RE = re.compile(r"§\s*(\d+)(?:\.\d+)*(?:\s*[〜~～\-–]\s*§?\s*(\d+))?")
+
+
+def reader_paths(lines: list[str], chapters: list[Chapter]) -> list[tuple[str, set[str]]]:
+    """冒頭の表の「読む人」の行から、読む人ごとの章（最上位の番号）。「経理課（§2〜§3）・部長（§1 だけ）」→
+    [("経理課", {"2", "3"}), ("部長", {"1"})]。章が書かれていない読む人は入れない。"""
+    pre_lines = lines[yaml_end(lines):(chapters[0].line - 1 if chapters else len(lines))]
+    out: list[tuple[str, set[str]]] = []
+    for _, rows in verbosity.tables(pre_lines):
+        for row in rows:
+            if len(row) < 2 or not READER_ROW_RE.search(row[0]):
+                continue
+            for m in READER_SPAN_RE.finditer(strip_md(row[1])):
+                nums: set[str] = set()
+                for a, b in SPAN_RE.findall(m.group(2)):
+                    lo, hi = int(a), int(b or a)
+                    nums |= {str(n) for n in range(lo, max(lo, hi) + 1)}
+                if nums:
+                    out.append((m.group(1).strip(), nums))
+    return out
+
+
+def _span(nums: set[str]) -> str:
+    ns = sorted(int(n) for n in nums)
+    return f"§{ns[0]}" + (f"〜§{ns[-1]}" if len(ns) > 1 else "")
+
+
+def _paragraph(lines: list[str], i: int, step: int) -> tuple[int, str]:
+    """lines[i] から step（-1 上・+1 下）の向きに、空行を飛ばした先の段落。(段落の先頭の0始まりの行, 文字列)。
+    見出し・表・コード・箇条書き・コメント・画像に当たったら段落なし（-1, ""）。"""
+    while 0 <= i < len(lines) and not lines[i].strip():
+        i += step
+    if not 0 <= i < len(lines):
+        return -1, ""
+    got: list[int] = []
+    while 0 <= i < len(lines):
+        s = lines[i].strip()
+        if not s:
+            break
+        if s.startswith(("#", "|", "```", "~~~", "<!--", "![", "<", ">")) or verbosity.ITEM_RE.match(lines[i]):
+            return (-1, "") if not got else (min(got), " ".join(lines[k].strip() for k in sorted(got)))
+        got.append(i)
+        i += step
+    return (min(got), " ".join(lines[k].strip() for k in sorted(got))) if got else (-1, "")
+
+
+def table_duplicates(lines: list[str]) -> list[tuple[int, int, str, str]]:
+    """表にあることを書いた、表の直前・直後の段落。(段落の行, 表の行, 段落の先頭, 理由) の一覧。"""
+    out = []
+    for start, rows in verbosity.tables(lines):
+        if len(rows) < 2:
+            continue
+        end = start + len(rows)            # 1始まりの表の最後の行（区切り行の分を足す）
+        body_rows = len(rows) - 1
+        table_text = _norm(strip_md(" ".join(" ".join(r) for r in rows)))
+        have = _bigrams(table_text)
+        header = [h for h in (_norm(strip_md(c)) for c in rows[0]) if len(h) >= 2]
+        for at, para in (_paragraph(lines, start - 2, -1), _paragraph(lines, end, 1)):
+            if at < 0:
+                continue
+            plain = strip_md(re.sub(r"<!--.*?-->", "", para))
+            if (not plain or zen_len(plain) > LIMITS["table_dup_para_chars"] or plain.rstrip().endswith(("：", ":"))
+                    or CAPTION_RE.match(plain)):
+                continue                    # 「次のとおり：」の導入と「図3 …」の題は表・図の一部として読む
+            norm = _norm(plain)
+            why = ""
+            counts = [m.group(1) for m in ROW_COUNT_RE.finditer(plain)]
+            nums = {int(c) if c.isdigit() else KANJI_NUM.get(c, -1) for c in
+                    (x.translate(str.maketrans("０１２３４５６７８９", "0123456789")) for x in counts)}
+            hit_header = [h for h in header if len(_bigrams(h) & _bigrams(norm)) >= 0.6 * len(_bigrams(h))]
+            mine = _bigrams(norm)
+            cover = len(mine & have) / len(mine) if mine else 0.0
+            if body_rows in nums:
+                why = f"表の行数（{body_rows}行）を数で言い直している"
+            elif len(header) >= 2 and len(hit_header) >= LIMITS["table_dup_header_share"] * len(header):
+                why = "表の見出しの語（" + "・".join(h[:8] for h in hit_header[:4]) + "）を並べている"
+            elif len(mine) >= 6 and cover >= LIMITS["table_dup_cover"]:
+                why = f"段落の語の{cover:.0%}が表にある"
+            if why:
+                out.append((at, start, plain[:24], why))
     return out
 
 
@@ -458,9 +554,11 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
                                 f"要点の章（§1）が{why}。先頭の章に、何を変えるか・次へ進む条件（値）・まだ決めていない点（件数）・"
                                 "決めたこと、の4行を置く"))
     elif long and c1 and c1.summary_missing:
-        findings.append(Finding("warning", c1.line, "summary-items",
-                                f"§1 に{'・'.join(c1.summary_missing)}が無い。題を「要点」にするだけでは足りない。"
-                                "何を変えるか・次へ進む条件（値か「原文に無い」）・まだ決めていない点（件数）・決めたこと、の4行を置く"))
+        # 助言（info）にとどめる。4行は全部の文書に要るわけではなく（未決の一覧を付録に持つ文書・決定の無い文書）、
+        # warning にすると毎回「無視してよい」と判断する手間が要った（2026-10-08）
+        findings.append(Finding("info", c1.line, "summary-items",
+                                f"（助言）§1 に{'・'.join(c1.summary_missing)}が見当たらない。読み手が §1 だけで判断できるか確かめる。"
+                                "要るなら、何を変えるか・次へ進む条件（値か「原文に無い」）・まだ決めていない点・決めたこと、の行を置く"))
     if c1 and c1.kind == "要点" and c1.rows_max > lim["summary_rows_warn"]:
         findings.append(Finding("warning", c1.line, "summary-rows",
                                 f"§1 の表が {c1.rows_max}行 > {lim['summary_rows_warn']}行。判断に関わる行（次へ進む条件に関わる未決・矛盾）だけ残し、"
@@ -486,9 +584,20 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
                                 "（判断・分岐の章は図を主役に、担当×周期の取り決めは表、順序は工程表、2案の差は対照表）。"
                                 "同じ手触りが続くと、読み手は進んでいる感覚を失う"))
 
-    # 読み通す章の合計
+    # 読み通す章の合計。読む人ごとの章が書いてあれば、読む人ごとの経路の最長で測る。6000字は1回で読める量で、
+    # 文書全体に当てると判定仕様と表を持つ設計書は全部が超え、判断の材料にならなかった（2026-10-08、5本すべて）
+    paths = reader_paths(lines, chapters)
+    if paths:
+        def path_chars(nums: set[str]) -> float:
+            return sum(c.read for c in chapters if c.num.split(".")[0] in nums and c.kind != "付録")
+        name, nums = max(paths, key=lambda p: path_chars(p[1]))
+        longest = path_chars(nums)
+        if longest > lim["path_chars_warn"]:
+            findings.append(Finding("warning", 1, "path-long",
+                                    f"読む人ごとの経路でいちばん長い「{name}」（{_span(nums)}）が {longest:.0f}字 > {lim['path_chars_warn']}字。"
+                                    "1回で読める量を超える。その人の章から引く表を付録へ出すか、読む章を分ける"))
     path_read = sum(c.read for c in chapters if c.kind in ("要点", "本文"))
-    if path_read > lim["path_chars_warn"]:
+    if not paths and path_read > lim["path_chars_warn"]:
         heavy = sorted((c for c in chapters if c.kind == "本文" and c.share >= 0.5), key=lambda c: -c.table)[:3]
         hint = ("表の割合が高い章（" + "、".join(f"{c.label} {c.share:.0%}" for c in heavy) + "）を付録へ出すか、") if heavy else ""
         findings.append(Finding("warning", 1, "path-long",
@@ -507,6 +616,29 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
                     findings.append(Finding("warning", yaml_end(lines) + start, "reader-entry",
                                             f"読む人が{len(readers)}者（{'・'.join(r[:10] for r in readers[:4])}）なのに、それぞれが読む章が無い。"
                                             "「経理課（§3〜§4）・部長（§1 だけ）」のように、読む人ごとに読む章を添える"))
+
+    # 読む人ごとの章が、その人の読まない章を参照している（読む人ごとに章を分けても、参照の先を読まないと分からない）
+    # 提案（未採択）の章への参照は、読まなくてよい先への案内なので数えない
+    nums_all = {c.num.split(".")[0] for c in chapters if c.num and c.kind != "付録" and not PROPOSAL_RE.search(c.title)}
+    for name, nums in paths:
+        out: dict[str, int] = {}
+        for k, c in enumerate(chapters):
+            if c.num.split(".")[0] not in nums:
+                continue
+            end = chapters[k + 1].line - 1 if k + 1 < len(chapters) else len(lines)
+            for _, s, _ in visible_lines(lines[c.line:end]):
+                t = verbosity.QUOTE_RE.sub("", s)
+                for m in REF_RE.finditer(t):
+                    num = m.group("a") or m.group("b") or m.group("c")
+                    top = num.split(".")[0]
+                    if top == "1" or top in nums or top not in nums_all or is_external(t, m):
+                        continue
+                    out[f"§{num}"] = out.get(f"§{num}", 0) + 1
+        if sum(out.values()) >= lim["reader_dep_warn"]:
+            many = "、".join(f"{k}×{v}" if v > 1 else k for k, v in sorted(out.items(), key=lambda kv: -kv[1])[:5])
+            findings.append(Finding("warning", 1, "reader-path-dep",
+                                    f"「{name}」が読む章（{_span(nums)}）が、読まない章を{sum(out.values())}回参照している（{many}）。"
+                                    "その人に要る中身なら読む章に書き、要らないなら参照を消すか、読む章に加える"))
 
     # 未決の一覧が末尾にあり、本文から参照される
     visible = re.sub(r"<!--.*?-->", "", "\n".join(lines), flags=re.S)
@@ -549,7 +681,13 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
                                 f"図の箱{n_labels}個のうち{hit}個の語が、同じ章の表か箇条書きにもある。図と表で同じことを2回読ませている。"
                                 "分岐・合流・戻りが無ければ図を消して表（手順なら番号つきの箇条書き）を残し、あれば表の側を減らす"))
 
-    # 付録への参照が本文に散らばり、§1 に件数が無い
+    # 表にあることを書いた、表の直前・直後の段落
+    for at, start, head, why in table_duplicates(lines):
+        findings.append(Finding("warning", at + 1, "table-dup",
+                                f"{start}行目の表の隣の段落「{head}…」は表にあることを書いている（{why}）。消すか、"
+                                "表に無いこと（決定・例外・次にすること）だけを残す"))
+
+    # 付録への参照が本文に散らばり、§1 に付録への入口が無い
     s1 = chapters[0] if chapters and chapters[0].num == "1" else None
     s1_text = ""
     if s1:
@@ -563,12 +701,13 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
         for _, s, _ in visible_lines(lines[c.line:end]):
             for m in APPENDIX_REF_RE.finditer(s):
                 refs[m.group(1)] = refs.get(m.group(1), 0) + 1
+    # 見るのは §1 に付録への入口があるかだけ。件数まで求めると、§1 の「まだ決めていない点（件数）」と二重になる（2026-10-08）
     n_app = sum(refs.values())
-    if n_app >= lim["appendix_ref_warn"] and not COUNT_RE.search(s1_text):
+    if n_app >= lim["appendix_ref_warn"] and not APPENDIX_REF_RE.search(s1_text):
         many = "、".join(f"付録{k}×{v}" for k, v in sorted(refs.items(), key=lambda kv: -kv[1])[:3])
         findings.append(Finding("warning", s1.line if s1 else 1, "appendix-scatter",
-                                f"本文から付録への参照が{n_app}回（{many}）あるのに、§1 に件数が無い。未決や仮の値を付録に集めて本文から"
-                                "飛ばすと、読み手は付録に着くまで何件が決まっていないか分からない。§1 に件数と、切替・判断に関わる行を置く"))
+                                f"本文から付録への参照が{n_app}回（{many}）あるのに、§1 から付録への入口が無い。未決や仮の値を付録に集めて"
+                                "本文から飛ばすと、読み手は付録に着くまで何が決まっていないか分からない。§1 に「付録B」への参照を1つ置く"))
     return findings, pre, chapters
 
 
@@ -588,7 +727,7 @@ def report(path: Path, pre: Chapter, chapters: list[Chapter], findings: list[Fin
             f"同じ型で始まる章の最長の連続 {len(run)}章" + (f"（{run[0].shape_head}）" if run else "")]
     if chapters and chapters[0].num == "1" and chapters[0].summary_missing:
         out.append(f"§1 に無い要点: {'・'.join(chapters[0].summary_missing)}")
-    out += [f"  WARNING {path}:{f.line} {f.rule}: {f.message}" for f in findings] or ["  構造の warning なし"]
+    out += [f"  {f.severity.upper()} {path}:{f.line} {f.rule}: {f.message}" for f in findings] or ["  構造の warning なし"]
     return "\n".join(out)
 
 
