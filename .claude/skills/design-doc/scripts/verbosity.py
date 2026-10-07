@@ -519,7 +519,7 @@ def main() -> int:
             print(f"  {u.line:4}行 [{why}] {u.text[:60]}{'…' if len(u.text) > 60 else ''}")
         if cands and not args.original:
             print("  ※ 候補は出発点。判断を含む文（「導入が望ましいと考えられる」）はヘッジを外して残し、"
-                  "扱いが必要な話題（障害時・セキュリティ）は未決にする。「作業の文」は削らず語だけ外す（SKILL.md フェーズ2.1）")
+                  "扱いが必要な話題（障害時・セキュリティ）は未決にする。「作業の文」は削らず語だけ外す（references/phases.md のフェーズ2.1）")
     return 0
 
 

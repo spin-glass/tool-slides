@@ -525,7 +525,7 @@ def check_approved_changes(deck: Deck, baseline: Deck | None) -> list[Issue]:
         issues.append(Issue("warning", changed[0].line if changed else 1, changed[0] if changed else None,
                             "approved-title-changed",
                             f"承認済みの骨子から本編のタイトルが変わった（{what}）。タイトルは本人に変更を提案し、承認を得てから"
-                            f"変える。承認を得たら `<!-- reapproved: 本人「…」 YYYY-MM-DD -->` を書く（SKILL.md フェーズ3）"))
+                            f"変える。承認を得たら `<!-- reapproved: 本人「…」 YYYY-MM-DD -->` を書く（references/phases.md のフェーズ3）"))
     return issues
 
 
