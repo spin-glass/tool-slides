@@ -38,7 +38,7 @@ hooks:
 ## 規則の要点（lint が block する。一覧は `references/rules.md`）
 
 - 本編の枚数は budget まで。承認後に budget を書き換えない（git の承認済みの版と比べる）
-- 1枚に bullets 6以上・16行以上・本文が全角250字超・表示コード11行以上は block
+- 1枚に bullets 6以上（`.column` に分けた枚は列ごと）・16行以上・本文が全角250字超・表示コード11行以上は block
 - タイトルは全角40字以内の完全文。体言止め・ラベル型（「〜について」「まとめ」）は block
 - placeholder（TODO・TBD・[要確認] など）、先頭の `audience`/`action`/`minutes`/`budget`/`status` の欠け、ゴースト段階の本文は block
 - 写真の図を使うデッキで、本文の「N枚」を手で書いて検算していない、知らない型・1枚に2つの型、確認型の確認点の数と長さ、主張の表（`claims.csv`）に無い id と出典との食い違い、`claims: required` で claims の無い本編の枚

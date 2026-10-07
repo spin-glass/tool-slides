@@ -30,6 +30,15 @@ class Fixtures(unittest.TestCase):
         for rule in ("hedge", "hedge-density", "buzzword"):
             self.assertIn(rule, warnings)
 
+    def test_bullets_counted_per_column(self):
+        """列（.column）に分けた枚は列ごとに数える。左右で対比する型は合計すると必ず上限を超えるため。"""
+        deck = lint.parse_deck(ROOT / "tests/fixtures/bullets_columns.qmd")
+        hits = {i.slide.index: i for i in lint.check_deck(deck, NG) if i.rule == "bullets"}
+        self.assertNotIn(1, hits)                       # 左3つ・右3つ（合計6つ）は出さない
+        self.assertIn(2, hits)                          # 1つの列に6つは出す
+        self.assertEqual(hits[2].severity, "block")
+        self.assertIn("合計は7", hits[2].message)
+
     def test_ghost_body(self):
         self.assertEqual(rules("ghost_with_body.qmd", "block"), ["ghost-body"])
 

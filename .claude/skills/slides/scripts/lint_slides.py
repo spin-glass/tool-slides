@@ -212,6 +212,7 @@ class Slide:
     claims: list[str] = field(default_factory=list)                    # <!-- claims: C1,C2 --> の主張ID
     types: list[str] = field(default_factory=list)                     # <!-- type: pair --> のスライドの型
     divs: list[str] = field(default_factory=list)                      # fenced div の属性（{.columns .pair} など）
+    body_col: dict[int, int] = field(default_factory=dict)            # 本文の行番号 → 何番目の .column か（列の外は記録しない）
     cells: list[tuple[str, str]] = field(default_factory=list)        # 実行するセル (情報 {python}/{mermaid}, 中身)
     raw_html: list[tuple[int, str]] = field(default_factory=list)     # <style>・<script> の行（本文に数えない）
     denominator: str | None = None                                    # 見出しの {denominator="…"}（この枚の数字の標本）
@@ -257,6 +258,8 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
     in_code = None            # (fence, executable, echo)
     code_buf: list[tuple[int, str]] = []
     div_stack: list[tuple[int, str]] = []    # (colon数, 属性)
+    col_index = 0                            # 開いた .column の通し番号
+    col_depth: int | None = None             # いま .column の中なら、その div_stack の深さ
     in_comment = False
     preamble_line = None
     code_start = 0
@@ -353,6 +356,9 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
         if m:
             attrs = m.group(2)
             div_stack.append((len(m.group(1)), attrs))
+            if ".column" in attrs and ".columns" not in attrs:   # 列ごとに箇条書きを数えるため、列に番号を振る
+                col_index += 1
+                col_depth = len(div_stack)
             if cur:
                 cur.divs.append(attrs)
             if cur and ".check" in attrs:
@@ -363,6 +369,8 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
         m = DIV_CLOSE_RE.match(raw)
         if m and div_stack:
             div_stack.pop()
+            if col_depth is not None and len(div_stack) < col_depth:
+                col_depth = None
             continue
 
         if in_notes():
@@ -388,6 +396,8 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
 
         if cur and raw.strip():
             cur.body.append((ln, raw))
+            if col_depth is not None:
+                cur.body_col[ln] = col_index
             if in_check():
                 cur.checks.append((ln, raw))
             cur.images.extend((ln, mm.group(1).strip(), mm.group(2)) for mm in IMAGE_RE.finditer(raw))
@@ -826,13 +836,22 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
         if s.appendix:
             continue   # appendix は密度制限を免除
 
-        bullets = sum(1 for _, t in s.body if BULLET_RE.match(t))
+        # 列（.column）に分けた枚は列ごとに数える。左右で対比する型は合計すると必ず上限を超え、
+        # 読み手から見た1列あたりの量を測れないため（2026-10-07）。列の外の箇条書きは1つの群として数える
+        per_col: dict[int | None, int] = {}
+        for ln_, t in s.body:
+            if BULLET_RE.match(t):
+                key = s.body_col.get(ln_)
+                per_col[key] = per_col.get(key, 0) + 1
+        bullets = max(per_col.values(), default=0)
+        where = "" if len(per_col) <= 1 else f"（列ごとに数えた最大。合計は{sum(per_col.values())}）"
         if bullets > LIMITS["bullets_block"]:
             issues.append(Issue("block", s.line, s, "bullets",
-                                f"bullets {bullets} > {LIMITS['bullets_block']}。根拠を3点に絞り、残りは appendix かノートへ"))
+                                f"bullets {bullets} > {LIMITS['bullets_block']}{where}。"
+                                "根拠を3点に絞り、残りは appendix かノートへ"))
         elif bullets > LIMITS["bullets_warn"]:
             issues.append(Issue("warning", s.line, s, "bullets",
-                                f"bullets {bullets} > 目標{LIMITS['bullets_warn']}"))
+                                f"bullets {bullets} > 目標{LIMITS['bullets_warn']}{where}"))
 
         nlines = len(visible) + len(s.code)
         if nlines > LIMITS["lines_block"]:
