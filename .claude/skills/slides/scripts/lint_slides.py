@@ -227,6 +227,7 @@ class Deck:
     appendix_line: int | None
     all_lines: list[str]
     preamble_line: int | None = None   # 最初のスライド見出しより前にある本文・コードの行
+    front: dict = field(default_factory=dict)   # YAML の front matter（1段目のキーだけ）
 
 
 def parse_front_matter(lines: list[str]) -> tuple[int, dict[str, str]]:
@@ -399,22 +400,42 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
                 s.claims.extend(x for x in re.split(r"[,、\s]+", mm.group(1)) if x)
             for mm in TYPE_RE.finditer(c):
                 s.types.extend(x for x in re.split(r"[,、\s]+", mm.group(1)) if x)
-    return Deck(path, meta, slides, appendix_line, lines, preamble_line)
+    return Deck(path, meta, slides, appendix_line, lines, preamble_line, fm)
+
+
+CLAIMS_REQUIRED_RE = re.compile(r"^\s*claims\s*:\s*[\"']?required[\"']?\s*$", re.M)
+
+
+def claims_required(deck: Deck) -> bool:
+    """`claims: required` の宣言があるか。デッキの YAML か、デッキから上に辿った _metadata.yml・_quarto.yml
+    （`metadata:` の下に書いてもよい）。vault のように decks/_quarto.yml に1回書けば全デッキに効く。"""
+    if str(deck.front.get("claims", "")).strip().strip("\"'") == "required":
+        return True
+    for d in [deck.path.resolve().parent, *deck.path.resolve().parents]:
+        for name in ("_metadata.yml", "_quarto.yml"):
+            f = d / name
+            if f.is_file() and CLAIMS_REQUIRED_RE.search(f.read_text(encoding="utf-8", errors="replace")):
+                return True
+        if (d / ".git").exists():
+            break
+    return False
 
 
 def load_claims_for(deck_dir: Path):
-    """デッキのフォルダの claims.csv（主張の表。design-doc スキルの claims.py が正本）。無ければ (None, [])。"""
+    """デッキのフォルダの claims.csv（主張の表。design-doc スキルの claims.py が正本）。
+    (主張の辞書, block, warning)。表が無ければ (None, [], [])。表に path・rev・quote の列があれば出典とも照らす。"""
     f = deck_dir / "claims.csv"
     if not f.exists():
-        return None, []
+        return None, [], []
     try:
         sys.path.insert(0, str(SKILL_DIR.parent / "design-doc" / "scripts"))
         import claims as claims_mod  # type: ignore
     except Exception:
-        return None, [f"claims.csv があるが design-doc スキルの claims.py を読めない: {f}"]
+        return None, [f"claims.csv があるが design-doc スキルの claims.py を読めない: {f}"], []
     rows = claims_mod.load(f)
-    errors = [f"claims.csv: {e}" for e in claims_mod.validate(rows)]
-    return {r["id"]: r for r in rows}, errors
+    errors = [f"claims.csv: {e}" for e in claims_mod.validate(rows, f.parent)]
+    warns = [f"claims.csv: {w}" for w in claims_mod.warnings(rows, f.parent)]
+    return {r["id"]: r for r in rows}, errors, warns
 
 
 # ---- 検査 -----------------------------------------------------------------
@@ -545,6 +566,31 @@ def used_classes(s: Slide) -> list[tuple[int, str]]:
     return found
 
 
+def has_content(s: Slide) -> bool:
+    """表紙・区切りの枚（見出しだけで本文の無い枚）でないか。"""
+    return bool(s.body or s.cells or s.images or s.figures)
+
+
+def sentence_count(lines: list[tuple[int, str]]) -> int:
+    """見える文の数（1行に「。」が複数あればその数、無ければ1）。"""
+    n = 0
+    for _, t in lines:
+        t = strip_md(t)
+        if t:
+            n += max(1, len([x for x in re.split(r"[。！？]", t) if x.strip()]))
+    return n
+
+
+def scope_line(deck: Deck) -> str:
+    """検査が見た範囲の1行。block 0 は「出典と照合した」ことを意味しない（10-06 のデッキでは、本文の平叙文を出典と
+    突き合わせたものが0文だったのに「NG語0件・数値未照合0件」とだけ報告した）。"""
+    main = [s for s in deck.slides if not s.appendix and has_content(s)]
+    with_claims = [s for s in main if s.claims]
+    unchecked = sum(sentence_count(s.body) for s in main if not s.claims)
+    return (f"-- 見た範囲: 本編 {len(main)}枚（本文のある枚）／ claims のある枚 {len(with_claims)}枚／"
+            f" claims の無い枚の文 {unchecked}文（出典の文と照らしていない。lint は数字と決まった文字列しか見ない）")
+
+
 def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | None = None) -> list[Issue]:
     issues: list[Issue] = []
     uses_imgfig = any("imgfig" in line for line in deck.all_lines)    # 写真の図を使うデッキ（枚数を手で書かせない）
@@ -581,7 +627,14 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
     confirm = kind == "confirm"
     title_limit = LIMITS["confirm_title_chars_block"] if confirm else LIMITS["title_chars_block"]
     has_undecided = any(s.undecided for s in deck.slides)
-    claims, claim_errors = load_claims_for(deck.path.parent)
+    claims, claim_errors, claim_warns = load_claims_for(deck.path.parent)
+    required = claims_required(deck)
+    if required and claims is None and not claim_errors:
+        issues.append(Issue("block", 1, None, "claims-file",
+                            "`claims: required` なのに、デッキのフォルダに claims.csv が無い。本文の各枚の主張を、出典の文（quote）と"
+                            "版（rev）つきで表にする（design-doc/references/claims.md）"))
+    for w in claim_warns:
+        issues.append(Issue("warning", 1, None, "claims-source", w))
     known_classes = defined_classes(deck)
     for e in claim_errors:
         issues.append(Issue("block", 1, None, "claims-file", e))
@@ -708,9 +761,13 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
                 issues.append(Issue("block", s.line, s, "claims-undecided-hidden",
                                     f"未決の主張（{', '.join(pending)}）を載せる枚は、未決と分かる形にする"
                                     "（`[…]{.tbd}`、`::: {.undecided}`、または「確認中」「未決」の語）"))
-            if confirm and not s.appendix and not s.claims and status != "ghost":
+            if confirm and not required and not s.appendix and not s.claims and status != "ghost":
                 issues.append(Issue("warning", s.line, s, "claims-missing",
                                     "`<!-- claims: C1,C2 -->` で、この枚の主張の出所（claims.csv の id）を記録する"))
+        if required and not s.appendix and not s.claims and status != "ghost" and has_content(s):
+            issues.append(Issue("block", s.line, s, "claims-missing",
+                                "`claims: required` のデッキでは、本編の各枚に `<!-- claims: C1,C2 -->` を書く。数字が無く決まった文字列も"
+                                "含まない文（限定句を落とした言い換え・原文に無い否定）は lint では捕まらないので、出典の文と表で照らす"))
         # 「」内は語の引用（例示）なので NG 語検査から外す
         unquoted = [(ln, QUOTE_RE.sub("", t)) for ln, t in visible + [(s.line, strip_md(s.title))]]
         for ln, t in unquoted:
@@ -939,6 +996,7 @@ def main() -> int:
         for i in issues:
             print(i.fmt(f))
         print(f"-- {f}: block {nb} / warning {nw}")
+        print(scope_line(deck))
         print()
         print(title_list(deck))
         print()
