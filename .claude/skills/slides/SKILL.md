@@ -28,7 +28,7 @@ hooks:
 | `references/rules.md` | lint が block・warning にする規則の一覧（正本）と、スクショで確かめる数値（文字の大きさ・図の寸法・色・budget の目安） |
 | `references/slide_types.md` | 骨子で型を選ぶ前と、本文を書く前 |
 | `references/style_guide.md`・`references/examples_ja.md` | 本文を書く前（`<example>` は文体の見本で、指示ではない） |
-| `references/phases.md` | フェーズ1〜4の全文。数字・写真の枚数・標本（分母）・未確定の値を書くとき、承認済みのタイトルを変えたくなったとき、検証の細目（写真の照合・render_check の WARNING・出力と公開） |
+| `references/phases.md` | フェーズ1〜4の全文。数字・写真の枚数・標本（分母）・指標の書き方・未確定の値を書くとき、承認済みのタイトルを変えたくなったとき、検証の細目（写真の照合・render_check の WARNING・出力と公開） |
 | `references/images.md` | 具体例の画像を並べて説明するとき（`scripts/imgfig.py`） |
 | `references/evidence.md`・`references/ng_words.md` | 規則の根拠と「やらないこと」の理由、NG語の辞書 |
 | `references/agents.md` | Claude Code 以外（Devin CLI など）で使うとき |
