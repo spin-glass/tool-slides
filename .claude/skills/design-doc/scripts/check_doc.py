@@ -287,7 +287,7 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
     for cand in (path.parent / "claims.csv", path.parent.parent / "claims.csv"):
         if cand.exists():
             rows = claims_mod.load(cand)
-            for e in claims_mod.validate(rows):
+            for e in claims_mod.validate(rows, cand.parent):
                 issues.append(Issue("block", 1, "claims-file", f"{cand.name}: {e}"))
             # 削りすぎの検知: 設計書に載せるはずの主張（target が doc / both）が、同じフォルダのどの設計書にも出てこない
             # 本文に見えている ID と、<!-- claims: C3,C4 --> に列挙した ID を数える（範囲「C1〜C28」のコメントは数えない）
