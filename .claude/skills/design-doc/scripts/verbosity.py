@@ -27,7 +27,7 @@ sys.path.insert(0, str(HERE.parent.parent / "slides" / "scripts"))
 from lint_slides import load_ng_words, strip_md, zen_len  # noqa: E402
 
 NG_FILES = (HERE.parent.parent / "slides" / "references" / "ng_words.md", HERE.parent / "references" / "ng_doc.md")
-FILLER_CLASSES = ("generic", "meta", "hedge")
+FILLER_CLASSES = ("generic", "meta", "obvious", "hedge")
 
 # 閾値（初期値。最初の数文書で較正する）
 LIMITS = {

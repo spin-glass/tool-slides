@@ -15,13 +15,18 @@
   reader-entry        冒頭の表の「読む人」が2者以上なのに、それぞれが読む章（§）を添えていない
   undecided-at-end    未決の一覧の章が末尾にあり、本文から3回以上参照される
   ref-share           本文の段落の半分超が本書の別の章を参照している（§1・同じ章・他の文書への参照は数えない）
-  opaque-id           要件ID（FR-001 の形）が本文に5回以上（付録は除く）
+  opaque-id           識別子（要件ID FR-001 の形と、「決定#12」「確認が要る事項#3」「#7」）が本文に5回以上（付録は除く）
   bold-lead           段落の4割超が太字の文で始まる（段落が8つ以上の文書だけ。均等に撒かれた強調は何も強調しない）
   figure-dup          図の箱の語の7割以上が、同じ章の表か箇条書きにもある（図と表で同じことを2回読ませる。片方にする）
   appendix-scatter    本文から付録への参照が5回以上あり、§1 に付録への入口（「付録B」の参照）が無い（未決や仮の値を付録に集めて
                       本文から飛ばすと、読み手は付録に着くまで何が決まっていないか分からない）
   reader-path-dep     読む人ごとの章（冒頭の表の「経理課（§2〜§3）」）が、その人の読まない章を参照している（§1 と提案の章への
                       参照は数えない）
+  excuse-paren        括弧の中が言い訳（「〜ため」「〜できない」「〜ではない」で終わる）
+  restated-decision   「#### 補足」の箇条書きの1文目が、同じ節の本文の太字の文（決定）を言い直している
+  coined-term         プロジェクトの NG 語（plans/doc_ng_phrases.md。文書ごとの独自の語）が本文にある
+  recounted-number    「N点」「N件」「Nつ」が、同じ章の表の行数と同じ（表を数え直した数。表が変わると古くなる）
+  doc-header          冒頭の表に「この文書が扱うこと／読む人／関連文書／版」のどれかが無い（長い文書だけ）
   table-dup           表の直前・直後の短い段落が、表にあることを書いている（表の見出しの語の7割以上、段落の語の7割以上が表にある、
                       または表の行数と同じ「2つの」「3件」を言う。figure-dup の表版）
 区分: 冒頭／要点（§1）／前置き（文書の説明）／引く表／本文／付録。閾値は verbosity.py の LIMITS。
@@ -43,7 +48,8 @@ from verbosity import LIMITS, Finding, strip_md, zen_len  # noqa: E402
 
 RULES = frozenset(("front-matter-long", "summary-missing", "summary-items", "summary-rows", "reference-in-path", "same-shape",
                    "path-long", "reader-entry", "undecided-at-end", "ref-share", "opaque-id", "bold-lead", "figure-dup",
-                   "appendix-scatter", "table-dup", "reader-path-dep"))
+                   "appendix-scatter", "table-dup", "reader-path-dep", "excuse-paren", "restated-decision", "coined-term",
+                   "recounted-number", "doc-header"))
 # §1 に要る4つの要点。題ではなく中身で見る（題を「要点」に変えるだけで通る検査は、中身を揃える動機にならない）
 SUMMARY_ITEMS = (
     ("何を変えるか", re.compile(r"変える|変更|替える|置き換え|現行|移行後|変更後|導入|切り替え|切替")),
@@ -59,7 +65,8 @@ META_TABLE_WORDS = ("基本設計", "詳細設計", "処理設計", "ML設計", 
 REF_RE = re.compile(r"§\s*(?P<a>\d+(?:\.\d+)*)|(?P<b>\d+(?:\.\d+)+)節|第(?P<c>\d+)章")
 # 参照の直前12字か直後6字にこれらがあれば、他の文書への参照（「基本設計 §5.1」「原文 §3.2」「§12 は原文に無い」）
 DOC_WORDS = ("原文", "基本設計", "処理設計", "ML設計", "精度検証", "運用・移行", "運用設計", "移行設計", "設計書", "文書", "仕様書", "マニュアル")
-OPAQUE_ID_RE = re.compile(r"(?<![A-Za-z0-9])[A-Z]{2,4}-\d{2,}(?:-[A-Z0-9]+)*(?![A-Za-z0-9])")
+OPAQUE_ID_RE = re.compile(r"(?<![A-Za-z0-9])[A-Z]{2,4}-\d{2,}(?:-[A-Z0-9]+)*(?![A-Za-z0-9])"
+                          r"|(?<![A-Za-z0-9&/#(])#\d{1,4}(?![\dA-Za-z])")   # 「決定#12」「確認が要る事項#3」「#7」も同じ
 APPENDIX_RE = re.compile(r"^(付録|参考|用語|変更履歴|改訂履歴|別紙|別表)")
 # 文書についての説明の章。「対象と範囲」「背景」は中身（何を変えるか）のことが多いので入れない
 META_HEADING_RE = re.compile(r"位置づけ|位置付け|読み方|読む順|読者|文書の構成|本書の構成|章立て|章構成|構成と読み方|文書一覧|文書の一覧|"
@@ -521,6 +528,120 @@ def table_duplicates(lines: list[str]) -> list[tuple[int, int, str, str]]:
     return out
 
 
+EXCUSE_PAREN_RE = re.compile(r"[（(]([^（）()]{2,60}?(?:ため|ためである|ためだ|できない|できないため|ではない|ではないため))[）)]")
+SUPPLEMENT_RE = re.compile(r"^#{2,6}\s*(?:\d+(?:\.\d+)*\.?\s*)?補足\s*$")
+BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
+COUNTER_RE = re.compile(r"(?<![0-9０-９.§])([0-9０-９]+|[一二三四五六七八九十])\s*(?:つ|点|件|個|種類|項目|束|区分|段階|通り|条件)")
+HEADER_ITEMS = (("この文書が扱うこと", re.compile(r"扱う|対象|範囲")), ("読む人", READER_ROW_RE),
+                ("関連文書", re.compile(r"関連")), ("版", re.compile(r"版|状態|バージョン")))
+PROJECT_NG = ("plans/doc_ng_phrases.md",)      # プロジェクト側の NG 語（文書ごとの独自の語）。vault の deck_ng_phrases.md と同じ形
+
+
+def _to_int(x: str) -> int:
+    x = x.translate(str.maketrans("０１２３４５６７８９", "0123456789"))
+    return int(x) if x.isdigit() else KANJI_NUM.get(x, -1)
+
+
+def _body_paragraphs(lines: list[str]):
+    """表・コード・見出し・コメントを除いた本文の行（0始まりの行, 文字列）。"""
+    fence: str | None = None
+    for i, raw in enumerate(lines):
+        s = raw.strip()
+        if fence:
+            if s.startswith(fence) and s.strip(fence[0]) == "":
+                fence = None
+            continue
+        m = FENCE_RE.match(s)
+        if m:
+            fence = m.group(1)
+            continue
+        if not s or s.startswith(("#", "|", "<!--")):
+            continue
+        yield i, re.sub(r"<!--.*?-->", "", s)
+
+
+def excuse_parens(lines: list[str]) -> list[tuple[int, str]]:
+    out = []
+    for i, s in _body_paragraphs(lines):
+        for m in EXCUSE_PAREN_RE.finditer(verbosity.QUOTE_RE.sub("", s)):
+            out.append((i, m.group(1)))
+    return out
+
+
+def restated_decisions(lines: list[str], hs: list[tuple[int, int, str, str]]) -> list[tuple[int, str, str]]:
+    """「#### 補足」の箇条書きの1文目が、同じ節（補足の見出しの1つ上の見出しから）の太字の文と語を共有するもの。
+    (行, 補足の1文目, 太字の文)。2文字の組の6割以上が太字の文にあれば、言い直しとみなす。"""
+    out = []
+    for k, (i, level, _, _) in enumerate(hs):
+        if not SUPPLEMENT_RE.match(lines[i].strip()):
+            continue
+        parent = next((h for h in reversed(hs[:k]) if h[1] < level), None)
+        start = parent[0] + 1 if parent else 0
+        bold = [_norm(m.group(1)) for _, s in _body_paragraphs(lines[start:i]) for m in BOLD_RE.finditer(s)]
+        if not bold:
+            continue
+        end = next((h[0] for h in hs[k + 1:] if h[1] <= level), len(lines))
+        for j in range(i + 1, end):
+            raw = lines[j]
+            if not verbosity.ITEM_RE.match(raw):
+                continue
+            first = re.split(r"[。．]", strip_md(verbosity.ITEM_RE.sub("", raw)))[0]
+            mine = _bigrams(_norm(first))
+            if len(_norm(first)) < 6:
+                continue
+            for b in bold:
+                if len(mine & _bigrams(b)) >= 0.6 * len(mine):
+                    out.append((j, first[:24], b[:24]))
+                    break
+    return out
+
+
+def project_ng(path: Path) -> list[tuple[str, str, Path]]:
+    """プロジェクト側の NG 語。設計書のフォルダから上へ（.git のあるフォルダまで）plans/doc_ng_phrases.md を探す。
+    環境変数 DESIGN_DOC_NG に別のファイルを渡してもよい。1行「- 語」か「- 語 → 言い換え」。(語, 言い換え, ファイル)。"""
+    import os
+    files = [Path(os.environ["DESIGN_DOC_NG"]).expanduser()] if os.environ.get("DESIGN_DOC_NG") else []
+    for d in [path.resolve().parent, *path.resolve().parents]:
+        files += [d / name for name in PROJECT_NG]
+        if (d / ".git").exists():
+            break
+    out = []
+    for f in files:
+        if not f.is_file():
+            continue
+        for line in f.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"^\s*[-*]\s+(.+?)\s*$", line)
+            if not m:
+                continue
+            word, _, alt = re.sub(r"\s*(->|：)\s*", "→", m.group(1)).partition("→")
+            word = word.strip("`「」 ")
+            if word:
+                out.append((word, alt.strip(), f))
+        break                                   # いちばん近いファイルだけ使う
+    return out
+
+
+def recounted_numbers(lines: list[str], chapters: list[Chapter], skip: set[int]) -> list[tuple[int, str, int]]:
+    """本文の「N点」「N件」「Nつ」が、同じ章の表の行数と同じもの。(行, 語, 表の開始行)。skip の行（table-dup で知らせた）は除く。"""
+    out = []
+    for k, c in enumerate(chapters):
+        end = chapters[k + 1].line - 1 if k + 1 < len(chapters) else len(lines)
+        body = lines[c.line:end]
+        rows = {len(r) - 1: c.line + st for st, r in verbosity.tables(body) if len(r) >= 3}
+        if not rows:
+            continue
+        for i, s in _body_paragraphs(body):
+            at = c.line + i
+            if at in skip or CAPTION_RE.match(strip_md(s)):
+                continue                        # 「図3 移行の4段階」の題には数を書いてよい
+            for m in COUNTER_RE.finditer(verbosity.QUOTE_RE.sub("", strip_md(s))):
+                n = _to_int(m.group(1))
+                if n in rows:
+                    out.append((at, m.group(0), rows[n]))
+                    break
+    return out
+
+
 def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
     """(findings, 冒頭, 章の一覧) を返す。"""
     ng = ng if ng is not None else verbosity.load_ng()
@@ -665,7 +786,7 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
     if n_ids >= lim["opaque_id_warn"]:
         ex = next((c.id_example for c in [pre] + chapters if c.id_example), "")
         findings.append(Finding("warning", 1, "opaque-id",
-                                f"要件ID（{ex}）が本文に{n_ids}回（付録を除く）。読み手は ID の中身を知れないので、本文では要件の内容を書き、"
+                                f"識別子（{ex}）が本文に{n_ids}回（付録を除く）。読み手は ID の中身を知れないので、本文では要件・決定の内容を書き、"
                                 "ID は付録の対応表だけに置く"))
 
     # 太字の文で始まる段落の割合（均等に撒かれた強調は何も強調しない）
@@ -682,10 +803,53 @@ def analyze(path: Path, ng: dict[str, list[re.Pattern]] | None = None):
                                 "分岐・合流・戻りが無ければ図を消して表（手順なら番号つきの箇条書き）を残し、あれば表の側を減らす"))
 
     # 表にあることを書いた、表の直前・直後の段落
-    for at, start, head, why in table_duplicates(lines):
+    dups = table_duplicates(lines)
+    for at, start, head, why in dups:
         findings.append(Finding("warning", at + 1, "table-dup",
                                 f"{start}行目の表の隣の段落「{head}…」は表にあることを書いている（{why}）。消すか、"
                                 "表に無いこと（決定・例外・次にすること）だけを残す"))
+
+    # 表の行数を数え直した数（表が変わると古くなる。行数は表を見れば分かる）
+    for at, word, start in recounted_numbers(lines, chapters, {d[0] for d in dups}):
+        findings.append(Finding("warning", at + 1, "recounted-number",
+                                f"「{word}」は {start}行目の表の行数と同じ。表を数え直した数は、表に行を足すと古くなる。"
+                                "数を消して表を指す（「次の表の条件」）か、数が判断に要るなら表の題に書く"))
+
+    # 言い訳の括弧
+    exc = excuse_parens(lines)
+    if exc:
+        findings.append(Finding("warning", exc[0][0] + 1, "excuse-paren",
+                                f"括弧の中が言い訳になっている（{len(exc)}か所: " + "、".join(f"「{t[:20]}」" for _, t in exc[:4]) + "）。"
+                                "理由が決定に要るなら本文の1文にし、要らないなら括弧ごと消す"))
+
+    # 補足の1文目で決定を言い直す
+    for at, first, bold in restated_decisions(lines, hs):
+        findings.append(Finding("warning", at + 1, "restated-decision",
+                                f"補足の1文目「{first}…」が、同じ節の太字の文「{bold}…」を言い直している。補足には決定に無いこと"
+                                "（理由・例外・測り方）だけを書く"))
+
+    # プロジェクト側の NG 語（文書ごとの独自の語）
+    words = project_ng(path)
+    if words:
+        hits: dict[str, tuple[int, str]] = {}
+        for i, s in _body_paragraphs(lines):
+            t = verbosity.QUOTE_RE.sub("", s)
+            for w, alt, _ in words:
+                if w in t and w not in hits:
+                    hits[w] = (i, alt)
+        for w, (i, alt) in list(hits.items())[:8]:
+            findings.append(Finding("warning", i + 1, "coined-term",
+                                    f"「{w}」はプロジェクトの NG 語（{words[0][2].name}）。" + (f"「{alt}」と書く" if alt else "読み手の語に言い換える")))
+
+    # 冒頭の表の項目（長い文書だけ）
+    if long and chapters:
+        pre_lines = lines[yaml_end(lines):chapters[0].line - 1]
+        firsts = [strip_md(r[0]) for _, rows in verbosity.tables(pre_lines) for r in rows[1:] if r]
+        missing = [name for name, pat in HEADER_ITEMS if not any(pat.search(f) for f in firsts)]
+        if missing:
+            findings.append(Finding("warning", yaml_end(lines) + 1, "doc-header",
+                                    ("冒頭の表が無い。" if not firsts else f"冒頭の表に{'・'.join(missing)}の行が無い。")
+                                    + "「この文書が扱うこと／読む人／関連文書／版」の4行をそろえる（関連文書が無ければ「無い」と書く）"))
 
     # 付録への参照が本文に散らばり、§1 に付録への入口が無い
     s1 = chapters[0] if chapters and chapters[0].num == "1" else None
