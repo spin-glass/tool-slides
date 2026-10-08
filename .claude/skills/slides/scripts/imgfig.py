@@ -309,7 +309,7 @@ def _claim_warnings(text: str, counts: dict, outside) -> list[str]:
     return out
 
 
-def claim(text: str, counts: dict, outside=None) -> str:
+def claim(text: str, counts: dict, outside=None, where: dict | None = None) -> str:
     """タイトルなどで写真の枚数を言う文を、数ごとの写真で確かめる（描画のコードで呼ぶ。数が合わなければ止まる）。
 
         imgfig.claim("ラベルが犬の誤り12枚のうち7枚は、猫かオウムの写真だ",
@@ -318,7 +318,15 @@ def claim(text: str, counts: dict, outside=None) -> str:
     数ごとに、文が指す範囲の写真を確認の表から選び直して渡す（図や前の計算の一部を流用しない）。文の「N枚」はすべて
     counts に入れる。文の名前（確認の表のクラス）が写っていない写真や、「N枚のうちM枚」のM枚に入れなかった写真にも
     名前が写るときは、render_check が知らせる。文の形容（「白い猫」の白いなど）で外した写真は outside に渡す。
-    render_check は、claim の無いタイトルの枚数も知らせる。返り値は text。"""
+    render_check は、claim の無いタイトルの枚数も知らせる。返り値は text。
+
+    where は、主張の根拠になる列の値。渡した写真すべてで確かめる（合わなければ止まる）。写真に何が写るか（classes）だけでは
+    「今のモデルが犬と判定した中に混じる例」のような主張は確かめられない（今の判定は写真に写らない）。確認の表かデータの表に
+    根拠の列を持たせて渡す:
+
+        imgfig.claim("今のモデルが犬と判定した写真に混じる猫6枚", {6: mixed}, where={"現行の判定": "犬"})
+
+    値には文字列（一致）、文字列の組（どれか）、関数（真なら合格）を渡せる。"""
     nums = [int(n) for n in COUNT_RE.findall(text)]
     counts = {int(n): list(items) for n, items in counts.items()}
     missing = sorted(set(nums) - set(counts))
@@ -328,6 +336,18 @@ def claim(text: str, counts: dict, outside=None) -> str:
         if len(items) != n:
             raise AssertionError(f"「{text}」の {n} 枚は、渡した写真では {len(items)} 枚。文が指す範囲の写真を確認の表から"
                                  "選び直し、数か文を直す")
+    for col, want in (where or {}).items():
+        ok = want if callable(want) else (lambda v, w=want: v in w) if isinstance(want, (set, tuple, list, frozenset)) \
+            else (lambda v, w=want: v == w)
+        for n, items in counts.items():
+            lacking = [it.id for it in items if col not in getattr(it, "attrs", {})]
+            if lacking:
+                raise AssertionError(f"「{text}」の根拠の列「{col}」が表に無い写真がある（{', '.join(lacking[:6])}）。"
+                                     "確認の表かデータの表に列を足す")
+            bad = [it.id for it in items if not ok(str(it.get(col, "")).strip())]
+            if bad:
+                raise AssertionError(f"「{text}」の {n} 枚のうち {len(bad)} 枚は「{col}」が条件に合わない（{', '.join(bad[:6])}）。"
+                                     "主張を支持しない写真を実例にしない。写真を選び直すか、文を直す")
     if os.environ.get("IMGFIG_REPORT"):
         with open(os.environ["IMGFIG_REPORT"], "a", encoding="utf-8") as f:
             f.write(json.dumps({"claim": text, "counts": {str(n): _ids(items) for n, items in counts.items()},

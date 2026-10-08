@@ -144,3 +144,49 @@ class ClaimsRequired(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClaimsTableWithoutDeclaration(unittest.TestCase):
+    """claims.csv があるデッキは `claims: required` と同じに扱う（宣言が無くても、claims の無い本編の枚を block）。"""
+
+    def test_claims_csv_means_required(self):
+        with tempfile.TemporaryDirectory() as d:
+            deck = Path(d) / "index.qmd"
+            deck.write_text("---\ntitle: 架空\n---\n\n<!-- audience: 経理部 -->\n<!-- action: 承認する -->\n<!-- minutes: 5 -->\n"
+                            "<!-- budget: 2 -->\n<!-- status: approved -->\n\n## 請求書は OCR で読み取ると決めました\n\n"
+                            "<!-- claims: C1 -->\n\n- 経理課が保留の項目だけを確かめる\n\n## 読み誤りは月末に経理課が直します\n\n"
+                            "- 原本と照らして直す\n", encoding="utf-8")
+            (Path(d) / "claims.csv").write_text(
+                "id,doc,section,claim,status,evidence,owner,target,note\n"
+                "C1,運用設計,§2,請求書は OCR で読み取る,方針,,,deck,\n", encoding="utf-8")
+            issues = lint.check_deck(lint.parse_deck(deck), lint.load_ng_words())
+            missing = [i for i in issues if i.rule == "claims-missing"]
+            self.assertEqual([(i.severity, i.slide.index) for i in missing], [("block", 2)])
+
+
+class TermsColumn(unittest.TestCase):
+    def test_terms_blank_and_malformed(self):
+        rows = [dict(id="C1", doc="運用設計", section="§2", claim="保留は確信度が低い項目", status="方針", evidence="", owner="",
+                     target="deck", note="", terms=""),
+                dict(id="C2", doc="運用設計", section="§3", claim="経理課が直す", status="方針", evidence="", owner="",
+                     target="both", note="", terms="直す"),
+                dict(id="C3", doc="運用設計", section="§4", claim="月次で見直す", status="方針", evidence="", owner="",
+                     target="deck", note="", terms="見直し=レビュー; 月次=毎月"),
+                dict(id="C4", doc="運用設計", section="§5", claim="版を上げる", status="方針", evidence="", owner="",
+                     target="doc", note="", terms="")]
+        warns = claims.warnings(rows)
+        self.assertEqual([w.split(":")[0] for w in warns], ["2行目 C1", "3行目 C2"])   # 空欄と形の誤り。doc だけの行は見ない
+
+
+class SourceTerms(unittest.TestCase):
+    def test_lists_source_words_used_verbatim(self):
+        with tempfile.TemporaryDirectory() as d:
+            deck = Path(d) / "index.qmd"
+            deck.write_text("---\ntitle: 架空\n---\n\n## 範囲外の請求書は手で入力します\n\n<!-- claims: C1 -->\n\n- 経理課が入力する\n",
+                            encoding="utf-8")
+            (Path(d) / "claims.csv").write_text(
+                "id,doc,section,claim,status,evidence,owner,target,note,path,rev,quote\n"
+                "C1,運用設計,§2,範囲外の請求書は手入力,方針,,,deck,,,,「範囲外」の請求書は経理課が手で入力する\n", encoding="utf-8")
+            terms = lint.source_terms(lint.parse_deck(deck))
+            self.assertEqual(len(terms), 1)
+            self.assertIn("範囲外（C1）", terms[0])
