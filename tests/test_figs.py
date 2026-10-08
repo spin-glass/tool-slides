@@ -54,7 +54,7 @@ class Figures(unittest.TestCase):
             figs.direction([("x", [("y", 1.5)])])
 
     def test_bars_highlight_only_claim(self):
-        ax = figs.bars(["店内", "外観", "料理"], [30, 12, 8], highlight="店内", unit="件")
+        ax = figs.bars(["PDF", "紙のスキャン", "FAX"], [30, 12, 8], highlight="PDF", unit="件")
         self.assertEqual([to_hex(p.get_facecolor()) for p in ax.patches], [figs.BLUE, figs.GRAY, figs.GRAY])
         self.assertIn("30件", [t.get_text() for t in ax.texts])
         with self.assertRaises(ValueError):

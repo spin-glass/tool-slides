@@ -444,32 +444,32 @@ class Layout(unittest.TestCase):
         self.assertIn("確認の表（look.csv）に無い写真 2 枚（p1, p2）", found[0])
 
     def test_negative_headings_check_that_the_class_is_absent(self):
-        items = self.photos([(256, 171)] * 3)          # p0: 内観だけ、p1: 内観と料理、p2: 料理だけ
+        items = self.photos([(256, 171)] * 3)          # p0: 犬だけ、p1: 犬と猫、p2: 猫だけ
         d = Path(tempfile.mkdtemp())
-        (d / "look.csv").write_text("id,classes,note\np0,内観,\np1,内観;料理,\np2,料理,\n", encoding="utf-8")
+        (d / "look.csv").write_text("id,classes,note\np0,犬,\np1,犬;猫,\np2,猫,\n", encoding="utf-8")
         looked = imgfig.load_look(items, d / "look.csv")
         report = d / "report.jsonl"
         os.environ["IMGFIG_REPORT"] = str(report)
         try:
-            imgfig.panels_figure([("料理でない", looked[:2]), ("料理", looked[2:])], caption=imgfig.seen)
+            imgfig.panels_figure([("猫でない", looked[:2]), ("猫", looked[2:])], caption=imgfig.seen)
         finally:
             del os.environ["IMGFIG_REPORT"]
             imgfig.plt.close("all")
         found = imgfig.check_look(report, d / "look.csv")
-        self.assertEqual(len(found), 1, found)          # p0（料理が写らない）は知らせず、p1 だけ
-        self.assertIn("料理が写らない群だと述べているが、確認の表（classes 列）では p1 に料理が写る（内観・料理）", found[0])
+        self.assertEqual(len(found), 1, found)          # p0（猫が写らない）は知らせず、p1 だけ
+        self.assertIn("猫が写らない群だと述べているが、確認の表（classes 列）では p1 に猫が写る（犬・猫）", found[0])
 
     def test_counts_checked_comment_skips_title_counts(self):
         d = Path(tempfile.mkdtemp())
         (d / "index.qmd").write_text(
-            "## 645枚で明らかな誤りが65枚から41枚に減る {denominator=\"全体\"}\n\n"
-            "<!-- counts: checked plans/design_spec_numbers.md で検算 -->\n\n"
+            "## 1200枚で読み誤りが48枚から30枚に減る {denominator=\"全体\"}\n\n"
+            "<!-- counts: checked plans/numbers.md で検算 -->\n\n"
             "## 別の集計では30枚だった\n\n<!-- counts: checked -->\n", encoding="utf-8")
         (d / "index.html").write_text(
-            '<section class="slide level2"><h2>645枚で明らかな誤りが65枚から41枚に減る</h2></section>'
+            '<section class="slide level2"><h2>1200枚で読み誤りが48枚から30枚に減る</h2></section>'
             '<section class="slide level2"><h2>別の集計では30枚だった</h2></section>', encoding="utf-8")
         self.assertEqual(imgfig.checked_titles(d / "index.qmd"),
-                         {"645枚で明らかな誤りが65枚から41枚に減る": "plans/design_spec_numbers.md で検算"})
+                         {"1200枚で読み誤りが48枚から30枚に減る": "plans/numbers.md で検算"})
         found = imgfig.check_claims(d / "index.html", None, d / "index.qmd")
         self.assertEqual(len(found), 1, found)          # 理由の無い宣言は外さない
         self.assertTrue(found[0].startswith("スライド2"))
