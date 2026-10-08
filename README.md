@@ -25,9 +25,12 @@ claude   # 「/slides 〜の発表資料を作って」
 mkdir -p ~/.claude/skills
 ln -s "$PWD/.claude/skills/slides"     ~/.claude/skills/slides
 ln -s "$PWD/.claude/skills/design-doc" ~/.claude/skills/design-doc
+ln -s "$PWD/.claude/skills/measurement-integrity" ~/.claude/skills/measurement-integrity
 mkdir -p ~/.claude/agents
 ln -s "$PWD/.claude/agents/doc-reviewer.md" ~/.claude/agents/doc-reviewer.md
 ```
+
+`measurement-integrity` は、数値を資料に載せる前に「解きたい問題 → 指標 → データ → 出所」の対応を検査し、対応が取れないときは数値を出さずに止めるスキル（Unlicense。`.claude/skills/measurement-integrity/LICENSE`）。
 
 `doc-reviewer` は、書いたセッションとは別のコンテキストで資料を検算するサブエージェント（数値の出典・標本と層化・確定と未決・ノートと本文・本文と出典の射程）。案件に固有の観点と参照資料（数値の一覧・決定の一覧・案件の NG 語）は、呼び出すときにファイルのパスで渡す。案件のパスや数値はこのリポジトリに入れない。
 
@@ -103,6 +106,7 @@ filters/strip-comments.lua        lint 用の HTML コメントを出力から�
 decks/<yyyy-mm-dd>-<name>/index.qmd   1発表 = 1フォルダ
 .claude/skills/slides/            スキル本体・規約・例・NG辞書・lint・スクショ・画像の図（imgfig.py）・型の図（figs.py）
 .claude/skills/design-doc/        設計書と確認型スライド: 主張の表（claims.py）・設計書の検査（check_doc.py）・規約・雛形
+.claude/skills/measurement-integrity/  数値が主張を支えているかの検査（問題・指標・データ・出所の対応と、止める条件）
 .claude/agents/doc-reviewer.md    検算レビュー用のサブエージェント（案件の観点は呼び出し時にパスで渡す）
 decks/<name>/claims.csv, design/  （設計書の案件のみ）主張の表と、組み替えた設計書（Markdown＋Mermaid）
 decks/_template_confirm/          確認型スライドの雛形（kind: confirm）
