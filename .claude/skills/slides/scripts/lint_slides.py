@@ -52,6 +52,12 @@ LIMITS = {
     "check_chars_block": 40,   # 確認点（::: {.check}）は1行
 }
 
+# 文書型（front matter に density: document）。配布して読ませる文書型のデッキだけ、本文の量の上限を緩め、タイトルの
+# 体言止めを許す。宣言の無いデッキの判定は変えない（references/rules.md の「文書型の密度」）
+DENSITY_LIMITS = {
+    "document": {"bullets_block": 8, "bullets_warn": 6, "lines_block": 25, "body_chars_block": 500},
+}
+
 REQUIRED_META = ("audience", "action", "minutes", "budget", "status")
 STATUSES = ("ghost", "approved")
 KINDS = ("", "confirm")        # confirm = 確認型（決めたことを伝えて齟齬を確かめる。design-doc スキル）
@@ -465,7 +471,7 @@ class Issue:
         return f"{self.severity.upper():7} {where} {self.rule}: {self.message}"
 
 
-def check_title(s: Slide, title_limit: float = LIMITS["title_chars_block"]) -> list[Issue]:
+def check_title(s: Slide, title_limit: float = LIMITS["title_chars_block"], allow_taigen: bool = False) -> list[Issue]:
     out: list[Issue] = []
     if s.level == 0 or not s.title:
         out.append(Issue("block", s.line, s, "title-missing",
@@ -488,7 +494,7 @@ def check_title(s: Slide, title_limit: float = LIMITS["title_chars_block"]) -> l
     if LABEL_TITLE_RE.search(core):
         out.append(Issue("block", s.line, s, "title-label",
                          "ラベル型タイトル（「〜について」「まとめ」等）。この枚で言いたい結論を完全文で書く"))
-    elif core and not is_hiragana(core[-1]):
+    elif core and not is_hiragana(core[-1]) and not allow_taigen:
         out.append(Issue("block", s.line, s, "title-taigen",
                          "体言止め。述語で終える完全文にする（例: 「〜は3か月で20%増えた」「〜を半減できる」）"))
     return out
@@ -667,6 +673,10 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
         issues.append(Issue("block", deck.meta["kind"][0], None, "gate-kind", f"kind は confirm（確認型）だけ: {kind!r}"))
     confirm = kind == "confirm"
     title_limit = LIMITS["confirm_title_chars_block"] if confirm else LIMITS["title_chars_block"]
+    density = str(deck.front.get("density", "")).strip().strip("\"'")
+    if density and density not in DENSITY_LIMITS:
+        issues.append(Issue("block", 1, None, "density", f"density は {' / '.join(DENSITY_LIMITS)} だけ: {density!r}"))
+    lim = {**LIMITS, **DENSITY_LIMITS.get(density, {})}
     has_undecided = any(s.undecided for s in deck.slides)
     claims, claim_errors, claim_warns = load_claims_for(deck.path.parent)
     # claims.csv があるデッキは `claims: required` と同じに扱う。表があるのに宣言が無いと claims の無い枚が通り、
@@ -717,7 +727,7 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
 
     hedge_total = 0
     for s in deck.slides:
-        issues.extend(check_title(s, title_limit))
+        issues.extend(check_title(s, title_limit, allow_taigen=density == "document"))
 
         # placeholder はどこにあっても block（タイトル・本文・ノート・コード）。
         # まだ決めていない値 `[…]{.tbd}` は、1枚目に「まだ決めていない点」の一覧があるときだけ許す（未決を隠さず示す型）
@@ -878,23 +888,23 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
                 per_col[key] = per_col.get(key, 0) + 1
         bullets = max(per_col.values(), default=0)
         where = "" if len(per_col) <= 1 else f"（列ごとに数えた最大。合計は{sum(per_col.values())}）"
-        if bullets > LIMITS["bullets_block"]:
+        if bullets > lim["bullets_block"]:
             issues.append(Issue("block", s.line, s, "bullets",
-                                f"bullets {bullets} > {LIMITS['bullets_block']}{where}。"
+                                f"bullets {bullets} > {lim['bullets_block']}{where}。"
                                 "根拠を3点に絞り、残りは appendix かノートへ"))
-        elif bullets > LIMITS["bullets_warn"]:
+        elif bullets > lim["bullets_warn"]:
             issues.append(Issue("warning", s.line, s, "bullets",
-                                f"bullets {bullets} > 目標{LIMITS['bullets_warn']}{where}"))
+                                f"bullets {bullets} > 目標{lim['bullets_warn']}{where}"))
 
         nlines = len(visible) + len(s.code)
-        if nlines > LIMITS["lines_block"]:
+        if nlines > lim["lines_block"]:
             issues.append(Issue("block", s.line, s, "lines",
-                                f"{nlines}行 > {LIMITS['lines_block']}行。話す内容は ::: {{.notes}} へ移す"))
+                                f"{nlines}行 > {lim['lines_block']}行。話す内容は ::: {{.notes}} へ移す"))
 
         chars = sum(zen_len(t) for _, t in visible)
-        if chars > LIMITS["body_chars_block"]:
+        if chars > lim["body_chars_block"]:
             issues.append(Issue("block", s.line, s, "body-chars",
-                                f"本文 全角{chars:g}字 > {LIMITS['body_chars_block']}字。説明文はノートへ、スライドには証拠だけ"))
+                                f"本文 全角{chars:g}字 > {lim['body_chars_block']}字。説明文はノートへ、スライドには証拠だけ"))
 
         if len(s.code) > LIMITS["code_lines_block"]:
             issues.append(Issue("block", s.code[0][0], s, "code-lines",
