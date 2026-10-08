@@ -499,3 +499,18 @@ class OutlierDeck(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClaimWhere(unittest.TestCase):
+    """主張の根拠が写真に写らないとき（今のモデルの判定など）、表の列で渡した写真すべてを照らす。"""
+
+    def test_where_checks_every_item(self):
+        a = imgfig.Item("a", Path("a.jpg"), attrs={"現行の判定": "犬"})
+        b = imgfig.Item("b", Path("b.jpg"), attrs={"現行の判定": "猫"})
+        self.assertEqual(imgfig.claim("犬と判定した写真に混じる例1枚", {1: [a]}, where={"現行の判定": "犬"}),
+                         "犬と判定した写真に混じる例1枚")
+        with self.assertRaisesRegex(AssertionError, "1 枚は「現行の判定」が条件に合わない（b）"):
+            imgfig.claim("犬と判定した写真に混じる例2枚", {2: [a, b]}, where={"現行の判定": "犬"})
+        with self.assertRaisesRegex(AssertionError, "根拠の列「変更後の判定」が表に無い"):
+            imgfig.claim("犬と判定した写真に混じる例1枚", {1: [a]}, where={"変更後の判定": "犬"})
+        self.assertTrue(imgfig.claim("2枚", {2: [a, b]}, where={"現行の判定": {"犬", "猫"}}))

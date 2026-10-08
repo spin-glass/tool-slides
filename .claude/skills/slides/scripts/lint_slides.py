@@ -596,9 +596,40 @@ def scope_line(deck: Deck) -> str:
     突き合わせたものが0文だったのに「NG語0件・数値未照合0件」とだけ報告した）。"""
     main = [s for s in deck.slides if not s.appendix and has_content(s)]
     with_claims = [s for s in main if s.claims]
+    to_check = sum(sentence_count(s.body) for s in with_claims)
     unchecked = sum(sentence_count(s.body) for s in main if not s.claims)
-    return (f"-- 見た範囲: 本編 {len(main)}枚（本文のある枚）／ claims のある枚 {len(with_claims)}枚／"
+    return (f"-- 見た範囲: 本編 {len(main)}枚（本文のある枚）／ claims のある枚 {len(with_claims)}枚（文 {to_check}文。"
+            f"claim・quote と1文ずつ照らし、報告に「照らした文N／照らせなかった文K」を書く）／"
             f" claims の無い枚の文 {unchecked}文（出典の文と照らしていない。lint は数字と決まった文字列しか見ない）")
+
+
+TERM_RE = re.compile(r"「([^」]{2,20})」|([ァ-ヶー]{4,})|([一-龥々]{4,})")
+
+
+def source_terms(deck: Deck, limit: int = 12) -> list[str]:
+    """設計書（出典）の語をそのまま使った箇所。各枚の claims の quote（無ければ claim）にある語（「」の中、カタカナ4字以上、
+    漢字4字以上）のうち、その枚のタイトル・本文にそのまま出るもの。機械では良し悪しを決めない（範囲外・線引き・版のような
+    設計書の語は、聴衆に通じるかを人が見る）。claims.csv が無ければ空。"""
+    claims, _, _ = load_claims_for(deck.path.parent)
+    if not claims:
+        return []
+    out = []
+    for s in deck.slides:
+        if s.appendix or not s.claims:
+            continue
+        text = strip_md(s.title) + "\n" + "\n".join(strip_md(t) for _, t in s.body)
+        found: dict[str, str] = {}
+        for cid in s.claims:
+            r = claims.get(cid)
+            if not r:
+                continue
+            for m in TERM_RE.finditer(r.get("quote") or r.get("claim", "")):
+                w = next(g for g in m.groups() if g)
+                if w in text and w not in found:
+                    found[w] = cid
+        if found:
+            out.append(f"  {s.index}枚目「{s.title[:20]}」: " + "、".join(f"{w}（{c}）" for w, c in list(found.items())[:6]))
+    return out[:limit]
 
 
 def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | None = None) -> list[Issue]:
@@ -638,7 +669,9 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
     title_limit = LIMITS["confirm_title_chars_block"] if confirm else LIMITS["title_chars_block"]
     has_undecided = any(s.undecided for s in deck.slides)
     claims, claim_errors, claim_warns = load_claims_for(deck.path.parent)
-    required = claims_required(deck)
+    # claims.csv があるデッキは `claims: required` と同じに扱う。表があるのに宣言が無いと claims の無い枚が通り、
+    # 表の note に書かれた誤りを読まずに済ませられた（2026-10-08）
+    required = claims_required(deck) or claims is not None
     if required and claims is None and not claim_errors:
         issues.append(Issue("block", 1, None, "claims-file",
                             "`claims: required` なのに、デッキのフォルダに claims.csv が無い。本文の各枚の主張を、出典の文（quote）と"
@@ -776,7 +809,7 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
                                     "`<!-- claims: C1,C2 -->` で、この枚の主張の出所（claims.csv の id）を記録する"))
         if required and not s.appendix and not s.claims and status != "ghost" and has_content(s):
             issues.append(Issue("block", s.line, s, "claims-missing",
-                                "`claims: required` のデッキでは、本編の各枚に `<!-- claims: C1,C2 -->` を書く。数字が無く決まった文字列も"
+                                "`claims: required` のデッキ（claims.csv があるデッキを含む）では、本編の各枚に `<!-- claims: C1,C2 -->` を書く。数字が無く決まった文字列も"
                                 "含まない文（限定句を落とした言い換え・原文に無い否定）は lint では捕まらないので、出典の文と表で照らす"))
         # 「」内は語の引用（例示）なので NG 語検査から外す
         unquoted = [(ln, QUOTE_RE.sub("", t)) for ln, t in visible + [(s.line, strip_md(s.title))]]
@@ -1016,6 +1049,10 @@ def main() -> int:
             print(i.fmt(f))
         print(f"-- {f}: block {nb} / warning {nw}")
         print(scope_line(deck))
+        terms = source_terms(deck)
+        if terms:
+            print("-- 設計書の語をそのまま使った箇所（聴衆に通じる語かを人が見る。lint は判定しない）:")
+            print("\n".join(terms))
         print()
         print(title_list(deck))
         print()

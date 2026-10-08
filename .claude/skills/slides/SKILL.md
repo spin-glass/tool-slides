@@ -95,7 +95,8 @@ Python は `$SLIDES_PYTHON` → プロジェクトの `.venv` → tool-slides �
 - **条件句を落として1行に収めない。** 収まらなければ条件を見出しへ上げるか2行に分ける（落とした瞬間に文の射程が原文より広がる）
 - **`claim` に無い句を足さない。** 特に断定を整えるための対の否定句（「A でよいので B にはしない」の B）。未決・想定は見出しでも分かる形にする
 - 各枚を書き終えたら読み返し、同じ枚に未決と確定が並んでいないかを確かめる
-- 出典のある主張を載せるデッキは YAML に `claims: required` を書き、`claims.csv` に出典の文（`quote`）と版（`rev`）を写す（`design-doc/references/claims.md`）。数字の無い言い換えは lint を通るので、表で照らすしかない
+- 出典のある主張を載せるデッキは YAML に `claims: required` を書き、`claims.csv` に出典の文（`quote`）と版（`rev`）を写す（`design-doc/references/claims.md`）。数字の無い言い換えは lint を通るので、表で照らすしかない。claims.csv があるデッキは宣言が無くても required と同じに扱う
+- **本編の各文を、その枚の claim と quote に並べて1文ずつ読む。** 報告に「照らした文N／照らせなかった文K」を書く。claims の block を「別のセッションの表だから」と片付けず、中身（note）を読む。原文と違う語は `terms` 列に「デックの語=原文の語」
 - 本編に不要な素材は `<!-- appendix -->` の後ろへ（budget と密度制限の外）。ただし判断の根拠（図・実例）は付録へ逃がさず、減らすのは文
 - 最後の枚は、聴衆にしてほしい行動をタイトルに書いて終える
 - 数値・表・グラフはコードセルで計算・描画し、手で写さない。写真の枚数・タイトルの数字・標本（分母）・確かめられない値の書き方は `references/phases.md` のフェーズ3
@@ -109,6 +110,8 @@ Python は `$SLIDES_PYTHON` → プロジェクトの `.venv` → tool-slides �
 4. `render_check.sh <デッキ>` で全枚を PNG にして全枚を Read で見る。出た WARNING は0件にする（増えたら原因を見る）
 5. `quarto render` で出力する。PDF は `render_check.sh <デッキ> --pdf`。公開は tool-slides の `scripts/publish.sh`（中のデッキだけ）
 6. Stop hook に block されたら、書かれた枚だけを直す
-7. lint や図の関数を直したら、tool-slides で `.venv/bin/python -m unittest discover -s tests` を通す
+7. 検査は段階に分ける: 編集ごとは描画しない検査、図やレイアウトを変えたら描画、区切りではサブエージェントで全枚の目視と出典の照合
+8. 「編集した」と報告する前に `grep` か `git diff` で反映を確かめ、検査の結果には見ないもの（「数値の照合は数字しか見ない」）を併記する
+9. lint や図の関数を直したら、tool-slides で `.venv/bin/python -m unittest discover -s tests` を通す
 
 やらないこと（一発で全枚を生成する、「簡潔に」と言い聞かせて済ませる、指示文を本文に流用する、都合のよい画像だけを選ぶ）と、その理由は `references/evidence.md`。

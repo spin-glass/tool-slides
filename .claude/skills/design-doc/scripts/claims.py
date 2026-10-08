@@ -18,6 +18,8 @@
   path     出典のファイルのパス（~ 可。相対パスは claims.csv のフォルダから）。本人の発言・会議なら空
   rev      出典を読んだときのコミット（短いハッシュ）
   quote    出典の該当文をそのまま写したもの。限定句（の面では・ただし・未決…）を落とさない
+  terms    デックの語と原文の語の対応（「誤り=学習ラベルの誤り; 保留=確信度が低い」）。同じなら「同じ」。
+           この列があれば、target が deck / both の行の空欄を warning にする（設計書に無い語の発明を表で止める）
 
 出典と照らす検査（path があるとき）:
   block   quote-not-found     空白・* ・` を除いて比べても、quote が今の path に無い
@@ -52,6 +54,7 @@ STATUSES = ("事実", "参考値", "方針", "想定", "提案", "決定", "未�
 TARGETS = ("doc", "deck", "both", "none")
 ID_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 SOURCE_COLUMNS = ["path", "rev", "quote"]      # 任意の列
+TERMS_RE = re.compile(r"^\s*(同じ|[^=;]+=[^=;]+(?:\s*;\s*[^=;]+=[^=;]+)*)\s*;?\s*$")
 QUOTE_REQUIRED = ("事実", "方針", "想定", "参考値", "決定")
 # 出典の文の射程を決める限定の語。claim に写すときに最初に落ちる（「処理能力の面では足りる」→「足りる」）
 QUALIFIERS = [(w, re.compile(p)) for w, p in (
@@ -159,7 +162,15 @@ def validate(rows: list[dict[str, str]], base: Path | None = None) -> list[str]:
 def warnings(rows: list[dict[str, str]], base: Path | None = None) -> list[str]:
     """止めないが直すもの。base を渡すと、出典の未コミットの変更と、claim で落ちた限定の語も知らせる。"""
     out = source_checks(rows, base)[1] if base is not None and rows and "path" in rows[0] else []
+    has_terms = bool(rows) and "terms" in rows[0]
     for n, r in enumerate(rows, 2):
+        if has_terms and r.get("target") in ("deck", "both"):
+            t = r.get("terms", "")
+            if not t:
+                out.append(f"{n}行目 {r.get('id')}: terms が空。デックで使う語と原文の語の対応を「デックの語=原文の語」で書く（同じなら「同じ」）。"
+                           "原文に無い語をデックで作らない")
+            elif not TERMS_RE.match(t):
+                out.append(f"{n}行目 {r.get('id')}: terms は「デックの語=原文の語」を ; で区切る（同じなら「同じ」）: {t!r}")
         if r.get("status") in ("未決", "提案") and not r.get("owner"):
             out.append(f"{n}行目 {r.get('id')}: {r.get('status')} に決める担当（owner）が無い。原文に無ければ「原文に無い」と書く（仮の担当は note に「仮: 総務課長」と書き、報告で確かめる）")
     return out

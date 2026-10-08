@@ -159,3 +159,58 @@ class ReaderPaths(Doc):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WritingPatterns(Doc):
+    """2026-10-08 の設計書の修正パターン（言い訳の括弧・補足の言い直し・独自の語・数え直した数・冒頭の表・識別子）。"""
+
+    def test_excuse_paren(self):
+        p = self.doc("# 架空\n\n## 1. 取り込み\n\n請求書は日次で取り込む（月次では締めに間に合わないため）。"
+                     "金額は原本と照らす（台帳では確認できない）。担当は経理課（課長が決める）。\n")
+        found = self.issues(p, "excuse-paren")
+        self.assertEqual(len(found), 1)
+        self.assertIn("2か所", found[0].message)
+
+    def test_restated_decision(self):
+        text = ("# 架空\n\n## 2. 取り込み\n\n**請求書は届いた日のうちに OCR で読み取る。**\n\n#### 補足\n\n"
+                "- 請求書は届いた日のうちに OCR で読み取る。締めの前日に集中しないため。\n"
+                "- 読み取りの失敗は翌朝にまとめて再実行する。\n")
+        found = self.issues(self.doc(text), "restated-decision")
+        self.assertEqual(len(found), 1)
+        self.assertEqual(text.splitlines()[found[0].line - 1][:6], "- 請求書は")
+
+    def test_coined_term_reads_project_file(self):
+        (Path(self.tmp.name) / "plans").mkdir()
+        (Path(self.tmp.name) / "plans/doc_ng_phrases.md").write_text("# NG\n\n- 自動読取ライン → OCR の読み取り\n", encoding="utf-8")
+        p = self.doc("# 架空\n\n## 1. 取り込み\n\n請求書は自動読取ラインで日次に読む。「自動読取ライン」という語は使わない。\n")
+        found = self.issues(p, "coined-term")
+        self.assertEqual(len(found), 1)
+        self.assertIn("OCR の読み取り", found[0].message)
+
+    def test_recounted_number(self):
+        text = ("# 架空\n\n## 2. 例外\n\nこの方式で読めない書類が3種類ある。手で入力する。経理課が月末に見直す。\n\n"
+                "読めない書類は経理課が月末までに手で入力し、件数を記録する。\n\n"
+                "| 書類 | 理由 |\n|---|---|\n| 手書き | 字形がそろわない |\n| FAX | 解像度が低い |\n| 外国語 | 辞書が無い |\n\n"
+                "表1 読めない書類（3種類）\n")
+        found = self.issues(self.doc(text), "recounted-number")
+        self.assertEqual([text.splitlines()[i.line - 1][:6] for i in found], ["この方式で読"])   # 表の題は数を書いてよい
+
+    def test_doc_header_items(self):
+        body = "\n\n".join(para(i) for i in range(24))
+        head = "# 架空\n\n| 項目 | 内容 |\n|---|---|\n| この文書が扱うこと | 運用 |\n| 読む人 | 経理課 |\n{extra}\n" + SUMMARY + "\n## 2. 運用\n\n" + body + "\n"
+        found = self.issues(self.doc(head.format(extra="")), "doc-header")
+        self.assertEqual(len(found), 1)
+        self.assertIn("関連文書・版", found[0].message)
+        self.assertEqual(self.issues(self.doc(head.format(extra="| 関連文書 | 無い |\n| 版 | 1.0（2026-10-08） |")), "doc-header"), [])
+
+    def test_opaque_id_includes_decision_numbers(self):
+        body = "\n\n".join(f"経理課が{i}日目に確かめる（決定#{i + 10}）。" for i in range(6))
+        found = self.issues(self.doc("# 架空\n\n## 1. 運用\n\n" + body + "\n"), "opaque-id")
+        self.assertEqual(len(found), 1)
+        self.assertIn("#10", found[0].message)
+
+    def test_obvious_sentences_are_counted(self):
+        import verbosity
+        ng = verbosity.load_ng()
+        for text in ("要件は4つの束に分かれる", "本書はこの3つを扱わない", "上表の範囲を満たすことである"):
+            self.assertTrue(any(c == "obvious" for c, _ in verbosity.filler_hits(text, ng)), text)
