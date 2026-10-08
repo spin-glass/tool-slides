@@ -25,7 +25,11 @@ claude   # 「/slides 〜の発表資料を作って」
 mkdir -p ~/.claude/skills
 ln -s "$PWD/.claude/skills/slides"     ~/.claude/skills/slides
 ln -s "$PWD/.claude/skills/design-doc" ~/.claude/skills/design-doc
+mkdir -p ~/.claude/agents
+ln -s "$PWD/.claude/agents/doc-reviewer.md" ~/.claude/agents/doc-reviewer.md
 ```
+
+`doc-reviewer` は、書いたセッションとは別のコンテキストで資料を検算するサブエージェント（数値の出典・標本と層化・確定と未決・ノートと本文・本文と出典の射程）。案件に固有の観点と参照資料（数値の一覧・決定の一覧・案件の NG 語）は、呼び出すときにファイルのパスで渡す。案件のパスや数値はこのリポジトリに入れない。
 
 入れたあとは、他のプロジェクトで作業しているときも `python3 ~/.claude/skills/slides/scripts/lint_slides.py <デッキ>/index.qmd` のように呼べる。
 **デッキはこのリポジトリの外に置いてよい。** `render_check.sh` は、デッキから上に辿って `_quarto.yml` を持つフォルダが見つかればそのプロジェクトで描画し、見つからなければこのリポジトリの `_quarto.yml`・`theme/`・`filters/` で一時プロジェクトを組んで描画して、1つにまとめた HTML をデッキの隣に置く。どちらでも見た目は同じになる。
@@ -99,6 +103,7 @@ filters/strip-comments.lua        lint 用の HTML コメントを出力から�
 decks/<yyyy-mm-dd>-<name>/index.qmd   1発表 = 1フォルダ
 .claude/skills/slides/            スキル本体・規約・例・NG辞書・lint・スクショ・画像の図（imgfig.py）・型の図（figs.py）
 .claude/skills/design-doc/        設計書と確認型スライド: 主張の表（claims.py）・設計書の検査（check_doc.py）・規約・雛形
+.claude/agents/doc-reviewer.md    検算レビュー用のサブエージェント（案件の観点は呼び出し時にパスで渡す）
 decks/<name>/claims.csv, design/  （設計書の案件のみ）主張の表と、組み替えた設計書（Markdown＋Mermaid）
 decks/_template_confirm/          確認型スライドの雛形（kind: confirm）
 decks/<name>/prepare.py, data/    （画像のデッキのみ）前処理と、その結果のスコア・サムネイル・出典
