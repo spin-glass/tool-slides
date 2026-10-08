@@ -29,11 +29,13 @@ warning: `## ` の章の直後に図（Mermaid・表・画像）が無い（読�
          claims.csv で設計書に載せるはずの主張が本文に出てこない（削りすぎ）、主張IDが本文に見えている、
          同じ数値を3回以上・全行が同じ値の列・§1 が読む字数の3割超・§1 と付録の外の [要確認]
          構造（structure.py）: 前置き（冒頭の表・文書の説明の章・引く表の章）が本文の中身まで1000字超、§1 が無いか文書の説明になっている、
-         §1 に4つの要点のどれかが無い、§1 の表が8行以上、引く表の章（表7割以上で、行が合計10行以上か要件ID5回以上）が読む路の途中、
-         同じ型で始まる章（先頭3要素）が3章以上続く、読み通す章の合計が6000字超、
-         読む人が2者以上なのに読む章が無い、未決の一覧が末尾にあり本文から3回以上参照、本文の段落の半分超が別の章を参照、要件IDが本文に5回以上
+         §1 の表が8行以上、引く表の章（表7割以上で、行が合計10行以上か要件ID5回以上）が読む路の途中、
+         同じ型で始まる章（先頭3要素）が3章以上続く、読み通す章の合計（読む人ごとの章があればその最長）が6000字超、
+         読む人が2者以上なのに読む章が無い、読む人ごとの章が読まない章を参照、未決の一覧が末尾にあり本文から3回以上参照、
+         本文の段落の半分超が別の章を参照、要件IDが本文に5回以上、表の隣の短い段落が表にあることを書いている、
+         §1 に付録への入口が無いまま本文から付録へ5回以上
 辞書: references/ng_doc.md（一般論・前置き）と slides の references/ng_words.md（ヘッジ・バズワード）。閾値は verbosity.py の LIMITS
-info:    図の PNG の場所、読む字数
+info:    図の PNG の場所、読む字数、§1 に見当たらない要点（助言）
 終了コード: 0 = block なし / 2 = block あり
 """
 from __future__ import annotations
@@ -65,6 +67,7 @@ FENCE_RE = re.compile(r"^(`{3,}|~{3,})\s*\{?([A-Za-z0-9_+.\-]*)\}?.*$")
 # 「3章」は章の数（「章は11」）と区別できないので、「第3章」の形だけを参照として見る
 REF_RE = structure.REF_RE
 DOC_WORDS = structure.DOC_WORDS
+BRACE_BLOCK_TYPES = re.compile(r"^(erDiagram|classDiagram)\b")   # { … } が属性・メンバーの並びになる図
 MERMAID_TYPES = re.compile(r"^(flowchart|graph|gantt|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|pie|journey|"
                            r"timeline|mindmap|quadrantChart|gitGraph|xychart-beta|block-beta|sankey-beta|requirementDiagram|"
                            r"C4Context|C4Container|C4Component|packet-beta|kanban|architecture-beta)\b")
@@ -222,7 +225,10 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
         if not MERMAID_TYPES.match(head):
             issues.append(Issue("block", ln, "mermaid-type",
                                 f"Mermaid の1行目が図の種類でない: {head[:40]!r}（flowchart / gantt / sequenceDiagram など）"))
-        for lab in re.findall(r'\{"?([^}"]+)"?\}', "\n".join(l for l in body.splitlines() if not l.strip().startswith("%%"))):
+        # erDiagram・classDiagram の { … } は属性の並び（「string id PK」）、| は関係の記号（||--o{）で、ラベルではない。
+        # ラベルとして読むと、ひし形・半角の warning が毎回出る（2026-10-08）。この2種類はラベルの検査をしない
+        labels_body = "" if BRACE_BLOCK_TYPES.match(head) else body
+        for lab in re.findall(r'\{"?([^}"]+)"?\}', "\n".join(l for l in labels_body.splitlines() if not l.strip().startswith("%%"))):
             longest = max(zen_len_safe(x) for x in re.split(r"<br\s*/?>", lab))
             if longest > 8:
                 issues.append(Issue("warning", ln, "mermaid-diamond",
@@ -232,7 +238,7 @@ def check_document(path: Path, render: bool = False) -> list[Issue]:
         # quarto の PNG では、半角の文字（数字・.・-・空白・§）が測った幅より広く描かれ、ノードや辺のラベルの一番長い行の
         # 右端が欠ける（「0.7以上」→「0.7以」、「原文 §3」→「原文 §」。2026-10-05 にこの環境でも辺・ノードの両方で再現した）。
         # 目視と描き直しの往復を1回で済ませるため warning にする
-        plain = "\n".join(l for l in body.splitlines() if not l.strip().startswith(("%%", "classDef", "class ", "style ")))
+        plain = "\n".join(l for l in labels_body.splitlines() if not l.strip().startswith(("%%", "classDef", "class ", "style ")))
         risky = []
         for m in re.finditer(r'\[\[?"?([^\]"]+)"?\]?\]|\{"?([^}"]+)"?\}|\(\["?([^\]"]+)"?\]\)|\|"?([^|"]+)"?\|', plain):
             lab = next(g for g in m.groups() if g)
