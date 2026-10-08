@@ -22,7 +22,21 @@
 | 確認型（`<!-- kind: confirm -->`） | 1枚＝決めたこと1つ＋確認点1つ | 確認点 `::: {.check}` が0個・2個以上・全角40字超、タイトル全角56字超（2行まで）。規約は `design-doc` スキル |
 | まだ決めていない値 `[要確認]{.tbd}` | 1枚目の「まだ決めていない点」の一覧に対応 | 一覧 `::: {.undecided}` が無いのに `.tbd` がある |
 | 主張の表（デッキのフォルダに `claims.csv` があるとき） | `<!-- claims: C1 -->` の id が表にある | 無い id、未決の主張を未決と示さない枚。表の `path`・`rev`・`quote` で出典と照らし、quote が今の出典に無い（quote-not-found）・rev より後に出典が変わった（source-changed）・path があって quote が無い |
-| `claims: required`（デッキの YAML か、上の `_quarto.yml`・`_metadata.yml` の `metadata:`） | 本編の各枚に `<!-- claims: … -->` | claims の無い本編の枚（見出しだけの表紙・区切りは除く）、`claims.csv` が無い |
+| `claims: required`（デッキの YAML か、上の `_quarto.yml`・`_metadata.yml` の `metadata:`。デッキのフォルダに `claims.csv` があれば宣言が無くても同じ） | 本編の各枚に `<!-- claims: … -->` | claims の無い本編の枚（見出しだけの表紙・区切りは除く）、`claims.csv` が無い |
+| `density`（デッキの YAML） | 書かない（発表のデッキ）か `document` | `document` 以外の値 |
+
+### 文書型の密度（`density: document`）
+
+配布して読ませる文書型のデッキ（発表しない、読む人が1枚ずつ読む）だけ、YAML に `density: document` と書くと次の上限を緩める。宣言の無いデッキの判定は変えない。
+
+| 対象 | 既定 | `density: document` |
+|---|---|---|
+| bullets / 枚 | 6以上で block（4〜5は warning） | 9以上で block（7〜8は warning） |
+| 行数 / 枚 | 16行以上で block | 26行以上で block |
+| 本文 / 枚 | 全角250字超で block | 全角500字超で block |
+| タイトルの体言止め | block | 許す（ラベル型「〜について」「まとめ」は block のまま） |
+
+発表に使うデッキには書かない。緩めた分は文の量が増えるだけで、1枚＝主張1つ・アクションタイトル・budget は変わらない。
 
 warning（止めないが直す）: 型が無い（type-missing）・型の書き方が本文に無い（type-markup）・本文に `style=` を直接書く（inline-style）・テーマに定義の無いクラスを書く（class-undefined。例 `{.e4}` は見た目が変わらず素通りする）・`{python}` のセルに `#| fig-width`/`#| fig-height` を書く（cell-fig-size。Jupyter では効かない）、承認後に本編のタイトルが変わった・枚が増えた（approved-title-changed）、行動が「選ぶ・判断する」のデッキで最後の枚に図も表も無い（action-evidence）、標本を宣言したデッキで数字のある枚に宣言が無い（denominator-missing）、バズワード、ヘッジ・言い訳・メタ前置き（1枚2個以上、または本編で0.3個/枚超）、画像の代替テキストなし、図を描くセルに `#| fig-alt:` なし、画像を並べた図に選び方（すべて・等間隔・上位・無作為など）の記載なし。
 語彙は `references/ng_words.md`、根拠は `references/evidence.md`。閾値は最初の2〜3デッキで較正する。

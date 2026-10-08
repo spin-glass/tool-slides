@@ -187,3 +187,31 @@ class Helpers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DocumentDensity(unittest.TestCase):
+    """density: document のデッキだけ、本文の量の上限を緩め、タイトルの体言止めを許す。宣言の無いデッキは変えない。"""
+
+    BODY = "\n".join(f"- 経理課が{i}日目に保留の項目を確かめ、読み誤りを台帳に記録する" for i in range(7))
+
+    def deck(self, density: str) -> list:
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "index.qmd"
+            p.write_text(f"---\ntitle: 架空\n{density}---\n\n<!-- audience: 経理部 -->\n<!-- action: 読んで承認する -->\n"
+                         "<!-- minutes: 5 -->\n<!-- budget: 1 -->\n<!-- status: approved -->\n\n"
+                         f"## 請求書の取り込みの手順\n\n<!-- type: text -->\n\n{self.BODY}\n", encoding="utf-8")
+            return [(i.severity, i.rule) for i in lint.check_deck(lint.parse_deck(p), NG)]
+
+    def test_default_is_unchanged(self):
+        found = self.deck("")
+        self.assertIn(("block", "bullets"), found)
+        self.assertIn(("block", "title-taigen"), found)
+
+    def test_document_density_relaxes(self):
+        found = self.deck("density: document\n")
+        self.assertNotIn(("block", "bullets"), found)
+        self.assertIn(("warning", "bullets"), found)            # 7つは目標6を超える
+        self.assertNotIn(("block", "title-taigen"), found)
+
+    def test_unknown_density_blocks(self):
+        self.assertIn(("block", "density"), self.deck("density: dense\n"))
