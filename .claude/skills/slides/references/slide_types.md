@@ -140,10 +140,10 @@ figs.direction([("閾値を上げる", [("読み誤り ↓", 0.6), ("「保留�
 ```
 
 ```python
-#| fig-alt: "型ごとの件数。店内の写真が30件で最も多い。"
+#| fig-alt: "形式ごとの件数。PDF で届く請求書が30件で最も多い。"
 #| fig-width: 13.3
 #| fig-height: 3.6
-figs.bars(df["型"], df["件数"], highlight="店内", unit="件")
+figs.bars(df["形式"], df["件数"], highlight="PDF", unit="件")
 ```
 
 - 最初の図のセルの前に、`include: false` のセルで `import figs` と `figs.setup()` を1回書く（import の書き方は `figs.py` の先頭）。

@@ -49,11 +49,11 @@ OCR で読み取る
 
 [月末]{style="color: red"}に集中する
 
-## 店内の写真が30件で最も多い
+## PDF で届く請求書が30件で最も多い
 
 <!-- type: chart -->
 
 ```{python}
-#| fig-alt: "型ごとの件数。店内が30件で最多。"
-figs.bars(["店内", "外観"], [30, 12], highlight="店内")
+#| fig-alt: "形式ごとの件数。PDF が30件で最多。"
+figs.bars(["PDF", "紙のスキャン"], [30, 12], highlight="PDF")
 ```
