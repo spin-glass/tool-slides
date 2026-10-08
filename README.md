@@ -26,6 +26,7 @@ mkdir -p ~/.claude/skills
 ln -s "$PWD/.claude/skills/slides"     ~/.claude/skills/slides
 ln -s "$PWD/.claude/skills/design-doc" ~/.claude/skills/design-doc
 ln -s "$PWD/.claude/skills/measurement-integrity" ~/.claude/skills/measurement-integrity
+for s in japanese-tech-writing cognitive-rhythm-writing argument-gap-edit; do ln -s "$PWD/.claude/skills/$s" ~/.claude/skills/$s; done
 mkdir -p ~/.claude/agents
 ln -s "$PWD/.claude/agents/doc-reviewer.md" ~/.claude/agents/doc-reviewer.md
 ```
@@ -107,6 +108,7 @@ decks/<yyyy-mm-dd>-<name>/index.qmd   1発表 = 1フォルダ
 .claude/skills/slides/            スキル本体・規約・例・NG辞書・lint・スクショ・画像の図（imgfig.py）・型の図（figs.py）
 .claude/skills/design-doc/        設計書と確認型スライド: 主張の表（claims.py）・設計書の検査（check_doc.py）・規約・雛形
 .claude/skills/measurement-integrity/  数値が主張を支えているかの検査（問題・指標・データ・出所の対応と、止める条件）
+.claude/skills/japanese-tech-writing/ ・cognitive-rhythm-writing/ ・argument-gap-edit/  日本語の技術文書の文章規範・緩急の設計・論証の筋の点検（Unlicense）
 .claude/agents/doc-reviewer.md    検算レビュー用のサブエージェント（案件の観点は呼び出し時にパスで渡す）
 decks/<name>/claims.csv, design/  （設計書の案件のみ）主張の表と、組み替えた設計書（Markdown＋Mermaid）
 decks/_template_confirm/          確認型スライドの雛形（kind: confirm）
