@@ -1,6 +1,6 @@
 """design-doc の検査のうち、2026-10-08 の改稿（判定仕様と表を持つ長い設計書）から足した・直したものを確かめる。
 
-    erDiagram の { … } をラベルとして読まない（T-109）、表にあることを隣の段落に書く（table-dup）、
+    erDiagram の { … } をラベルとして読まない、表にあることを隣の段落に書く（table-dup）、
     §1 の4項目は助言（summary-items）、付録への入口（appendix-scatter）、読む人ごとの経路の長さ（path-long）と
     読まない章への参照（reader-path-dep）。題材はすべて架空。
 
