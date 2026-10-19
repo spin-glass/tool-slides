@@ -4,6 +4,8 @@
 使い方:
   python lint_slides.py decks/foo/index.qmd      # 人間向けレポート（違反＋タイトル連読リスト）
   python lint_slides.py --titles decks/foo/index.qmd  # タイトル連読リストのみ（ゴーストデッキ承認用）
+  python lint_slides.py --standalone decks/foo/index.qmd  # 本編の各枚の見える文だけを1枚1ファイルに書き出す
+                                                 # （_check/standalone/slide-NN.md。他の枚を知らない slide-reader に1枚ずつ読ませる）
   python lint_slides.py                          # decks/**/index.qmd を全部
   python lint_slides.py --hook                   # Stop hook。git で変更のある deck だけを検査し、
                                                  # 違反があれば {"decision":"block","reason":...} を出す
@@ -224,6 +226,7 @@ class Slide:
     denominator: str | None = None                                    # 見出しの {denominator="…"}（この枚の数字の標本）
     heading_attrs: str = ""                                            # 見出しの {…}（{.nostretch} など）
     fig_size_opts: list[tuple[int, str]] = field(default_factory=list)  # {python} のセルの #| fig-width / fig-height
+    fig_alts: list[str] = field(default_factory=list)                  # 図を描くセルの #| fig-alt（単体で読む文に図の説明として入れる）
 
 
 @dataclass
@@ -306,6 +309,8 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
                     if executable and not hidden and any(PLOT_RE.search(l) for _, l in body):
                         cur.figures.append((code_start, any(re.match(r"#\|\s*fig-alt\s*:\s*\S", o.strip()) for o in opts),
                                             any(IMGFIG_RE.search(l) for _, l in body)))
+                        cur.fig_alts.extend(m.group(1).strip().strip("\"'") for o in opts
+                                            for m in [re.match(r"#\|\s*fig-alt\s*:\s*(.+?)\s*$", o.strip())] if m)
                 in_code = None
                 code_buf = []
             else:
@@ -951,6 +956,41 @@ def title_list(deck: Deck) -> str:
     return "\n".join(out)
 
 
+def standalone_texts(deck: Deck) -> list[tuple[Slide, str]]:
+    """本編の各枚について、その枚だけを見た読み手に渡す文（聴衆の1行、タイトル、見える本文、画像の代替テキスト）。
+    ノート・コメント・コード・他の枚は入れない。1枚ごとに別のコンテキストで読ませ、知らない語（デッキの中で作った
+    呼び名・前の枚でしか説明していない語）を拾うため（2026-10-19。「内観寄りの版」のような名前が、その枚だけでは
+    何を指すか分からないまま通っていた）。"""
+    audience = deck.meta.get("audience", (0, ""))[1]
+    out = []
+    for s in deck.slides:
+        if s.appendix or not has_content(s):
+            continue
+        lines = [f"<!-- 聴衆: {audience} -->", "", f"## {strip_md(s.title)}" if s.title else "## (タイトルなし)", ""]
+        for _, raw in s.body:
+            t = re.sub(r"<!--.*?-->", "", raw).rstrip()
+            if t.strip():
+                lines.append(t)
+        alts = [a for _, a, _ in s.images if a]
+        if alts or s.fig_alts:
+            lines += ["", *[f"[画像] {a}" for a in alts], *[f"[図] {a}" for a in s.fig_alts]]
+        out.append((s, "\n".join(lines).rstrip() + "\n"))
+    return out
+
+
+def write_standalone(deck: Deck) -> list[Path]:
+    out_dir = deck.path.parent / "_check" / "standalone"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("slide-*.md"):
+        old.unlink()
+    paths = []
+    for s, text in standalone_texts(deck):
+        p = out_dir / f"slide-{s.index:02d}.md"
+        p.write_text(text, encoding="utf-8")
+        paths.append(p)
+    return paths
+
+
 # ---- 対象ファイル ---------------------------------------------------------
 def repo_root(start: Path) -> Path:
     try:
@@ -1036,6 +1076,8 @@ def main() -> int:
     ap.add_argument("files", nargs="*", type=Path)
     ap.add_argument("--hook", action="store_true", help="Claude Code Stop hook として動く")
     ap.add_argument("--titles", action="store_true", help="タイトル連読リストだけを出す")
+    ap.add_argument("--standalone", action="store_true",
+                    help="本編の各枚の見える文を _check/standalone/slide-NN.md に1枚1ファイルで書き出す（slide-reader に1枚ずつ読ませる）")
     args = ap.parse_args()
 
     if args.hook:
@@ -1051,6 +1093,12 @@ def main() -> int:
         deck = parse_deck(f)
         if args.titles:
             print(title_list(deck))
+            continue
+        if args.standalone:
+            paths = write_standalone(deck)
+            print(f"-- {f}: 本編 {len(paths)}枚を書き出した。1枚ずつ、他の枚を渡さずに slide-reader に読ませる")
+            for p in paths:
+                print(f"   {p}")
             continue
         issues = check_deck(deck, ng, approved_baseline(f))
         nb = sum(i.severity == "block" for i in issues)
