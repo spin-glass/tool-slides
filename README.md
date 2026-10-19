@@ -29,6 +29,7 @@ ln -s "$PWD/.claude/skills/measurement-integrity" ~/.claude/skills/measurement-i
 for s in japanese-tech-writing cognitive-rhythm-writing argument-gap-edit; do ln -s "$PWD/.claude/skills/$s" ~/.claude/skills/$s; done
 mkdir -p ~/.claude/agents
 ln -s "$PWD/.claude/agents/doc-reviewer.md" ~/.claude/agents/doc-reviewer.md
+ln -s "$PWD/.claude/agents/slide-reader.md" ~/.claude/agents/slide-reader.md
 ```
 
 `measurement-integrity` は、数値を資料に載せる前に「解きたい問題 → 指標 → データ → 出所」の対応を検査し、対応が取れないときは数値を出さずに止めるスキル（Unlicense。`.claude/skills/measurement-integrity/LICENSE`）。
@@ -51,6 +52,7 @@ Devin は互換として `~/.claude/skills/` を読むので、上のリンク�
 |---|---|
 | lint（違反＋タイトル連読） | `python3 .claude/skills/slides/scripts/lint_slides.py decks/<name>/index.qmd` |
 | タイトル連読だけ | `python3 .claude/skills/slides/scripts/lint_slides.py --titles decks/<name>/index.qmd` |
+| 各枚の見える文を1枚1ファイルに（単体で通じるかの読者テスト用） | `python3 .claude/skills/slides/scripts/lint_slides.py --standalone decks/<name>/index.qmd` → `decks/<name>/_check/standalone/slide-NN.md` を `slide-reader` に1枚ずつ渡す |
 | 全枚スクショ | `.claude/skills/slides/scripts/render_check.sh decks/<name>` → `decks/<name>/_check/slide-NN.png` |
 | PDF（画面と同じ見た目） | `.claude/skills/slides/scripts/render_check.sh decks/<name> --pdf` → `decks/<name>/<name>.pdf`（検収した PNG を綴じる） |
 | 出力 | `QUARTO_PYTHON=.venv/bin/python quarto render decks/<name>/index.qmd`（`--to revealjs` / `pptx` / `beamer`） |
@@ -110,6 +112,7 @@ decks/<yyyy-mm-dd>-<name>/index.qmd   1発表 = 1フォルダ
 .claude/skills/measurement-integrity/  数値が主張を支えているかの検査（問題・指標・データ・出所の対応と、止める条件）
 .claude/skills/japanese-tech-writing/ ・cognitive-rhythm-writing/ ・argument-gap-edit/  日本語の技術文書の文章規範・緩急の設計・論証の筋の点検（Unlicense）
 .claude/agents/doc-reviewer.md    検算レビュー用のサブエージェント（案件の観点は呼び出し時にパスで渡す）
+.claude/agents/slide-reader.md    1枚だけを読む読み手（`lint_slides.py --standalone` の出力を1枚ずつ渡し、単体で通じるかを返す）
 decks/<name>/claims.csv, design/  （設計書の案件のみ）主張の表と、組み替えた設計書（Markdown＋Mermaid）
 decks/_template_confirm/          確認型スライドの雛形（kind: confirm）
 decks/<name>/prepare.py, data/    （画像のデッキのみ）前処理と、その結果のスコア・サムネイル・出典

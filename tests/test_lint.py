@@ -215,3 +215,29 @@ class DocumentDensity(unittest.TestCase):
 
     def test_unknown_density_blocks(self):
         self.assertIn(("block", "density"), self.deck("density: dense\n"))
+
+
+class StandaloneTexts(unittest.TestCase):
+    """--standalone: 本編の各枚の見える文だけを1枚1ファイルに（ノート・コメント・コード・付録・表紙は入れない）。"""
+
+    def test_writes_one_file_per_content_slide(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "index.qmd"
+            p.write_text("---\ntitle: 架空\n---\n\n<!-- audience: 経理部長（OCR は知らない） -->\n<!-- action: 承認する -->\n"
+                         "<!-- minutes: 5 -->\n<!-- budget: 2 -->\n<!-- status: approved -->\n\n## 表紙だけの枚\n\n"
+                         "## 請求書は届いた日に OCR で読み取ります\n\n<!-- type: text -->\n\n- 保留の項目だけ経理課が確かめる <!-- 内部メモ -->\n\n"
+                         "![読み取りの流れ](flow.png)\n\n::: {.notes}\n話す文は入れない\n:::\n\n<!-- appendix -->\n\n## 付録\n\n- 付録は入れない\n",
+                         encoding="utf-8")
+            deck = lint.parse_deck(p)
+            texts = lint.standalone_texts(deck)
+            self.assertEqual([s.index for s, _ in texts], [2])              # 表紙と付録は出さない
+            text = texts[0][1]
+            self.assertIn("聴衆: 経理部長", text)
+            self.assertIn("## 請求書は届いた日に OCR で読み取ります", text)
+            self.assertIn("- 保留の項目だけ経理課が確かめる", text)
+            self.assertNotIn("内部メモ", text)
+            self.assertNotIn("話す文", text)
+            self.assertIn("[画像] 読み取りの流れ", text)
+            paths = lint.write_standalone(deck)
+            self.assertEqual([q.name for q in paths], ["slide-02.md"])
+            self.assertEqual(paths[0].read_text(encoding="utf-8"), text)

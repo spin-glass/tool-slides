@@ -93,6 +93,7 @@ Python は `$SLIDES_PYTHON` → プロジェクトの `.venv` → tool-slides �
 - 1枚＝承認済みタイトル1つの証明。タイトルを変えるなら、**編集する前に**変更案を本人に出して承認を得る（例外と手順は `references/phases.md` のフェーズ3）
 - bullets は目標3・上限5。1つの bullet は1行の事実か数字。話す文は `::: {.notes}` へ
 - **条件句を落として1行に収めない。** 収まらなければ条件を見出しへ上げるか2行に分ける（落とした瞬間に文の射程が原文より広がる）
+- **各枚はその枚だけで通じるように書く。** デッキの中で作った呼び名（「〜寄りの版」「案A」）や前の枚でしか説明していない語を使わず、中身で言う。聴衆が知らない語は `audience` の記述で判断する
 - **`claim` に無い句を足さない。** 特に断定を整えるための対の否定句（「A でよいので B にはしない」の B）。未決・想定は見出しでも分かる形にする
 - 各枚を書き終えたら読み返し、同じ枚に未決と確定が並んでいないかを確かめる
 - 出典のある主張を載せるデッキは YAML に `claims: required` を書き、`claims.csv` に出典の文（`quote`）と版（`rev`）を写す（`design-doc/references/claims.md`）。数字の無い言い換えは lint を通るので、表で照らすしかない。claims.csv があるデッキは宣言が無くても required と同じに扱う
@@ -106,12 +107,13 @@ Python は `$SLIDES_PYTHON` → プロジェクトの `.venv` → tool-slides �
 
 1. `lint_slides.py` を自分で走らせて block を0にする。**報告には検査ごとに見た範囲を書き、「block 0」だけを書かない。** lint の最後の「見た範囲: 本編 N枚／claims のある枚 M枚／claims の無い枚の文 K文」を報告に写す（K文は出典と照らしていない）
 2. 直すのは違反した枚だけ。デッキ全体を再生成しない
-3. 写真を並べた枚は、主張ごとに元の写真（`imgfig.py sheet`）で1件ずつ確かめる。縮小画像で済ませない
-4. `render_check.sh <デッキ>` で全枚を PNG にして全枚を Read で見る。出た WARNING は0件にする（増えたら原因を見る）
-5. `quarto render` で出力する。PDF は `render_check.sh <デッキ> --pdf`。公開は tool-slides の `scripts/publish.sh`（中のデッキだけ）
-6. Stop hook に block されたら、書かれた枚だけを直す
-7. 検査は段階に分ける: 編集ごとは描画しない検査、図やレイアウトを変えたら描画、区切りではサブエージェントで全枚の目視と出典の照合
-8. 「編集した」と報告する前に `grep` か `git diff` で反映を確かめ、検査の結果には見ないもの（「数値の照合は数字しか見ない」）を併記する
-9. lint や図の関数を直したら、tool-slides で `.venv/bin/python -m unittest discover -s tests` を通す
+3. `lint_slides.py --standalone <デッキ>` で各枚の見える文を1枚1ファイルに書き出し、サブエージェント `slide-reader` に1枚ずつ（他の枚を渡さずに）読ませる。「通じない語」が返った枚は、その枚の中で中身に言い換えて読ませ直す
+4. 写真を並べた枚は、主張ごとに元の写真（`imgfig.py sheet`）で1件ずつ確かめる。縮小画像で済ませない
+5. `render_check.sh <デッキ>` で全枚を PNG にして全枚を Read で見る。出た WARNING は0件にする（増えたら原因を見る）
+6. `quarto render` で出力する。PDF は `render_check.sh <デッキ> --pdf`。公開は tool-slides の `scripts/publish.sh`（中のデッキだけ）
+7. Stop hook に block されたら、書かれた枚だけを直す
+8. 検査は段階に分ける: 編集ごとは描画しない検査、図やレイアウトを変えたら描画、区切りではサブエージェントで全枚の目視と出典の照合
+9. 「編集した」と報告する前に `grep` か `git diff` で反映を確かめ、検査の結果には見ないもの（「数値の照合は数字しか見ない」）を併記する
+10. lint や図の関数を直したら、tool-slides で `.venv/bin/python -m unittest discover -s tests` を通す
 
 やらないこと（一発で全枚を生成する、「簡潔に」と言い聞かせて済ませる、指示文を本文に流用する、都合のよい画像だけを選ぶ）と、その理由は `references/evidence.md`。
