@@ -1,6 +1,6 @@
 /*-- scss:defaults --*/
-// 日本語本文は Noto Sans JP。オフライン時は OS の日本語フォントへ落とす
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap");
+// 色と書体の正本は _brand.yml（Quarto が $brand-* を定義し、Noto Sans JP を読み込む）。ここは役割への割り当てだけ
+// オフライン時は OS の日本語フォントへ落とす
 
 $font-family-sans-serif: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
 $presentation-heading-font: $font-family-sans-serif;
@@ -14,16 +14,16 @@ $presentation-font-size-root: 28px;   // 本文 28px
 $presentation-line-height: 1.5;       // 42px/行
 $presentation-h2-font-size: 40px;     // アクションタイトル（全角34字で2行の目安）。root を下げても据え置く
 
-$body-color: #1f2328;                 // 本文 15.8:1
-$presentation-heading-color: #111418;
-$link-color: #0b5cad;                 // 群A・強調 6.9:1
-$accent-2: #b35900;                   // 群B（橙）4.9:1。青と並べても色覚の違いで区別できる
-$accent-2-text: #8a4500;              // 橙の見出し文字
-$muted: #57606a;                      // 出典・付録・番号 6.4:1（旧 #6e7781 は16pxで4.6:1と下限すれすれ）
-$series-gray: #9aa4ae;                // 強調しない系列・枠線（図のみ。白地の文字には使わない: 2.6:1）
-$line: #d0d7de;                       // 表の横線・区切り
+// 本文・見出し・リンクの色は _brand.yml の foreground／typography.headings.color／primary から Quarto が入れる
 
 /*-- scss:rules --*/
+// 色は _brand.yml（$brand-*）。defaults の層では brand の変数がまだ無いので、rules の層で受ける
+$accent-2: $brand-orange;             // 群B（橙）4.9:1。青と並べても色覚の違いで区別できる
+$accent-2-text: $brand-orange-text;   // 橙の見出し文字
+$muted: $brand-muted;                 // 出典・付録・番号 6.4:1（旧 #6e7781 は16pxで4.6:1と下限すれすれ）
+$series-gray: $brand-gray;            // 強調しない系列・枠線（図のみ。白地の文字には使わない: 2.6:1）
+$line: $brand-line;                   // 表の横線・区切り
+
 .reveal {
   // 日本語の禁則と折り返し。単語途中で切れない欧文も長すぎる場合は折る
   line-break: strict;

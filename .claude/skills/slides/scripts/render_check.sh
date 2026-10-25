@@ -85,13 +85,15 @@ if [[ -n "$PROJECT" ]]; then
   HTML="$RENDER_HTML"
 else
   # プロジェクトの外。スキルのリポジトリの設定で一時プロジェクトを組む
-  for f in "$REPO/_quarto.yml" "$REPO/theme" "$REPO/filters"; do
+  for f in "$REPO/_quarto.yml" "$REPO/_brand.yml" "$REPO/theme" "$REPO/filters"; do
     [[ -e "$f" ]] || { echo "描画に要る資材が無い: $f" >&2; exit 1; }
   done
   TMP_PROJECT="$(mktemp -d)"
   cp "$REPO/_quarto.yml" "$TMP_PROJECT/_quarto.yml"
   ln -s "$REPO/theme" "$TMP_PROJECT/theme"
   ln -s "$REPO/filters" "$TMP_PROJECT/filters"
+  # 色・書体の正本（theme/*.scss が $brand-* を使う）
+  ln -s "$REPO/_brand.yml" "$TMP_PROJECT/_brand.yml"
   # デッキの ../../.claude/skills/slides/scripts からの import（imgfig・figs）も通るようにする
   ln -s "$REPO/.claude" "$TMP_PROJECT/.claude"
   # デッキはリンクではなくコピーで入れる。リンクだと Quarto が実体の位置を見てプロジェクト外と判断し、
@@ -116,14 +118,26 @@ if [[ -s "$NEW" ]]; then cp "$NEW" "$REPORT"; elif [[ -n "$PREV" ]]; then printf
 # スライド数 = タイトルスライド + 各 section.slide（縦スタックは使わない前提）
 N=$(grep -oE '<section[^>]*class="[^"]*(quarto-title-block|slide level)' "$HTML" | wc -l | tr -d ' ')
 [[ "$N" -gt 0 ]] || { echo "スライドが見つからない" >&2; exit 1; }
+# 図解型の部品（parts.*、theme/motion-gsap.html）は枚を開いたときに動くので、スクショ用の写しでは動かさず最終状態で描かせる
+# （描画した HTML はそのまま。写しは同じフォルダに置いて相対パスの資材を共有し、撮り終えたら消す）
+STATIC_HTML="${HTML%.html}.__static.html"
+"$PY" - "$HTML" "$STATIC_HTML" <<'PYEOF'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+html = open(src, encoding="utf-8").read()
+i = html.find("<head>")
+tag = "<script>window.SLIDES_STATIC = true;</script>"
+open(dst, "w", encoding="utf-8").write(html[:i + 6] + tag + html[i + 6:] if i >= 0 else tag + html)
+PYEOF
 for ((i = 0; i < N; i++)); do
   "$CHROME" --headless=new --disable-gpu --hide-scrollbars --window-size=1280,720 \
     --run-all-compositor-stages-before-draw --virtual-time-budget=8000 \
-    --screenshot="$OUT/slide-$(printf %02d $((i + 1))).png" "file://$HTML#/$i" >/dev/null 2>&1 &
+    --screenshot="$OUT/slide-$(printf %02d $((i + 1))).png" "file://$STATIC_HTML#/$i" >/dev/null 2>&1 &
   # 並列は4本まで
   (( (i + 1) % 4 == 0 )) && wait
 done
 wait
+rm -f "$STATIC_HTML"
 echo "$N slides -> $OUT"
 ls "$OUT"/slide-*.png
 

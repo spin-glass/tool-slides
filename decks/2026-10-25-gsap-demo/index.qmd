@@ -1,0 +1,123 @@
+---
+title: "GSAPで増える3つの見せ方"
+subtitle: "線を描く（D2＋DrawSVG）・順位の入れ替え（Flip）・段階送り（timeline＋fragments）。2026-10-25、値は架空"
+---
+
+<!-- audience: 自分（部品の検証） -->
+<!-- action: 3つの見せ方を tool-slides の部品に足すか決める -->
+<!-- minutes: 3 -->
+<!-- budget: 3 -->
+<!-- status: approved -->
+<!-- decided-by: 本人「それらについてサンプルスライドを作成して」 2026-10-25 -->
+
+```{python}
+#| include: false
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path("../../.claude/skills/slides/scripts").resolve()))
+import parts
+
+# A/Bテスト見本（abtest-oss）と同じ架空の値
+ctr_lift = 0.11
+gross_ci = (-571, 137)
+cost_up = 3.6
+# 3案のオフライン評価（AUC）とオンライン（クリック率）。オフラインの順位とオンラインの順位が入れ替わる例
+models = {"モデルA": (0.742, 7.1), "モデルB": (0.781, 7.9), "モデルC": (0.769, 8.3)}
+by_auc = sorted(models, key=lambda m: -models[m][0])
+by_ctr = sorted(models, key=lambda m: -models[m][1])
+assert by_auc != by_ctr, "順位が入れ替わらないなら2枚目のタイトルを書き直す"
+```
+
+## 判定は有意性→効果量→コストの順に見て、どれか1つで止める
+
+<!-- evidence: 判定の分岐図（D2。線の順に描く） -->
+<!-- type: flow -->
+
+```{python}
+#| output: asis
+#| fig-alt: "判定の分岐。クリック率の差が有意でなければAのまま。有意なら伸びが1割以上かを見て、満たさなければ新規だけBへ。満たせばコスト増が粗利の区間内かを見て、内なら全ユーザーをBへ"
+print(parts.flow("""
+direction: down
+A: クリック率の差は有意か
+B: 伸びが1割以上か
+C: コスト増が粗利の区間内か
+S1: Aのまま {class: out}
+S2: 新規だけBへ {class: out}
+G: 全ユーザーをBへ {class: go}
+A -> S1: いいえ
+A -> B: はい
+B -> S2: いいえ
+B -> C: はい
+C -> S2: いいえ
+C -> G: はい
+""", alt="判定の分岐図"))
+```
+
+::: {.source}
+線は枚を開くと分岐の順に描かれる（GSAP DrawSVG）。PDF・スクショでは描き終えた状態
+:::
+
+::: notes
+上から順に見ます。まずクリック率の差が有意か。有意でなければここで終わり、Aのまま。有意なら次に伸びが1割以上か、最後にコストが粗利の区間に収まるか。
+:::
+
+## オフライン評価で1位の`{python} by_auc[0]`は、実測では`{python} by_ctr[0]`に抜かれた
+
+<!-- evidence: 3案をAUC順に並べ、クリックでクリック率順に並び替える（Flip） -->
+<!-- type: chart -->
+
+```{python}
+#| output: asis
+#| fig-alt: "3案の横棒。最初はAUCの順（B・C・A）、クリックで実測のクリック率の順（C・B・A）に並び替わる"
+print('<div class="small muted">オフライン評価（AUC）の順。クリックで実測のクリック率の順に並び替え</div>')
+ids = {m: f"row-{i}" for i, m in enumerate(models)}
+print(f'<div class="ig-flip" id="rank" data-ig-order="{",".join(ids[m] for m in by_ctr)}">')
+top = max(v[1] for v in models.values())
+for m in by_auc:
+    auc, ctr = models[m]
+    col = parts.COLORS["blue"] if m == by_ctr[0] else parts.COLORS["gray"]
+    print(f'<div class="ig-hbar" id="{ids[m]}" style="--c:{col}"><div class="lab">{m} <span class="muted" style="font-size:20px">AUC {auc:.3f}</span></div>'
+          f'<div class="track"><div class="fill" data-w="{100*ctr/top:.1f}"></div></div>'
+          f'<div class="val"><span data-count="{ctr}" data-dec="1" data-prefix="" data-sign="0">0.0</span><small>%</small></div></div>')
+print('</div>')
+print('<span class="fragment ig-trigger" data-ig-flip="#rank"></span>')
+```
+
+- AUCが最も高いモデルBは、クリック率ではモデルCに負ける（架空の例。オフライン指標とオンライン指標のずれ）
+
+::: {.source}
+出典：オフライン評価と2週間のA/Bテスト（値は架空）。並び替えは GSAP Flip
+:::
+
+::: notes
+いまはオフライン評価、AUCの順です。（クリック）実際に出したクリック率で並べ直すと、1位がBからCに入れ替わります。
+:::
+
+## 切替の判断は、差→区間→コストの3段で止めながら話す
+
+<!-- evidence: 3つの数字を段階送り（クリックごとに1段） -->
+<!-- type: number -->
+
+```{python}
+#| output: asis
+#| fig-alt: "3段。1段目：クリック率の差 +11%（有意）。2段目：購入による粗利の変化は −571〜+137万円/月で判定できない。3段目：推論コストは +3.6万円/月。結論：根拠はクリック増"
+print('<div class="fragment" data-ig-step="1">')
+print(parts.stat(ctr_lift * 100, unit="%", label="1. クリック率の差（有意、p<0.001）", dec=0, sign=True))
+print('</div>')
+print('<div class="fragment" data-ig-step="2" style="margin-top:14px">')
+print('<div class="small muted">2. 購入による粗利の変化（95%区間）</div>')
+print(f'<div style="font-size:48px;font-weight:900;color:#9aa4ae">−571 〜 +137 <small style="font-size:24px">万円/月</small> <span class="muted" style="font-size:22px">→ 判定できない</span></div>')
+print('</div>')
+print('<div class="fragment" data-ig-step="3" style="margin-top:14px">')
+print(parts.stat(cost_up, unit="万円/月", label="3. 推論コストの増分", dec=1, sign=True))
+print(parts.callout("結論：根拠はクリック増。粗利では正当化しない"))
+print('</div>')
+```
+
+::: {.source}
+1枚目〜3枚目の値は abtest-oss と同じ（架空）。段階送りは reveal.js の fragments ＋ GSAP のタイムライン
+:::
+
+::: notes
+（クリック）まずクリック率は11%上がって、これは有意です。（クリック）次に粗利。区間が0をまたぐので、増えるとも減るとも言えません。（クリック）最後にコストは月3.6万円。なので根拠はクリック増に置きます。
+:::

@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 
 from imgfig import BLUE, INK, LINE, MUTED, ORANGE, japanese_fonts
 
-GRAY = "#9aa4ae"     # 強調しない系列・枠線（$series-gray）。白地の文字には使わない（2.6:1）
+import brand as _brand  # 色の正本は _brand.yml
+GRAY = _brand.color("gray")     # 強調しない系列・枠線（$series-gray）。白地の文字には使わない（2.6:1）
 FONT_SIZE = 18       # fig-width 7〜13 のとき、スライド上で約20px
 LABEL_SIZE = 20      # 段の見出し（流れ図の箱と同じ20px以上）
 

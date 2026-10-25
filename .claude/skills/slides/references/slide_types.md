@@ -149,6 +149,9 @@ figs.bars(df["形式"], df["件数"], highlight="PDF", unit="件")
 - 最初の図のセルの前に、`include: false` のセルで `import figs` と `figs.setup()` を1回書く（import の書き方は `figs.py` の先頭）。
 - `direction` は実測値が無いときだけ使い、`[棒の長さは関係の向きを示す。実測値が入るまで比率は仮]{.small .muted}` を添える。実測値があれば `chart`。
 - 色は青（主張）・橙（もう1つの群、注目させる段）・灰（強調しない）の3つまで。凡例を置かず、ラベルを棒の横に書く。
+- 動く版（revealjs を映して話す枚だけ）: `figs.bars` の代わりに `parts.bars`（または ECharts の `parts.echart_bars`）、`[値]{.big}` の代わりに `parts.stat`。`#| output: asis` のセルで `print(...)`、引数は figs と同じで `alt=` が `fig-alt` の代わり、増減は `sign=True`。枚を開くたびに棒が伸び数字が数え上がる（theme/motion-gsap.html）。`render_check.sh` の全枚スクショと PDF、`?print-pdf`・`?static` では最終状態。pptx では文字だけになるので、pptx 主体のデッキでは使わない。構成バー `parts.stack`・人のアイコン `parts.pictos`・章バッジ `parts.badge`・吹き出し `parts.callout` も同じ流儀（`scripts/parts.py` の先頭に例）。
+- 分岐・手順の図（型 `flow`）は `parts.flow("""…""")` に D2 で書く（`A: 文言`、`A -> B: はい`、結果は `{class: out}`、推す結果は `{class: go}`、注意は `{class: warn}`、縦に並べるなら先頭に `direction: down`）。色は `_brand.yml` から、枚を開くと線の順に描く。初回は `tools/d2` の npm ci と Noto Sans JP の取得が走る（node が要る）。Mermaid のセルもそのまま使える。
+- 話しながら1段ずつ見せる: 段ごとに `<div class="fragment" data-ig-step="1">…</div>`（クリックで次の段、← で戻ると逆再生）。並び替えは `.ig-flip`（`data-ig-order` に並び替え後の id）と見えない合図 `<span class="fragment ig-trigger" data-ig-flip="#id"></span>`。台本は `::: notes`（S キーの発表者ビューに出る）。見本は `decks/2026-10-25-gsap-demo`・`decks/2026-10-25-abtest-oss`。
 
 ## 確認型だけの部品（design-doc スキル）
 

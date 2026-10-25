@@ -1,0 +1,165 @@
+<script>
+// theme/motion-gsap.html — 図解型の部品（parts.*）の動きを GSAP のタイムラインで、ECharts の図（parts.echart*）を枚の表示時に描く。
+// 枚が表示されたとき（reveal.js の slidechanged / ready）に、開くたびに最初から再生する。
+// 次のときは動かさず最終状態（全枚スクショ・PDF 用）: window.SLIDES_STATIC（render_check.sh の写し）／URL の ?print-pdf・?static
+(function () {
+  // OS の「Reduce motion」は見ない（発表者の端末の設定で、話しながら見せる動きまで消えてしまうため。2026-10-25 実際に起きた）
+  var STATIC = window.SLIDES_STATIC === true || /[?&](print-pdf|static)\b/.test(location.search);
+  var DUR = 1.6, EASE = "power3.out";
+
+  function fmt(el) {  // data-dec / data-prefix / data-sign → 数値の書式（負は常に「−」＋絶対値）
+    var dec = parseInt(el.getAttribute("data-dec") || "0", 10), prefix = el.getAttribute("data-prefix") || "", sign = el.getAttribute("data-sign") === "1";
+    return function (v) { var a = Math.abs(v).toFixed(dec), neg = v < 0 && Number(a) !== 0; return (neg ? "−" : (sign ? "+" : prefix)) + a; };
+  }
+  function countTween(el) {
+    var target = parseFloat(el.getAttribute("data-count")), o = { v: 0 }, f = fmt(el);
+    if (!el.firstChild) el.appendChild(document.createTextNode(""));
+    return gsap.to(o, { v: target, duration: DUR, ease: EASE, onUpdate: function () { el.firstChild.nodeValue = f(o.v); } });
+  }
+  function timeline(slide) {
+    var tl = gsap.timeline({ paused: true });
+    // 段階送り（data-ig-step）の中の要素は、枚の表示時ではなく fragment が出たときに動かす
+    var q = function (sel) { return Array.prototype.filter.call(slide.querySelectorAll(sel), function (el) { return !el.closest("[data-ig-step]"); }); };
+    q(".ig-stack span").forEach(function (el, i) { tl.to(el, { width: el.getAttribute("data-w") + "%", duration: 1.4, ease: EASE }, 0.06 + i * 0.12); });
+    q(".ig-hbar").forEach(function (row, i) {
+      var t = 0.06 + i * 0.12;
+      row.querySelectorAll(".fill").forEach(function (el) { tl.to(el, { width: el.getAttribute("data-w") + "%", duration: DUR, ease: EASE }, t); });
+      row.querySelectorAll("[data-count]").forEach(function (el) { tl.add(countTween(el), t); });
+    });
+    q("[data-count]").forEach(function (el) { if (!el.closest(".ig-hbar")) tl.add(countTween(el), 0); });
+    q(".ig-pictos svg").forEach(function (el, i) { tl.to(el, { opacity: 1, y: 0, scale: 1, duration: 0.3 }, 0.1 + i * 0.07); });
+    q(".ig-callout").forEach(function (el) { tl.to(el, { opacity: 1, duration: 0.4 }, 1.2); });
+    return tl;
+  }
+  function charts(slide, animate) {
+    slide.querySelectorAll(".ig-echart[data-option]").forEach(function (el) {
+      var opt = JSON.parse(el.getAttribute("data-option"));
+      if (el._igChart) { el._igChart.dispose(); el._igChart = null; }   // 開き直したら 0 から描き直す
+      var f = fmt(el);
+      (opt.series || []).forEach(function (s) { if (s.label) s.label.formatter = function (p) { return f(p.value); }; });
+      var chart = el._igChart = echarts.init(el, null, { renderer: "canvas" });
+      if (!animate) { opt.animation = false; chart.setOption(opt); return; }
+      // 値ラベルの数え上げ（label.valueAnimation）は「値の更新」で動くので、0 を描いてから本当の値に更新する
+      var zero = JSON.parse(JSON.stringify(opt));
+      (zero.series || []).forEach(function (s) { (s.data || []).forEach(function (d) { if (d && typeof d === "object") d.value = 0; }); });
+      zero.animation = false;
+      chart.setOption(zero);
+      opt.animation = true; opt.animationDurationUpdate = DUR * 1000; opt.animationEasingUpdate = "cubicOut";   // 1回目の animation:false は merge で残るので明示
+      requestAnimationFrame(function () { chart.setOption(opt); });
+    });
+  }
+  // 線を描く（.ig-draw の中の D2 の SVG）: 始点の箱 → 線（DrawSVG）→ 線のラベル → 終点の箱、を D2 に書いた線の順に。
+  // D2 は図形・線の <g> の class に id を base64 で入れる（例 "(A -> B)[0]"）ので、それを読んで始点・終点を引く
+  function draw(slide, tl) {
+    if (window.DrawSVGPlugin) gsap.registerPlugin(DrawSVGPlugin);
+    var dec = function (c) { try { return decodeURIComponent(escape(atob(c))).replace(/&gt;/g, ">"); } catch (e) { return null; } };
+    slide.querySelectorAll(".ig-draw svg.d2-svg").forEach(function (svg) {
+      var shapes = {}, edges = [], t = 0, shown = {};
+      svg.querySelectorAll("g[class]").forEach(function (g) {
+        var id = dec(g.getAttribute("class").split(" ")[0]);
+        if (!id) return;
+        var m = /^\((.+?) -> (.+?)\)\[\d+\]$/.exec(id);
+        if (m) edges.push({ g: g, src: m[1], dst: m[2] }); else shapes[id] = g;
+      });
+      Object.keys(shapes).forEach(function (k) { gsap.set(shapes[k], { opacity: 0 }); });
+      var show = function (k) { if (shapes[k] && !shown[k]) { shown[k] = 1; tl.to(shapes[k], { opacity: 1, duration: 0.3 }, t); t += 0.25; } };
+      edges.forEach(function (e) {
+        show(e.src);
+        var path = e.g.querySelector("path.connection"), label = e.g.querySelector("text");
+        if (label) gsap.set(label, { opacity: 0 });
+        if (path) {
+          var mk = path._igMk = path.getAttribute("marker-end");
+          if (mk) path.removeAttribute("marker-end");   // 矢じりは描き終えてから
+          tl.fromTo(path, { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.45, ease: "none",
+            onComplete: function () { if (mk) path.setAttribute("marker-end", mk); },
+            onReverseComplete: function () { path.removeAttribute("marker-end"); } }, t);
+        }
+        if (label) tl.to(label, { opacity: 1, duration: 0.2 }, t + 0.25);
+        t += 0.45;
+        show(e.dst);
+      });
+      Object.keys(shapes).forEach(show);   // 線の無い箱
+    });
+  }
+  // 段階送り: data-ig-step="k" の要素は、同じ k の fragment が出たときに動く（クリックで止めながら話す）
+  function steps(slide, tl) {
+    var groups = {};
+    slide.querySelectorAll("[data-ig-step]").forEach(function (el) { var k = el.getAttribute("data-ig-step"); (groups[k] = groups[k] || []).push(el); });
+    Object.keys(groups).sort().forEach(function (k) {
+      var sub = gsap.timeline({ paused: true });
+      groups[k].forEach(function (el, i) {
+        sub.fromTo(el, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, ease: EASE }, i * 0.15);
+        el.querySelectorAll(".fill").forEach(function (f) { sub.to(f, { width: f.getAttribute("data-w") + "%", duration: 1.2, ease: EASE }, i * 0.15); });
+        el.querySelectorAll("[data-count]").forEach(function (c) { sub.add(countTween(c), i * 0.15); });
+        el.querySelectorAll(".ig-callout").forEach(function (c) { sub.to(c, { opacity: 1, duration: 0.4 }, i * 0.15 + 0.8); });
+      });
+      slide.querySelectorAll('.fragment[data-ig-step="' + k + '"], .fragment[data-ig-for="' + k + '"]').forEach(function (fr) { fr._igStep = sub; });
+      groups[k].forEach(function (el) { el._igSub = sub; });
+    });
+  }
+  // 並び替え（Flip）: .ig-flip の子を、data-ig-order（id を , 区切り）の順に並べ替える。fragment[data-ig-flip] が出たとき
+  function flips(slide) {
+    if (window.Flip) gsap.registerPlugin(Flip);
+    slide.querySelectorAll(".fragment[data-ig-flip]").forEach(function (fr) {
+      var box = slide.querySelector(fr.getAttribute("data-ig-flip"));
+      if (!box) return;
+      var after = (box.getAttribute("data-ig-order") || "").split(",");
+      var before = Array.prototype.map.call(box.children, function (c) { return c.id; });
+      function reorder(ids) {
+        var state = Flip.getState(box.children);
+        ids.forEach(function (id) { var el = box.querySelector("#" + CSS.escape(id)); if (el) box.appendChild(el); });
+        Flip.from(state, { duration: 0.9, ease: EASE, absolute: false });
+      }
+      var place = function (ids) { ids.forEach(function (id) { var el = box.querySelector("#" + CSS.escape(id)); if (el) box.appendChild(el); }); };
+      fr._igFlip = { show: function () { reorder(after); }, hide: function () { reorder(before); },
+                     final: function () { place(after); }, initial: function () { place(before); } };
+    });
+  }
+  // 枚を開くたびに最初から再生する（戻って開き直しても同じ動き）。段階送り・並び替えは、その枚の fragment の表示状態に合わせる
+  function run(slide, instant) {
+    if (!slide) return;
+    if (!slide._igTl) {
+      var tl = timeline(slide);
+      draw(slide, tl);
+      steps(slide, tl);
+      flips(slide);
+      slide._igTl = tl;
+    }
+    if (instant) {
+      slide._igTl.progress(1);
+      slide.querySelectorAll("[data-ig-step]").forEach(function (el) { if (el._igSub) el._igSub.progress(1); });
+      slide.querySelectorAll(".fragment").forEach(function (fr) { fr.classList.add("visible"); if (fr._igFlip) fr._igFlip.final(); });
+    } else {
+      // 開き直したら矢じりも消してから描き直す（restart では onReverseComplete が呼ばれないため。2026-10-25 本人の指摘）
+      slide.querySelectorAll(".ig-draw path.connection").forEach(function (p) { if (p._igMk) p.removeAttribute("marker-end"); });
+      slide._igTl.restart();
+      slide.querySelectorAll(".fragment").forEach(function (fr) {
+        var shown = fr.classList.contains("visible");   // 前の枚から来たら全部隠れている、次の枚から戻ったら全部出ている
+        if (fr._igStep) fr._igStep.pause(shown ? fr._igStep.duration() : 0);
+        if (fr._igFlip) (shown ? fr._igFlip.final : fr._igFlip.initial)();
+      });
+    }
+    charts(slide, !instant);
+  }
+  function onFragment(e, shown) {
+    e.fragments.forEach(function (fr) {
+      if (fr._igStep) { if (shown) fr._igStep.play(0); else fr._igStep.reverse(); }
+      if (fr._igFlip) { if (shown) fr._igFlip.show(); else fr._igFlip.hide(); }
+    });
+  }
+  function setup() {
+    if (STATIC) {
+      document.querySelectorAll(".reveal .slides section").forEach(function (s) { run(s, true); });
+      // ?static で開いたときは、隠れた枚の図は大きさが取れないので表示時に描く
+      Reveal.on("slidechanged", function (e) { charts(e.currentSlide, false); });
+      return;
+    }
+    Reveal.on("slidechanged", function (e) { run(e.currentSlide, false); });
+    Reveal.on("fragmentshown", function (e) { onFragment(e, true); });
+    Reveal.on("fragmenthidden", function (e) { onFragment(e, false); });
+    if (Reveal.isReady && Reveal.isReady()) run(Reveal.getCurrentSlide(), false);
+    else Reveal.on("ready", function (e) { run(e.currentSlide, false); });
+  }
+  if (window.Reveal) setup(); else window.addEventListener("load", function () { if (window.Reveal) setup(); });
+})();
+</script>

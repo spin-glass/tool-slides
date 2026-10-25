@@ -80,7 +80,7 @@ HR_RE = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,})\s*$")
 BULLET_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+\S")
 META_RE = re.compile(r"<!--\s*(audience|action|minutes|budget|status|decided-by|kind)\s*:\s*(.*?)\s*-->")
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)[^)]*\)")
-PLOT_RE = re.compile(r"\b(plt|imgfig|figs|sns|px|go|alt)\.\w|\.plot\(|\.savefig\(")
+PLOT_RE = re.compile(r"\b(plt|imgfig|figs|sns|px|go|alt|motion|parts)\.\w|\.plot\(|\.savefig\(")
 IMGFIG_RE = re.compile(r"\bimgfig\.\w+_figure\(")
 PICK_RE = re.compile(r"すべて|全数|全部|全\d+枚|等間隔|上位|下位|大きい順|小さい順|無作為|抜粋|代表")
 # 画像の中身についての言い切り。縮小した画像では見落としやすい（小さく写るもの、よく似た種）ので、元の大きさで確かめさせる
@@ -105,12 +105,12 @@ SLIDE_TYPES = {
     "text": lambda s: True,
     "pair": lambda s: any(".pair" in a for a in s.divs),
     "outcome": lambda s: any(".outcome" in a for a in s.divs),
-    "number": lambda s: any(re.search(r"\{[^}]*\.big\b", t) for _, t in s.body),
+    "number": lambda s: any(re.search(r"\{[^}]*\.big\b", t) for _, t in s.body) or any("parts.stat(" in c for _, c in s.cells),
     "roles": lambda s: any(".roles" in a for a in s.divs),
     "timeline": lambda s: any("figs.timeline(" in c for _, c in s.cells),
     "direction": lambda s: any("figs.direction(" in c for _, c in s.cells),
     "chart": lambda s: any(PLOT_RE.search(c) and not IMGFIG_RE.search(c) for i, c in s.cells if not MERMAID_RE.match(i)),
-    "flow": lambda s: any(MERMAID_RE.match(i) for i, _ in s.cells),
+    "flow": lambda s: any(MERMAID_RE.match(i) for i, _ in s.cells) or any("parts.flow(" in c for _, c in s.cells),
     "table": lambda s: any(re.match(r"\s*\|", t) for _, t in s.body) or any("Markdown(" in c for _, c in s.cells),
     "images": lambda s: bool(s.images) or any(IMGFIG_RE.search(c) for _, c in s.cells),
 }
