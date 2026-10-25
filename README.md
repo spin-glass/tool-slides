@@ -56,6 +56,12 @@ Devin は互換として `~/.claude/skills/` を読むので、上のリンク�
 - **D2**（`tools/d2/`、`@terrastruct/d2` 0.1.33 を版固定）: `parts.flow` が初回に `npm ci` を走らせる（node が要る）。Noto Sans JP は `SLIDES_FONT_TTF` → `theme/fonts/` → `~/.cache/tool-slides`（無ければ google/fonts から取得、OFL）
 - **デザインの正本 `_brand.yml`**（Quarto の brand.yml）: 色・書体はここだけで決める。テーマの SCSS は `$brand-*`（rules 層で参照。defaults 層では未定義）、Python は `scripts/brand.py`（`brand.color("blue")`）。他のリポジトリへは `python3 .claude/skills/slides/scripts/brand.py --css`／`--json` で書き出す
 
+### 見出しの様式と、図解の型を先に当てる（2026-10-25）
+
+- **既定の見出しは「章ラベル＋短い見出し」**: `## 観測と判定を分ける {kicker="設計"}`。章ラベルは見出しの上に小さく橙で出る（`filters/kicker.lua`・`theme/custom.scss`）。見出しは話題を言う1行の句（全角20字以内、体言止め可）、この枚の主張は本文1行目の `[文]{.lead}`。完全文のアクションタイトル（全角40字以内・述語で終える）にするデッキは YAML に `title-style: sentence`（確認型は常にこちら）。lint は様式ごとに見る（`kicker-missing`・`kicker-length`・`title-length`・`title-label`／`title-taigen`）
+- **型は図解の部品で描ける形を先に当てる**: 2〜4個の並び＝`cards`（`parts.cards`・`parts.steps`、新設）、流れ・分岐＝`flow`、数＝`number`・`chart`。`text` はどれにも当たらないときだけで、本編の半数を超えると lint が `text-heavy` を出す。公式 Slides 型の見本（カード行・番号付きまとめ・大きな数字）と同じ配置。見本: `decks/2026-10-25-ai-labeling-short`（文献ノートを章ラベル＋短い見出しで11枚、claims.csv 付き）
+- `parts.flow` の2行ラベルは `"1行目\n2行目"` と引用符で書く（箱が行数に合わせて高くなる）。`render_check.sh` は使った tool-slides の版（パスと commit）を最初に出す
+
 | 操作 | コマンド |
 |---|---|
 | lint（違反＋タイトル連読） | `python3 .claude/skills/slides/scripts/lint_slides.py decks/<name>/index.qmd` |

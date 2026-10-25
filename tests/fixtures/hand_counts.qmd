@@ -1,5 +1,6 @@
 ---
 title: "手で書いた枚数の検査サンプル"
+title-style: sentence   # 完全文のアクションタイトル（既定は short＝章ラベル＋短い見出し）
 ---
 
 <!-- audience: lint の検査 -->

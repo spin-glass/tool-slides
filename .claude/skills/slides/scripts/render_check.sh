@@ -113,6 +113,8 @@ else
   echo "HTML -> ${HTML}（1つにまとめた形）"
 fi
 
+# どの版の tool-slides（テーマ・部品）で描いたかを記録に残す（別の置き場のデッキで、古い版のまま描いていても気づけるように）
+echo "tool-slides: ${REPO} @ $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '(git なし)') / quarto $(quarto --version 2>/dev/null)"
 rm -rf "$OUT" && mkdir -p "$OUT"
 if [[ -s "$NEW" ]]; then cp "$NEW" "$REPORT"; elif [[ -n "$PREV" ]]; then printf '%s\n' "$PREV" > "$REPORT"; fi
 # スライド数 = タイトルスライド + 各 section.slide（縦スタックは使わない前提）

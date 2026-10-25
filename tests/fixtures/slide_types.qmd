@@ -1,5 +1,6 @@
 ---
 title: "型の検査"
+title-style: sentence   # 完全文のアクションタイトル（既定は short＝章ラベル＋短い見出し）
 ---
 
 <!-- audience: 開発チーム -->

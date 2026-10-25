@@ -203,7 +203,7 @@ class DocumentDensity(unittest.TestCase):
             return [(i.severity, i.rule) for i in lint.check_deck(lint.parse_deck(p), NG)]
 
     def test_default_is_unchanged(self):
-        found = self.deck("")
+        found = self.deck("title-style: sentence\n")
         self.assertIn(("block", "bullets"), found)
         self.assertIn(("block", "title-taigen"), found)
 
@@ -241,3 +241,47 @@ class StandaloneTexts(unittest.TestCase):
             paths = lint.write_standalone(deck)
             self.assertEqual([q.name for q in paths], ["slide-02.md"])
             self.assertEqual(paths[0].read_text(encoding="utf-8"), text)
+
+
+class TitleStyle(unittest.TestCase):
+    """title-style: short（既定）＝章ラベル＋短い見出し、sentence＝完全文のアクションタイトル。確認型は常に sentence。"""
+
+    def deck(self, front: str, heading: str, extra_meta: str = "") -> list:
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "index.qmd"
+            p.write_text(f"---\ntitle: 架空\n{front}---\n\n<!-- audience: 経理部 -->\n<!-- action: 読んで承認する -->\n"
+                         f"<!-- minutes: 5 -->\n<!-- budget: 1 -->\n<!-- status: approved -->\n{extra_meta}\n"
+                         f"## {heading}\n\n<!-- type: text -->\n\n- 経理課が保留の項目を確かめる\n", encoding="utf-8")
+            deck = lint.parse_deck(p)
+            return deck, [(i.severity, i.rule) for i in lint.check_deck(deck, NG)]
+
+    def test_short_is_default_and_needs_kicker(self):
+        deck, found = self.deck("", "観測と判定を分ける {kicker=\"設計\"}")
+        self.assertEqual(deck.slides[0].kicker, "設計")
+        self.assertEqual(deck.slides[0].title, "観測と判定を分ける")
+        self.assertNotIn(("block", "title-taigen"), found)            # 体言止めは短い見出しの様式では可
+        self.assertNotIn(("block", "kicker-missing"), found)
+        _, found = self.deck("", "観測と判定を分ける")
+        self.assertIn(("block", "kicker-missing"), found)
+
+    def test_short_limits(self):
+        _, found = self.deck("", "観測と判定を分けて記録し曖昧を状態として扱う設計 {kicker=\"設計\"}")
+        self.assertIn(("block", "title-length"), found)
+        _, found = self.deck("", "観測と判定を分ける {kicker=\"設計の要点とその根拠の章\"}")
+        self.assertIn(("block", "kicker-length"), found)
+        _, found = self.deck("", "設計について {kicker=\"設計\"}")
+        self.assertIn(("block", "title-label"), found)
+
+    def test_sentence_keeps_old_rules(self):
+        _, found = self.deck("title-style: sentence\n", "観測と判定の2層")
+        self.assertIn(("block", "title-taigen"), found)
+        self.assertNotIn(("block", "kicker-missing"), found)
+        _, found = self.deck("title-style: sentence   # 注記\n", "観測と判定を分けると、基準の変更が規則の再導出で済む")
+        self.assertNotIn(("block", "title-style"), found)
+        _, found = self.deck("title-style: long\n", "観測と判定を分ける {kicker=\"設計\"}")
+        self.assertIn(("block", "title-style"), found)
+
+    def test_title_list_and_standalone_show_kicker(self):
+        deck, _ = self.deck("", "観測と判定を分ける {kicker=\"設計\"}")
+        self.assertIn("設計｜観測と判定を分ける", lint.title_list(deck))
+        self.assertIn("## 設計｜観測と判定を分ける", lint.standalone_texts(deck)[0][1])

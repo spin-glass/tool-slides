@@ -6,6 +6,7 @@ resources:
 # 写真を並べた図は PNG だと1枚1〜2MBになるため JPEG で出す
 fig-format: jpeg
 fig-dpi: 200
+title-style: sentence   # 完全文のアクションタイトル（既定は short＝章ラベル＋短い見出し）
 ---
 
 <!-- audience: 画像分類を運用するチーム（エンジニアとアノテーター。外れ値スコアと閾値は知っているが、閾値を変えた影響は枚数の表でしか見たことがない） -->

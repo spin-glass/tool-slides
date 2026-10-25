@@ -29,6 +29,9 @@
     q("[data-count]").forEach(function (el) { if (!el.closest(".ig-hbar")) tl.add(countTween(el), 0); });
     q(".ig-pictos svg").forEach(function (el, i) { tl.to(el, { opacity: 1, y: 0, scale: 1, duration: 0.3 }, 0.1 + i * 0.07); });
     q(".ig-callout").forEach(function (el) { tl.to(el, { opacity: 1, duration: 0.4 }, 1.2); });
+    // カード列・番号付きの要点は左（上）から順に出す。from なので、動かさない版（SLIDES_STATIC・?print-pdf）では最初から見える
+    q(".ig-card, .ig-arrow").forEach(function (el, i) { tl.from(el, { opacity: 0, y: 10, duration: 0.35 }, 0.05 + i * 0.12); });
+    q(".ig-steps .row").forEach(function (el, i) { tl.from(el, { opacity: 0, x: -12, duration: 0.35 }, 0.05 + i * 0.18); });
     return tl;
   }
   function charts(slide, animate) {

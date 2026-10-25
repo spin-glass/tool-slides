@@ -1,5 +1,6 @@
 ---
 title: "確認型の違反サンプル"
+title-style: sentence   # 完全文のアクションタイトル（既定は short＝章ラベル＋短い見出し）
 ---
 
 <!-- audience: 意思決定者 -->

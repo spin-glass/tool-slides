@@ -1,6 +1,7 @@
 ---
 title: "tool-slides で読み手のためのスライドを作る"
 subtitle: "2026-09-30"
+title-style: sentence   # 完全文のアクションタイトル（既定は short＝章ラベル＋短い見出し）
 ---
 
 <!-- audience: 本人（Claude Codeは日常利用、スライドの冗長さに不満がある） -->

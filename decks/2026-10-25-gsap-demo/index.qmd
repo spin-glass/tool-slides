@@ -1,6 +1,7 @@
 ---
 title: "GSAPで増える3つの見せ方"
 subtitle: "線を描く（D2＋DrawSVG）・順位の入れ替え（Flip）・段階送り（timeline＋fragments）。2026-10-25、値は架空"
+title-style: sentence   # 完全文のアクションタイトル（既定は short＝章ラベル＋短い見出し）
 ---
 
 <!-- audience: 自分（部品の検証） -->
