@@ -1,0 +1,79 @@
+/*-- scss:defaults --*/
+// 図解型（infographic）の部品。動画の公開手法（video-explanation / AIslides-movie）の「場面の部品」を
+// revealjs の HTML/CSS に移したもの。動きは theme/motion-gsap.html（GSAP）が表示中の枚にだけ付ける。
+// 配色は custom.scss と同じ系統（主張＝青、注目＝橙、残り＝灰）。
+/*-- scss:rules --*/
+// 色は _brand.yml（$brand-*）。defaults の層では brand の変数がまだ無いので、rules の層で受ける
+$ig-blue: $brand-blue;
+$ig-orange: $brand-orange;
+$ig-gray: $brand-gray;
+$ig-track: $brand-track;
+$ig-red: $brand-red;
+
+// 章バッジ（右上）
+.reveal .ig-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  border: 2px solid $ig-orange;
+  border-right: 10px solid $ig-red;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 1.25;
+  max-width: 330px;
+}
+.reveal .ig-badge .ch {
+  background: $ig-blue;
+  color: #fff;
+  padding: 6px 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.reveal .ig-badge .ch small { display: block; font-size: 12px; font-weight: 400; }
+.reveal .ig-badge .tt { padding: 6px 14px; font-weight: 700; align-self: center; max-width: 190px; }  // 全体で 300px 以内に収める
+// バッジのある枚は、見出しがバッジに重ならないよう右を空ける（見出しは2行までの前提。custom.scss と同じ）。
+// padding ではなく margin（render_check.sh の重なりの計測は要素の箱で見るため、箱そのものを狭める）
+.reveal section:has(> .ig-badge) > h2 { margin-right: 350px; }
+
+// 人のアイコン列（n 人。先頭 k 人を青で強調できる）
+.reveal .ig-pictos { display: flex; gap: 10px; align-items: flex-end; margin: 8px 0 16px; }
+.reveal .ig-pictos svg {
+  width: 40px; height: 48px;
+  fill: $ig-gray;
+  opacity: 0; transform: translateY(8px) scale(0.9);   // 出現は theme/motion-gsap.html
+}
+.reveal .ig-pictos svg.hl { fill: $ig-blue; }
+
+// 横棒＋値（値はカウントアップ）。1行＝ラベル／棒／値
+.reveal .ig-hbar { display: grid; grid-template-columns: 280px 1fr 190px; align-items: center; gap: 20px; margin: 12px 0; }
+.reveal .ig-hbar .lab { font-size: 26px; font-weight: 700; }
+.reveal .ig-hbar .track { height: 40px; background: $ig-track; border-radius: 20px; overflow: hidden; }
+.reveal .ig-hbar .fill { height: 100%; width: 0; border-radius: 20px; background: var(--c, #{$ig-gray}); }
+.reveal .ig-hbar .val { font-size: 40px; font-weight: 900; color: var(--c, #{$ig-gray}); font-variant-numeric: tabular-nums; text-align: right; }
+.reveal .ig-hbar .val small { font-size: 22px; margin-left: 4px; }
+
+// 構成バー（100% を区分に分ける。区分ごとに幅と色）
+.reveal .ig-stack { display: flex; height: 60px; border-radius: 8px; overflow: hidden; margin: 10px 0; }
+.reveal .ig-stack span { display: flex; align-items: center; text-indent: 14px; color: #fff; font-size: 24px; font-weight: 700; white-space: nowrap; overflow: hidden; width: 0; background: var(--c, #{$ig-gray}); }
+.reveal .ig-stack-row { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 24px; }
+.reveal .ig-stack-row .lab { font-size: 36px; font-weight: 900; }
+
+// 吹き出し（注目の一言）
+.reveal .ig-callout { display: inline-block; background: $ig-red; color: #fff; font-size: 22px; font-weight: 700; padding: 6px 22px; border-radius: 30px; opacity: 0; }
+
+// 大きな数字（カウントアップ）
+.reveal .ig-stat { font-size: 64px; font-weight: 900; color: $ig-blue; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.reveal .ig-stat small { font-size: 28px; margin-left: 6px; color: $brand-muted; font-weight: 700; }
+
+// ECharts の図（parts.echart*）。高さは部品が style で指定する
+.reveal .ig-echart { width: 100%; }
+
+// 段階送り（data-ig-step）・線を描く（.ig-draw）・並び替え（.ig-flip）
+.reveal [data-ig-step] { opacity: 0; }
+.reveal .ig-draw > svg { width: 100%; height: auto; max-width: none !important; max-height: 470px; }   // D2 の図（parts.flow）
+.reveal .ig-flip { display: flex; flex-direction: column; gap: 10px; }
+.reveal .ig-flip .ig-hbar { margin: 0; }
+.reveal .fragment.ig-trigger { display: none; }   // 見えない fragment（クリックの合図だけ）
+.reveal .fragment.ig-trigger.visible { display: none; }

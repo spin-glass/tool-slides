@@ -20,16 +20,21 @@ import figs  # noqa: E402
 
 def scss(name: str) -> str:
     text = (ROOT / "theme/custom.scss").read_text(encoding="utf-8")
-    return re.search(rf"^\${name}:\s*(#[0-9a-f]{{6}})", text, re.M).group(1)
+    return re.search(rf"^\${name}:\s*(\$brand-[a-z-]+|#[0-9a-f]{{6}})", text, re.M).group(1)
 
 
 class Colors(unittest.TestCase):
     def test_same_as_theme(self):
-        self.assertEqual(figs.BLUE, scss("link-color"))
-        self.assertEqual(figs.ORANGE, scss("accent-2"))
-        self.assertEqual(figs.MUTED, scss("muted"))
-        self.assertEqual(figs.GRAY, scss("series-gray"))
-        self.assertEqual(figs.LINE, scss("line"))
+        # 色の正本は _brand.yml。テーマ（custom.scss の $brand-*）と figs が同じ palette を指すことを確かめる
+        import yaml
+        pal = yaml.safe_load((ROOT / "_brand.yml").read_text(encoding="utf-8"))["color"]["palette"]
+        self.assertEqual(figs.BLUE, pal["blue"])
+        self.assertEqual(figs.ORANGE, pal["orange"])
+        self.assertEqual(figs.MUTED, pal["muted"])
+        self.assertEqual(figs.GRAY, pal["gray"])
+        self.assertEqual(figs.LINE, pal["line"])
+        self.assertEqual(scss("accent-2"), "$brand-orange")
+        self.assertEqual(scss("series-gray"), "$brand-gray")
 
 
 class Figures(unittest.TestCase):

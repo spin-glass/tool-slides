@@ -1,0 +1,34 @@
+# デザインの正本（Quarto の brand.yml）。色・書体はここだけで決め、各所はここから読む:
+#   revealjs のテーマ（theme/*.scss の $brand-*）、parts.py・figs.py・imgfig.py（scripts/brand.py）、
+#   D2 のフロー図（parts.flow が classes を生成）、ECharts（parts.echart_bars）。
+# 他リポジトリへは `quarto use brand <このリポジトリ>` で複写するか、scripts/brand.py の export で JSON/CSS 変数を出す。
+meta:
+  name: spin-glass
+color:
+  palette:
+    blue: "#0b5cad"         # 主張・群A（白地 6.9:1）
+    orange: "#b35900"       # 注目・群B（4.9:1）。青と並べても色覚の違いで区別できる
+    orange-text: "#8a4500"  # 橙の見出し文字
+    gray: "#9aa4ae"         # 強調しない系列・枠線（図のみ。白地の文字には使わない 2.6:1）
+    red: "#c0392b"          # 吹き出し・警告
+    teal: "#1f5f5b"         # 構成バーの主区分
+    ink: "#1f2328"          # 本文 15.8:1
+    heading: "#111418"
+    muted: "#57606a"        # 出典・付録・番号 6.4:1
+    line: "#d0d7de"         # 表の横線・区切り
+    track: "#e9ecef"        # 横棒の地
+    blue-pale: "#eaf1fb"    # 図の結果の箱
+    white: "#ffffff"
+  foreground: ink
+  background: white
+  primary: blue
+typography:
+  fonts:
+    - family: Noto Sans JP
+      source: google
+      weight: [400, 700, 900]
+  base:
+    family: Noto Sans JP
+  headings:
+    family: Noto Sans JP
+    color: heading

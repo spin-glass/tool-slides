@@ -1,0 +1,9 @@
+{
+  "name": "tool-slides-d2",
+  "private": true,
+  "description": "parts.flow が使う D2（wasm 版）。版は固定。初回だけ `npm ci --prefix tools/d2`（parts.flow が無ければ自動で実行）",
+  "type": "module",
+  "dependencies": {
+    "@terrastruct/d2": "0.1.33"
+  }
+}

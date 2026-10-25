@@ -3,6 +3,8 @@ project:
   render:
     - "decks/**/index.qmd"
   output-dir: _output
+  resources:
+    - theme/vendor/*.js   # 同梱ライブラリ（GSAP・ECharts）を _output にも置く
 
 lang: ja
 
@@ -21,7 +23,8 @@ execute:
 
 format:
   revealjs:
-    theme: [default, theme/custom.scss]
+    theme: [default, theme/custom.scss, theme/infographic.scss]
+    include-after-body: [theme/vendor.html, theme/motion-gsap.html]   # 同梱ライブラリ（GSAP・ECharts）と図解型の部品の動き
     slide-number: true
     hash-type: number
     transition: none

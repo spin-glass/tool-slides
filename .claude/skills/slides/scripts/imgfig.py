@@ -62,16 +62,17 @@ import numpy as np
 from matplotlib.patches import Rectangle
 from PIL import Image
 
-BLUE = "#0b5cad"
-ORANGE = "#b35900"           # 青と橙は色覚の違いがあっても区別しやすい。theme/custom.scss の $accent-2 と同じ値
+import brand as _brand  # 色の正本は _brand.yml
+BLUE = _brand.color("blue")
+ORANGE = _brand.color("orange")           # 青と橙は色覚の違いがあっても区別しやすい。theme/custom.scss の $accent-2 と同じ値
 TEAL = "#0c8599"
 PURPLE = "#862e9c"
 PALETTE = [BLUE, ORANGE, TEAL, PURPLE]
 NORMAL_COLOR = BLUE          # 正常・正解・変化なし
 OUTLIER_COLOR = ORANGE       # 外れ値・誤り・変化あり
-INK = "#1f2328"
-MUTED = "#57606a"
-LINE = "#d0d7de"
+INK = _brand.color("ink")
+MUTED = _brand.color("muted")
+LINE = _brand.color("line")
 BG = "#f3f4f6"
 FONT_CANDIDATES = ["Hiragino Sans", "Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "Yu Gothic"]
 SLIDE_BOX = (1180, 400)      # 図に使える領域の目安（px）。1280×720 のスライドから、タイトル・bullets 2つ・出典行を除いた分

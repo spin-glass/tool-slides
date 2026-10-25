@@ -1,0 +1,171 @@
+---
+title: "推薦モデルBの全ユーザー切替を決める"
+subtitle: "2週間のA/Bテスト結果（2026-10-25、値は架空。動き＝GSAP、3枚目の図＝ECharts）"
+---
+
+<!-- audience: プロダクト責任者（推薦の中身は知らなくてよい） -->
+<!-- action: 新モデルBを全ユーザーへ切り替えるか、新規ユーザーだけに限るかを決める -->
+<!-- minutes: 5 -->
+<!-- budget: 4 -->
+<!-- status: approved -->
+<!-- decided-by: 本人「本番を想定してランニング以外の資料を具体例を考え作成してください」 2026-10-25 -->
+
+```{python}
+#| include: false
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path("../../.claude/skills/slides/scripts").resolve()))
+import numpy as np
+from scipy import stats
+import parts
+
+# 本番では集計SQLの結果（群×セグメントのセッション数・クリック数・購入数）をここで読む。
+# 検証用なので、現実的な比率の架空データを乱数で作る（seed固定）。手で数字を書かない。
+rng = np.random.default_rng(20261025)
+seg = {"新規": 0.28, "既存": 0.58, "休眠": 0.14}                      # セグメント比
+base_ctr = {"新規": 0.061, "既存": 0.084, "休眠": 0.039}             # A（現行）のクリック率
+lift = {"新規": 0.18, "既存": 0.09, "休眠": 0.02}                   # B の相対改善（真値）
+cvr_click = {"A": 0.112, "B": 0.101}                               # クリック後の購入率（Bは目を引く候補が増え、クリック当たりの購入は下がる想定）
+N = {"A": 48_210, "B": 48_377}
+rows = {}
+for g in N:
+    for s, p in seg.items():
+        n = int(round(N[g] * p))
+        ctr = base_ctr[s] * (1 + lift[s] if g == "B" else 1)
+        clicks = rng.binomial(n, ctr)
+        buys = rng.binomial(clicks, cvr_click[g])
+        rows[(g, s)] = (n, clicks, buys)
+
+def tot(g):
+    n = sum(v[0] for (gg, _), v in rows.items() if gg == g)
+    c = sum(v[1] for (gg, _), v in rows.items() if gg == g)
+    b = sum(v[2] for (gg, _), v in rows.items() if gg == g)
+    return n, c, b
+
+nA, cA, bA = tot("A"); nB, cB, bB = tot("B")
+ctrA, ctrB = cA / nA, cB / nB
+cvrA, cvrB = bA / nA, bB / nB
+ctr_lift = ctrB / ctrA - 1
+cvr_diff_pt = (cvrB - cvrA) * 100
+
+def ztest(x1, n1, x2, n2):
+    p = (x1 + x2) / (n1 + n2)
+    z = (x2 / n2 - x1 / n1) / np.sqrt(p * (1 - p) * (1 / n1 + 1 / n2))
+    return 2 * (1 - stats.norm.cdf(abs(z)))
+
+p_ctr = ztest(cA, nA, cB, nB)
+p_cvr = ztest(bA, nA, bB, nB)
+assert p_ctr < 0.05, "クリック率の差が有意でない：1枚目のタイトルを書き直す"
+assert p_cvr >= 0.05, "購入率の差が有意：1枚目のタイトル・吹き出しを書き直す"
+lift_s = f"{ctr_lift:.0%}"
+seg_share = {s: {g: rows[(g, s)][0] for g in N} for s in seg}
+
+# セグメント別のクリック率の伸び（相対、%）と95%区間（比の対数の正規近似）
+seg_lift, seg_ci = {}, {}
+for s in seg:
+    (na, ca, _), (nb, cb, _) = rows[("A", s)], rows[("B", s)]
+    pa, pb = ca / na, cb / nb
+    se = np.sqrt((1 - pa) / (na * pa) + (1 - pb) / (nb * pb))
+    seg_lift[s] = (pb / pa - 1) * 100
+    seg_ci[s] = ((pb / pa) * np.exp(-1.96 * se) * 100 - 100, (pb / pa) * np.exp(1.96 * se) * 100 - 100)
+sig = {s: not (lo <= 0 <= hi) for s, (lo, hi) in seg_ci.items()}
+assert sig["新規"] and sig["既存"] and not sig["休眠"], f"セグメント別の有意性が想定と違う: {sig}。3枚目のタイトルを書き直す"
+half_w = (seg_ci["休眠"][1] - seg_ci["休眠"][0]) / 2
+
+# 費用（仮定は明示。本番では請求の実績値を入れる）
+infer_cost_per_1k = {"A": 38, "B": 52}      # 円／1,000セッション（モデルBは特徴量が増える）
+monthly_sessions = 2_600_000
+cost_A = infer_cost_per_1k["A"] * monthly_sessions / 1000
+cost_B = infer_cost_per_1k["B"] * monthly_sessions / 1000
+cost_up_man = (cost_B - cost_A) / 10_000                      # 万円／月
+gross_per_buy = 1_250                                          # 購入1件あたりの粗利（仮定）
+extra_buys_month = monthly_sessions * (cvrB - cvrA)
+gross_up_man = extra_buys_month * gross_per_buy / 10_000       # 万円／月（点推定、有意でない）
+se_cvr = np.sqrt(cvrA * (1 - cvrA) / nA + cvrB * (1 - cvrB) / nB)
+gross_ci = tuple(monthly_sessions * (cvrB - cvrA + k * 1.96 * se_cvr) * gross_per_buy / 10_000 for k in (-1, 1))
+assert gross_ci[0] < 0 < gross_ci[1], "粗利の区間が0をまたがない：2枚目のタイトルを書き直す"
+cu = f"{cost_up_man:.1f}"
+m = lambda v, d=0: f"{v:+,.{d}f}".replace("-", "−")   # 表示用：負号は「−」
+```
+
+## 新モデルBはクリック率を`{python} lift_s`上げ、購入率は変えなかった
+
+<!-- evidence: 2群のセグメント構成が同じこと（構成バー）とクリック率の比較（横棒＋数え上げ） -->
+<!-- type: chart -->
+
+```{python}
+#| output: asis
+#| fig-alt: "ユーザーを半分ずつA・Bに分けて2週間。2群のセグメント構成（新規・既存・休眠）は同じ。クリック率はBがAより約1割高く、購入率の差は有意でない"
+print(parts.badge("決める", "全ユーザーへ\n切り替えるか", brand="A/Bテスト 第2回"))
+print(parts.pictos(10, highlight=5, label="ユーザーを半分ずつ2群に分けて2週間"))
+cols = {"新規": "blue", "既存": "teal", "休眠": "gray"}
+print(parts.stack([(f"{g} {lab}", [(f"{s} {seg_share[s][g]/N[g]:.0%}", seg_share[s][g], cols[s]) for s in seg])
+                   for g, lab in (("A", "現行"), ("B", "新"))], total=max(N.values()),
+                  alt="2群のセグメント構成（新規・既存・休眠）はほぼ同じ割合"))
+print(parts.callout(f"2群の構成は同じ。購入率の差 {m(cvr_diff_pt, 2)}pt は有意でない（p={p_cvr:.2f}）"))
+print('<div class="small muted" style="margin-top:14px">クリック率（クリック÷セッション）</div>')
+print(parts.bars(["A 現行", "B 新"], [ctrA * 100, ctrB * 100], highlight="B 新", unit="%", dec=1,
+                 alt=f"クリック率はA {ctrA:.1%}、B {ctrB:.1%}（p={p_ctr:.1e}）"))
+```
+
+::: {.source}
+出典：実験ログの集計（`{python} f"A {nA:,}・B {nB:,}"` セッション、2週間）。p値は2標本の比率のz検定。値は架空
+:::
+
+## 推論コストは月`{python} cu`万円増え、購入による粗利の増減は判定できない
+
+<!-- evidence: 月あたりの推論コスト増分（大きな数字）と、購入による粗利の95%区間 -->
+<!-- type: number -->
+
+```{python}
+#| output: asis
+#| fig-alt: "推論コストの増分は月約3.6万円。購入による粗利の変化は95%区間が0をまたぎ、増えるとも減るとも言えない"
+print(parts.stat(cost_up_man, unit="万円/月", label="推論コストの増分（B − A）", dec=1, sign=True))
+print(f'<div class="small muted" style="margin-top:18px">購入による粗利の変化（95%区間）</div>'
+      f'<div style="font-size:40px;font-weight:700">{m(gross_ci[0])} 〜 {m(gross_ci[1])} <small>万円/月</small>'
+      f'<span class="muted" style="font-size:22px;margin-left:12px">点推定 {m(gross_up_man)}。購入率の差は有意でない</span></div>')
+```
+
+- コストは1,000セッションあたり A `{python} infer_cost_per_1k["A"]`円・B `{python} infer_cost_per_1k["B"]`円、月`{python} f"{monthly_sessions/1e4:.0f}"`万セッションで計算
+- 粗利は購入1件`{python} f"{gross_per_buy:,}"`円の仮定。粗利で正当化できないので、切替の根拠はクリック増（回遊）に置く
+
+::: {.source}
+出典：推論基盤の請求（1,000セッションあたり単価）、月間セッション数は直近3か月平均。値は架空
+:::
+
+## 新規・既存のクリック率は約1割伸び、休眠は差を判定できない
+
+<!-- evidence: セグメント別のクリック率の相対改善と95%区間（ECharts の横棒。負の値は左へ） -->
+<!-- type: chart -->
+
+```{python}
+#| output: asis
+#| fig-alt: "セグメント別のクリック率の伸び。新規・既存は約+12%で区間が0を含まない。休眠は点推定が負で区間が0をまたぐ"
+labels = [f"{s}（{m(seg_ci[s][0])}〜{m(seg_ci[s][1])}%）" for s in seg]
+vals = [seg_lift[s] for s in seg]
+print('<div class="small muted" style="margin-bottom:10px">クリック率の相対改善（B÷A − 1）。括弧は95%区間</div>')
+print(parts.echart_bars(labels, vals, highlight=labels[:2], accent=labels[2], unit="%", dec=1, sign=True,
+                        alt=", ".join(f"{s} {v:+.1f}%" for s, v in seg_lift.items())))
+```
+
+- 休眠は人数が少なく区間が±`{python} f"{half_w:.0f}"`%と広い。モデルBが使う直近90日の行動特徴量がほぼ空なので、設計上も伸びは見込めない
+- 休眠向けは別の手（人気順・再訪クーポン）を次の実験で比べる
+
+::: {.source}
+出典：実験ログの集計をセグメント（直近90日の訪問回数）で分割。値は架空
+:::
+
+## 次に決めること：Bへ全ユーザー切替、休眠向けは次回の実験に回す
+
+<!-- evidence: 3案の対照表（効果・コスト・残る論点） -->
+<!-- type: table -->
+
+| 案 | クリック率 | 月コスト | 残る論点 |
+|---|---|---|---|
+| **全ユーザーをBへ（推奨）** | `{python} f"{ctr_lift:+.0%}"` | `{python} f"+{cost_up_man:.1f}万円"` | 粗利は判定できず、根拠はクリック増。休眠向けは別途 |
+| 新規ユーザーだけBへ | 新規のみ `{python} f"{seg_lift['新規']:+.0f}%"` | 約`{python} f"+{cost_up_man*seg['新規']:.1f}万円"` | 2モデル運用の手間、既存の`{python} f"{seg_lift['既存']:+.0f}%"`を捨てる |
+| Aのまま継続 | ±0 | ±0 | 改善を見送る理由が要る |
+
+::: {.source}
+出典：1〜3枚目の集計。値は架空
+:::
