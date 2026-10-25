@@ -52,7 +52,7 @@ $ig-red: $brand-red;
 .reveal .ig-hbar .track { height: 40px; background: $ig-track; border-radius: 20px; overflow: hidden; }
 .reveal .ig-hbar .fill { height: 100%; width: 0; border-radius: 20px; background: var(--c, #{$ig-gray}); }
 .reveal .ig-hbar .val { font-size: 40px; font-weight: 900; color: var(--c, #{$ig-gray}); font-variant-numeric: tabular-nums; text-align: right; }
-.reveal .ig-hbar .val small { font-size: 22px; margin-left: 4px; }
+.reveal .ig-hbar .val small { font-size: 22px; margin-left: 4px; vertical-align: baseline; }   // reveal.js の small は top 揃え
 
 // 構成バー（100% を区分に分ける。区分ごとに幅と色）
 .reveal .ig-stack { display: flex; height: 60px; border-radius: 8px; overflow: hidden; margin: 10px 0; }
@@ -65,14 +65,17 @@ $ig-red: $brand-red;
 
 // 大きな数字（カウントアップ）
 .reveal .ig-stat { font-size: 64px; font-weight: 900; color: $ig-blue; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.reveal .ig-stat small { font-size: 28px; margin-left: 6px; color: $brand-muted; font-weight: 700; }
+.reveal .ig-stat small { font-size: 28px; margin-left: 6px; color: $brand-muted; font-weight: 700; vertical-align: baseline; line-height: 1; }
 
 // ECharts の図（parts.echart*）。高さは部品が style で指定する
 .reveal .ig-echart { width: 100%; }
 
 // 段階送り（data-ig-step）・線を描く（.ig-draw）・並び替え（.ig-flip）
 .reveal [data-ig-step] { opacity: 0; }
-.reveal .ig-draw > svg { width: 100%; height: auto; max-width: none !important; max-height: 470px; }   // D2 の図（parts.flow）
+.reveal .ig-draw > svg {   // D2 の図（parts.flow）。幅は元の0.8倍（--ig-max、文字24px）まで、高さは470pxまで
+  display: block; margin: 0 auto;
+  width: 100%; height: auto; max-width: min(100%, var(--ig-max, 100%)) !important; max-height: 470px;
+}
 .reveal .ig-flip { display: flex; flex-direction: column; gap: 10px; }
 .reveal .ig-flip .ig-hbar { margin: 0; }
 .reveal .fragment.ig-trigger { display: none; }   // 見えない fragment（クリックの合図だけ）

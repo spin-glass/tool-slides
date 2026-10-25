@@ -326,5 +326,10 @@ def flow(d2: str, alt: str = "", cache_dir: str | os.PathLike = "_flow", layout:
     text = re.sub(r"^<\?xml[^>]*>\s*", "", text)
     text = re.sub(r"\n[ \t]*\n+", "\n", text)   # 空行を消す。pandoc は raw HTML の中の空行で HTML を閉じ、残りを本文の文字にする（実測 2026-10-25）
     text = text.replace('preserveAspectRatio="xMinYMin meet"', 'preserveAspectRatio="xMidYMin meet"', 1)   # 枠の中で左右中央
+    # 拡大の上限: 箱の少ない図ほど幅いっぱいに引き伸ばされ、文字が他の枚の2倍（約40px）になっていた（2026-10-26、本人のデッキで実測）。
+    # D2 の文字は30px なので、元の幅の0.8倍（文字24px＝本文の部品と同じ大きさ）より大きくしない。縮むほうは render_check が知らせる
+    vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', text)
+    if vb:
+        text = text.replace("<svg ", f'<svg style="--ig-max:{float(vb.group(1)) * 0.8:.0f}px" ', 1)
     lab = f' role="img" aria-label="{html.escape(alt)}"' if alt else ""
     return f'<div class="ig-draw"{lab}>{text}</div>\n'
