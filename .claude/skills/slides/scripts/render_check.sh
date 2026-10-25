@@ -182,8 +182,17 @@ window.addEventListener('load', function () {
       s.querySelectorAll('img').forEach(function (im) {
         if (!im.closest('aside.notes')) imgs.push(Math.round(im.getBoundingClientRect().height / scale));
       });
+      // D2 の図（parts.flow）の文字の、スライド上での大きさ（px）。横に箱が多い図は縮んで文字が小さくなる
+      var flowFont = 0;
+      s.querySelectorAll('.ig-draw > svg').forEach(function (svg) {
+        var vb = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number), t = svg.querySelector('text');
+        if (vb.length < 4 || !vb[2] || !t) return;
+        var fs = parseFloat(t.style.fontSize || getComputedStyle(t).fontSize) || 30;
+        var px = fs * svg.getBoundingClientRect().width / scale / vb[2];
+        flowFont = flowFont ? Math.min(flowFont, px) : px;
+      });
       Object.keys(hits).forEach(function (k) { hits[k] = Math.round(hits[k]); });
-      out.push({n: i + 1, bottom: Math.round(bottom), height: H, overlaps: hits, imgs: imgs});
+      out.push({n: i + 1, bottom: Math.round(bottom), height: H, overlaps: hits, imgs: imgs, flowFont: Math.round(flowFont)});
     });
     document.body.setAttribute('data-layout', JSON.stringify(out));
   }
@@ -205,6 +214,10 @@ if not m:
     sys.exit(0)
 bad = 0
 for r in json.loads(html.unescape(m.group(1))):
+    num, ff = r["n"], r.get("flowFont", 0)
+    if 0 < ff < 20:
+        print(f"WARNING スライド{num}: 図（parts.flow）の文字が約{ff}px と小さい（本文の部品は22〜28px）。"
+              "横に並ぶ箱を減らすか、先頭に direction: down を書いて縦に並べる")
     over_edge = r["bottom"] - r["height"]
     band, band_over = max(r["overlaps"].items(), key=lambda kv: kv[1], default=("", 0))
     over = max(over_edge, band_over)
