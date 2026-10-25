@@ -77,3 +77,29 @@ $ig-red: $brand-red;
 .reveal .ig-flip .ig-hbar { margin: 0; }
 .reveal .fragment.ig-trigger { display: none; }   // 見えない fragment（クリックの合図だけ）
 .reveal .fragment.ig-trigger.visible { display: none; }
+
+// カード列（parts.cards）と番号付きの要点（parts.steps）。公式 Slides 型の「カード行・番号付きまとめ」と同じ配置
+.reveal .ig-cards { display: flex; gap: 20px; align-items: stretch; margin: 6px 0 16px; }
+.reveal .ig-card {
+  flex: 1 1 0;
+  min-width: 0;
+  background: $brand-blue-pale;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.reveal .ig-card.hl { border-color: $ig-blue; background: #fff; }
+.reveal .ig-card .n { font-size: 36px; font-weight: 900; line-height: 1; color: $brand-orange-text; }
+.reveal .ig-card .t { font-size: 26px; font-weight: 700; line-height: 1.3; color: $ig-blue; }
+.reveal .ig-card .b { font-size: 22px; line-height: 1.45; }
+.reveal .ig-arrow { align-self: center; font-size: 36px; font-weight: 700; color: $ig-gray; flex: 0 0 auto; }
+.reveal .ig-steps { display: flex; flex-direction: column; margin: 6px 0 12px; }
+.reveal .ig-steps .row {
+  display: grid; grid-template-columns: 64px 1fr; gap: 16px; align-items: start;
+  padding: 16px 0; border-top: 1px solid $brand-line;
+}
+.reveal .ig-steps .row:last-child { border-bottom: 1px solid $brand-line; }
+.reveal .ig-steps .n { font-size: 44px; font-weight: 900; line-height: 1; color: $ig-blue; }
+.reveal .ig-steps .t { font-size: 28px; font-weight: 700; line-height: 1.3; }
+.reveal .ig-steps .b { font-size: 22px; line-height: 1.45; color: $brand-ink; }

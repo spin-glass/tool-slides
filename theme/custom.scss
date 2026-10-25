@@ -38,6 +38,36 @@ $line: $brand-line;                   // 表の横線・区切り
   margin: 0 0 32px;
 }
 
+// 章ラベル（kicker）: `## 見出し {kicker="設計"}` → filters/kicker.lua が見出しの中に入れる。見出しの上に小さく橙で出す
+// （既定の様式。見出しは全角20字までの短い句。この枚の主張は本文1行目の `[文]{.lead}` に書く）
+.reveal h2 .kicker {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  color: $accent-2-text;
+  margin-bottom: 8px;
+}
+
+// 付録の枚に章ラベルがあるときは「付録」を章ラベルの前に付けて1行にする（上の section.appendix::before と2段にしない）
+.reveal .slides section.appendix:has(> h2 .kicker)::before {
+  display: none;
+}
+.reveal .slides section.appendix h2 .kicker::before {
+  content: "付録｜";
+  color: $muted;
+}
+
+// 主張の1行（短い見出しの様式で、見出しの下に置く so-what）
+.reveal .lead {
+  display: block;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 20px;
+}
+
 .reveal h3 {
   font-size: 20px;
   font-weight: 700;

@@ -14,6 +14,7 @@ site-url: https://tool-slides.toshihiro-engineer.workers.dev
 # lint 用の HTML コメント（budget 等）が空スライドを作らないよう除く
 filters:
   - filters/strip-comments.lua
+  - filters/kicker.lua        # 章ラベル付きの短い見出し `## 見出し {kicker="章"}`（既定の様式）
 
 # コードセル（数値・図の計算）は .venv の Jupyter で実行する。環境変数 QUARTO_PYTHON=.venv/bin/python
 execute:

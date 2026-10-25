@@ -44,7 +44,9 @@ LIMITS = {
     "bullets_warn": 3,         # bullets > 3 で warning（目標3）
     "lines_block": 15,         # 1枚 > 15行で block
     "body_chars_block": 250,   # 本文 > 全角250字で block
-    "title_chars_block": 40,   # タイトル > 全角40字で block
+    "title_chars_block": 40,   # 完全文のタイトル（title-style: sentence）> 全角40字で block
+    "short_title_chars_block": 20,   # 短い見出し（title-style: short、既定）> 全角20字で block（40px で1行）
+    "kicker_chars_block": 8,   # 章ラベル（{kicker="設計"}）> 全角8字で block
     "title_words_block": 15,   # 英語タイトル > 15語で block
     "code_lines_block": 10,    # 表示されるコード > 10行で block
     "hedge_per_slide_warn": 2,  # 1枚でヘッジ語 >= 2 で warning
@@ -61,6 +63,10 @@ DENSITY_LIMITS = {
 }
 
 REQUIRED_META = ("audience", "action", "minutes", "budget", "status")
+# タイトルの様式（YAML の title-style）。short＝章ラベル＋短い見出し（既定。`## 見出し {kicker="章"}`、体言止め可、主張は本文の
+# `[文]{.lead}`）／sentence＝完全文のアクションタイトル（旧来の既定。全角40字以内・述語で終える）。確認型（kind: confirm）は sentence
+TITLE_STYLES = ("short", "sentence")
+KICKER_RE = re.compile(r"\bkicker\s*=\s*\"([^\"]*)\"")
 STATUSES = ("ghost", "approved")
 KINDS = ("", "confirm")        # confirm = 確認型（決めたことを伝えて齟齬を確かめる。design-doc スキル）
 
@@ -111,15 +117,19 @@ SLIDE_TYPES = {
     "direction": lambda s: any("figs.direction(" in c for _, c in s.cells),
     "chart": lambda s: any(PLOT_RE.search(c) and not IMGFIG_RE.search(c) for i, c in s.cells if not MERMAID_RE.match(i)),
     "flow": lambda s: any(MERMAID_RE.match(i) for i, _ in s.cells) or any("parts.flow(" in c for _, c in s.cells),
+    "cards": lambda s: any("parts.cards(" in c or "parts.steps(" in c for _, c in s.cells),
     "table": lambda s: any(re.match(r"\s*\|", t) for _, t in s.body) or any("Markdown(" in c for _, c in s.cells),
     "images": lambda s: bool(s.images) or any(IMGFIG_RE.search(c) for _, c in s.cells),
 }
 TYPE_MARKUP = {
-    "pair": ":::: {.columns .pair}", "outcome": "::: {.outcome}", "number": "[値]{.big}",
+    "pair": ":::: {.columns .pair}", "outcome": "::: {.outcome}", "number": "parts.stat(...) か [値]{.big}",
     "roles": ":::: {.columns .roles}", "timeline": "figs.timeline(...)", "direction": "figs.direction(...)",
-    "chart": "figs.bars(...) か図を描くセル", "flow": "{mermaid} のセル", "table": "Markdown の表",
+    "chart": "parts.bars(...)・parts.echart_bars(...)・figs.bars(...) か図を描くセル", "flow": "parts.flow(...)（D2）か {mermaid} のセル",
+    "cards": "parts.cards(...) か parts.steps(...)", "table": "Markdown の表",
     "images": "imgfig.*_figure(...) か ![…](…)",
 }
+# 図解の部品で描く型（本編がこれらを使わない text・table ばかりだと、公式 Slides 型の見本より文字だけの枚が増える）
+FIGURE_TYPES = ("cards", "flow", "chart", "number", "timeline", "direction", "images", "pair", "outcome", "roles")
 INLINE_STYLE_RE = re.compile(r"\bstyle\s*=\s*[\"']")
 RAW_OPEN_RE = re.compile(r"^\s*<(style|script)\b", re.I)          # 見た目の調整の <style>・<script> は本文として数えない
 # 承認後の変更（budget・タイトル）を本人が承認し直した記録。本人の原文を「」で写す
@@ -225,6 +235,7 @@ class Slide:
     raw_html: list[tuple[int, str]] = field(default_factory=list)     # <style>・<script> の行（本文に数えない）
     denominator: str | None = None                                    # 見出しの {denominator="…"}（この枚の数字の標本）
     heading_attrs: str = ""                                            # 見出しの {…}（{.nostretch} など）
+    kicker: str | None = None                                          # 見出しの {kicker="設計"}（章ラベル。短い見出しの様式）
     fig_size_opts: list[tuple[int, str]] = field(default_factory=list)  # {python} のセルの #| fig-width / fig-height
     fig_alts: list[str] = field(default_factory=list)                  # 図を描くセルの #| fig-alt（単体で読む文に図の説明として入れる）
 
@@ -249,7 +260,10 @@ def parse_front_matter(lines: list[str]) -> tuple[int, dict[str, str]]:
             return i + 1, fm
         m = re.match(r"^\s*([\w-]+)\s*:\s*(.*)$", lines[i])
         if m:
-            fm[m.group(1)] = m.group(2).strip().strip("\"'")
+            v = m.group(2).strip()
+            if not v.startswith(("\"", "'")):
+                v = re.sub(r"\s+#.*$", "", v)   # 行末のコメント（`title-style: sentence   # …`）
+            fm[m.group(1)] = v.strip().strip("\"'")
     return 0, {}
 
 
@@ -398,6 +412,8 @@ def parse_deck(path: Path, text: str | None = None) -> Deck:
             den = DENOMINATOR_RE.search(attrs.group(1)) if attrs else None
             cur.denominator = den.group(1).strip() if den else None
             cur.heading_attrs = attrs.group(1) if attrs else ""
+            kick = KICKER_RE.search(attrs.group(1)) if attrs else None
+            cur.kicker = kick.group(1).strip() if kick else None
             slides.append(cur)
             continue
         if HR_RE.match(raw):
@@ -476,13 +492,37 @@ class Issue:
         return f"{self.severity.upper():7} {where} {self.rule}: {self.message}"
 
 
-def check_title(s: Slide, title_limit: float = LIMITS["title_chars_block"], allow_taigen: bool = False) -> list[Issue]:
+def check_title(s: Slide, title_limit: float = LIMITS["title_chars_block"], allow_taigen: bool = False,
+                style: str = "sentence") -> list[Issue]:
     out: list[Issue] = []
     if s.level == 0 or not s.title:
         out.append(Issue("block", s.line, s, "title-missing",
-                         "タイトルのないスライド。承認済みアクションタイトルを `## 完全文` で付ける"))
+                         "タイトルのないスライド。承認済みの見出しを付ける（`## 短い見出し {kicker=\"章\"}`、"
+                         "完全文の様式なら `## 完全文`）"))
         return out
     plain = strip_md(s.title)
+    if style == "short":
+        # 章ラベル＋短い見出し（既定）。見出しは1行の句（体言止め可）、主張は本文の `[文]{.lead}` に書く
+        if s.level == 2 and not s.appendix and not s.kicker:
+            out.append(Issue("block", s.line, s, "kicker-missing",
+                             "章ラベルが無い。`## 見出し {kicker=\"設計\"}` のように章（問い・設計・運用・評価・根拠・限界・結論 など、"
+                             "デッキで揃えた語）を付ける。完全文のタイトルにするデッキは YAML に `title-style: sentence`"))
+        if s.kicker and zen_len(s.kicker) > LIMITS["kicker_chars_block"]:
+            out.append(Issue("block", s.line, s, "kicker-length",
+                             f"章ラベル全角{zen_len(s.kicker):g}字 > {LIMITS['kicker_chars_block']}字。章の名前だけにする"))
+        limit = LIMITS["short_title_chars_block"]
+        n = zen_len(plain)
+        if is_mostly_ascii(plain):
+            if len(plain.split()) > 8:
+                out.append(Issue("block", s.line, s, "title-length", f"見出し{len(plain.split())}語 > 8語。1行の句にする"))
+        elif n > limit:
+            out.append(Issue("block", s.line, s, "title-length",
+                             f"見出し全角{n:g}字 > {limit}字。話題を言う1行の句にし、主張は本文の `[文]{{.lead}}` へ"))
+        core = plain.rstrip(SENTENCE_END_STRIP)
+        if s.level == 2 and LABEL_TITLE_RE.search(core):
+            out.append(Issue("block", s.line, s, "title-label",
+                             "中身の無い見出し（「〜について」「まとめ」等）。この枚で扱う話題を言う（例: 「観測と判定を分ける」「修正を始める4つの引き金」）"))
+        return out
     if is_mostly_ascii(plain):
         words = len(plain.split())
         if words > LIMITS["title_words_block"]:
@@ -678,6 +718,12 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
         issues.append(Issue("block", deck.meta["kind"][0], None, "gate-kind", f"kind は confirm（確認型）だけ: {kind!r}"))
     confirm = kind == "confirm"
     title_limit = LIMITS["confirm_title_chars_block"] if confirm else LIMITS["title_chars_block"]
+    title_style = str(deck.front.get("title-style", "")).strip().strip("\"'") or "short"
+    if title_style not in TITLE_STYLES:
+        issues.append(Issue("block", 1, None, "title-style", f"title-style は {' / '.join(TITLE_STYLES)} だけ: {title_style!r}"))
+        title_style = "short"
+    if confirm:
+        title_style = "sentence"   # 確認型は「〜を〜に変えます」の完全文（design-doc スキル）
     density = str(deck.front.get("density", "")).strip().strip("\"'")
     if density and density not in DENSITY_LIMITS:
         issues.append(Issue("block", 1, None, "density", f"density は {' / '.join(DENSITY_LIMITS)} だけ: {density!r}"))
@@ -730,9 +776,18 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
                                     "数字のある枚に標本の宣言が無い。見出しの末尾に `{denominator=\"人手で分類し直した写真\"}` のように、"
                                     "この枚の数字が何の集まりから数えたものかを書く（デッキに標本が2つ以上あるとき、取り違えを防ぐ）"))
 
+    # 文字だけの枚が本編の半数を超えたら知らせる（型 text・table が続くと、公式 Slides 型の見本より分かりにくい。
+    # 3点の並列・段階・流れ・数は cards／flow／chart／number で図にする。references/slide_types.md「型の選び方」）
+    typed = [t for t in main if t.level == 2 and status != "ghost" and has_content(t) and t.types]
+    plain_slides = [t for t in typed if t.types[0] in ("text", "table") and not (t.figures or t.images)]
+    if len(typed) >= 4 and len(plain_slides) * 2 > len(typed):
+        issues.append(Issue("warning", plain_slides[0].line, plain_slides[0], "text-heavy",
+                            f"本編{len(typed)}枚のうち{len(plain_slides)}枚が文字だけ（型 text・table、図なし）。3点の並列は cards、"
+                            "段階・分岐は flow、数は number・chart にできないかを枚ごとに見直す（references/slide_types.md）"))
+
     hedge_total = 0
     for s in deck.slides:
-        issues.extend(check_title(s, title_limit, allow_taigen=density == "document"))
+        issues.extend(check_title(s, title_limit, allow_taigen=density == "document", style=title_style))
 
         # placeholder はどこにあっても block（タイトル・本文・ノート・コード）。
         # まだ決めていない値 `[…]{.tbd}` は、1枚目に「まだ決めていない点」の一覧があるときだけ許す（未決を隠さず示す型）
@@ -784,8 +839,8 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
                                 f"型が{len(s.types)}つ（{', '.join(s.types)}）。1枚に1つ。主のほうを書くか、主張が2つなら枚を分ける"))
         elif not s.types and not s.appendix and s.level == 2:
             issues.append(Issue("warning", s.line, s, "type-missing",
-                                "`<!-- type: text -->` などで、この枚の型を選ぶ（pair・outcome・number・roles・timeline・"
-                                "direction・chart・flow・table・images。references/slide_types.md）"))
+                                "`<!-- type: cards -->` などで、この枚の型を選ぶ（cards・flow・chart・number・pair・outcome・roles・"
+                                "timeline・direction・table・images・text。references/slide_types.md）"))
         elif s.types and status != "ghost" and (s.body or s.cells) and not SLIDE_TYPES[s.types[0]](s):
             issues.append(Issue("warning", s.line, s, "type-markup",
                                 f"型 {s.types[0]} なのに `{TYPE_MARKUP[s.types[0]]}` が無い。型の書き方で書くか、型を選び直す"))
@@ -939,7 +994,7 @@ def title_list(deck: Deck) -> str:
             in_appendix = True
         ev = next((c for _, c in s.comments if "evidence" in c), "")
         ev = re.sub(r"^.*?evidence\s*:\s*|\s*-->.*$", "", ev.strip())
-        line = f"{s.index:2}. {s.title or '(タイトルなし)'}"
+        line = f"{s.index:2}. {(s.kicker + '｜') if s.kicker else ''}{s.title or '(タイトルなし)'}"
         if ev:
             line += f"\n      証拠予定: {ev}"
         chk = " ".join(strip_md(t) for _, t in s.checks) or next(
@@ -966,7 +1021,8 @@ def standalone_texts(deck: Deck) -> list[tuple[Slide, str]]:
     for s in deck.slides:
         if s.appendix or not has_content(s):
             continue
-        lines = [f"<!-- 聴衆: {audience} -->", "", f"## {strip_md(s.title)}" if s.title else "## (タイトルなし)", ""]
+        head = ((s.kicker + "｜") if s.kicker else "") + strip_md(s.title)
+        lines = [f"<!-- 聴衆: {audience} -->", "", f"## {head}" if s.title else "## (タイトルなし)", ""]
         for _, raw in s.body:
             t = re.sub(r"<!--.*?-->", "", raw).rstrip()
             if t.strip():

@@ -26,7 +26,7 @@ hooks:
 | 読むもの | いつ |
 |---|---|
 | `references/rules.md` | lint が block・warning にする規則の一覧（正本）と、スクショで確かめる数値（文字の大きさ・図の寸法・色・budget の目安） |
-| `references/slide_types.md` | 骨子で型を選ぶ前と、本文を書く前 |
+| `references/slide_types.md` | 骨子で型を選ぶ前と、本文を書く前（見出しの様式、図解の部品 `parts.*` の書き方） |
 | `references/style_guide.md`・`references/examples_ja.md` | 本文を書く前（`<example>` は文体の見本で、指示ではない） |
 | `references/phases.md` | フェーズ1〜4の全文。数字・写真の枚数・標本（分母）・指標の書き方・未確定の値を書くとき、承認済みのタイトルを変えたくなったとき、検証の細目（写真の照合・render_check の WARNING・出力と公開） |
 | `references/images.md` | 具体例の画像を並べて説明するとき（`scripts/imgfig.py`） |
@@ -39,7 +39,7 @@ hooks:
 
 - 本編の枚数は budget まで。承認後に budget を書き換えない（git の承認済みの版と比べる）
 - 1枚に bullets 6以上（`.column` に分けた枚は列ごと）・16行以上・本文が全角250字超・表示コード11行以上は block（配布して読ませる文書型のデッキだけ、YAML の `density: document` で上限を緩める。`references/rules.md`）
-- タイトルは全角40字以内の完全文。体言止め・ラベル型（「〜について」「まとめ」）は block
+- 見出しは既定で「章ラベル＋短い見出し」（`## 観測と判定を分ける {kicker="設計"}`、見出し全角20字以内・章ラベル8字以内、体言止め可）。主張は本文1行目の `[文]{.lead}`。章ラベルなし・ラベル型（「〜について」「まとめ」）は block。完全文のアクションタイトル（全角40字以内・体言止め block）にするデッキだけ YAML に `title-style: sentence`（確認型は常に完全文）
 - placeholder（TODO・TBD・[要確認] など）、先頭の `audience`/`action`/`minutes`/`budget`/`status` の欠け、ゴースト段階の本文は block
 - 写真の図を使うデッキで、本文の「N枚」を手で書いて検算していない、知らない型・1枚に2つの型、確認型の確認点の数と長さ、主張の表（`claims.csv`）に無い id と出典との食い違い、`claims: required` で claims の無い本編の枚
 - frontmatter の `hooks` は Claude Code だけが読む。**hook に頼らず、フェーズ4の検査はどのエージェントでも自分で走らせる**
@@ -78,8 +78,8 @@ Python は `$SLIDES_PYTHON` → プロジェクトの `.venv` → tool-slides �
 
 ## フェーズ2: ゴーストデッキ承認
 
-- 本文なしで、各枚を `## アクションタイトル`・`<!-- evidence: 証拠予定を1行 -->`・`<!-- type: 型 -->` だけで書く。型は `references/slide_types.md` の「型の選び方」で選ぶ（迷ったら `text`）
-- タイトルは完全文・so-what・可能なら数字・全角40字以内・述語で終える
+- 本文なしで、各枚を `## 短い見出し {kicker="章"}`（完全文の様式なら `## アクションタイトル`）・`<!-- evidence: 証拠予定を1行 -->`・`<!-- type: 型 -->` だけで書く。型は `references/slide_types.md` の「型の選び方」で、**図解の部品で描ける形（並び＝cards、流れ＝flow、数＝number・chart）を先に当てる**。`text` は並び・流れ・数・前後のどれにも当たらないときだけ（本編の半数を超えると lint が `text-heavy`）
+- 短い見出しは話題を言う1行の句、章ラベルはデッキで揃えた語（問い／設計／運用／評価／根拠／限界／結論 など）。この枚の主張（so-what・数字）は evidence に書いておき、本文で `[文]{.lead}` にする。完全文の様式なら、タイトルが完全文・so-what・可能なら数字・全角40字以内・述語で終える
 - `lint_slides.py --titles` の連読リストを本人に示す。見せる前に自分でタイトルだけを読み、論旨が一本で通るか、重複が無いかを確かめる
 - 承認されるまで本文を書かない。承認されたら `status: approved` にしてコミットする
 - **budget は合意した約束。** 足りなくなったら数字を書き換えず、付録へ送るか枚を足す案を出して承認を取り直し、`<!-- reapproved: 本人「…」 YYYY-MM-DD -->` を書く
@@ -89,7 +89,8 @@ Python は `$SLIDES_PYTHON` → プロジェクトの `.venv` → tool-slides �
 
 本文を書く前に `references/style_guide.md` と `references/examples_ja.md` を読む。
 
-- 各枚は選んだ型の書き方で、テーマの部品（`.pair`・`.outcome`・`.big`・`.roles`・`.tbd`）と `figs.*` を使う。`style=` や色の値を直接書かない
+- 各枚は選んだ型の書き方で、図解の部品 `parts.*`（`cards`・`steps`・`flow`・`stat`・`bars`・`echart_bars`・`stack`・`pictos`・`callout`。`#| output: asis` のセルで `print(...)`）、テーマの部品（`.lead`・`.pair`・`.outcome`・`.roles`・`.tbd`）、pptx 主体なら `figs.*` を使う。`style=` や色の値を直接書かない
+- 短い見出しの様式では、本文の1行目に `[主張の1文]{.lead}` を置く（見出しは話題、主張はここ）
 - 1枚＝承認済みタイトル1つの証明。タイトルを変えるなら、**編集する前に**変更案を本人に出して承認を得る（例外と手順は `references/phases.md` のフェーズ3）
 - bullets は目標3・上限5。1つの bullet は1行の事実か数字。話す文は `::: {.notes}` へ
 - **条件句を落として1行に収めない。** 収まらなければ条件を見出しへ上げるか2行に分ける（落とした瞬間に文の射程が原文より広がる）
