@@ -17,6 +17,7 @@
       （本人の承認を取り直した記録 <!-- reapproved: 本人「…」 YYYY-MM-DD --> を新しく書けば見ない）。
 行動が「選ぶ・判断する」のデッキで、最後の枚に図も表も無ければ warning（判断の根拠を付録へ送らない）。
 標本: 見出しの {denominator="…"} を1枚でも書いたデッキでは、数字のある本編の枚に宣言が無ければ warning。
+動き: YAML の motion は true（既定）/ false だけ。false のデッキに段階送り（fragment・data-ig-step・並び替え）があれば warning。
 本文の字数・行数に <style>・<script> の中は数えない。
 
 終了コード（通常モード）: 0=block違反なし / 2=block違反あり
@@ -69,6 +70,11 @@ TITLE_STYLES = ("short", "sentence")
 KICKER_RE = re.compile(r"\bkicker\s*=\s*\"([^\"]*)\"")
 STATUSES = ("ghost", "approved")
 KINDS = ("", "confirm")        # confirm = 確認型（決めたことを伝えて齟齬を確かめる。design-doc スキル）
+# 動きの有無（YAML の motion）。true＝枚を開くと図解の部品が動き、クリックで1段ずつ出す（既定）／false＝最終状態で出し、
+# 段階送りもしない（filters/motion.lua → theme/motion-gsap.html）
+MOTIONS = ("true", "false")
+# 段階送り（クリックで出す前提の書き方）。motion: false では最初から全部出る
+STEP_RE = re.compile(r"\bfragment\b|data-ig-step|data-ig-flip|(?<!non)incremental\b")
 
 # 体言止め・ラベル型タイトル
 LABEL_TITLE_RE = re.compile(
@@ -728,6 +734,17 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
     if density and density not in DENSITY_LIMITS:
         issues.append(Issue("block", 1, None, "density", f"density は {' / '.join(DENSITY_LIMITS)} だけ: {density!r}"))
     lim = {**LIMITS, **DENSITY_LIMITS.get(density, {})}
+    motion = motion_of(deck)
+    if motion not in MOTIONS:
+        issues.append(Issue("block", 1, None, "motion", f"motion は true（動きあり、既定）/ false（動きなし）だけ: {motion!r}"))
+    elif motion == "false":
+        stepped = [t for t in deck.slides
+                   if any(STEP_RE.search(x) for x in [t.heading_attrs, *t.divs, *(b for _, b in t.body), *(c for _, c in t.cells)])]
+        whole = str(deck.front.get("incremental", "")).strip().lower() == "true"   # YAML の incremental: true は全枚
+        for t in ([None] if whole else []) + stepped:
+            issues.append(Issue("warning", t.line if t else 1, t, "motion-steps",
+                                "motion: false のデッキでは段階送り（fragment・data-ig-step・並び替え・incremental）をせず、最初から全部"
+                                "（並び替えは後の順）で出る。クリックで出す前提の本文・ノートを、全部が見えている枚として読み直す"))
     has_undecided = any(s.undecided for s in deck.slides)
     claims, claim_errors, claim_warns = load_claims_for(deck.path.parent)
     # claims.csv があるデッキは `claims: required` と同じに扱う。表があるのに宣言が無いと claims の無い枚が通り、
@@ -978,11 +995,18 @@ def check_deck(deck: Deck, ng: dict[str, list[re.Pattern]], baseline: Deck | Non
     return issues
 
 
+def motion_of(deck: Deck) -> str:
+    """YAML の motion（書かなければ既定の true）。YAML の真偽値は大文字でもよいので小文字にそろえる。"""
+    return str(deck.front.get("motion", "")).strip().strip("\"'").lower() or "true"
+
+
 def title_list(deck: Deck) -> str:
     out = [f"# タイトル連読（{deck.path}）"]
     main = [s for s in deck.slides if not s.appendix]
     budget = deck.meta.get("budget", (0, "?"))[1]
     out.append(f"本編 {len(main)} / budget {budget}")
+    out.append("動き: なし（motion: false。図は最終状態で出し、段階送りもしない）" if motion_of(deck) == "false"
+               else "動き: あり（枚を開くと図解の部品が動き、クリックで1段ずつ出せる。止めるなら YAML に motion: false）")
     if "decided-by" in deck.meta:
         out.append(f"決めた人: {deck.meta['decided-by'][1]}")
     if deck.meta.get("kind", (0, ""))[1]:
