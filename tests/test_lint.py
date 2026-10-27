@@ -285,3 +285,41 @@ class TitleStyle(unittest.TestCase):
         deck, _ = self.deck("", "観測と判定を分ける {kicker=\"設計\"}")
         self.assertIn("設計｜観測と判定を分ける", lint.title_list(deck))
         self.assertIn("## 設計｜観測と判定を分ける", lint.standalone_texts(deck)[0][1])
+
+
+class Motion(unittest.TestCase):
+    """motion: true（既定）＝枚を開くと図解の部品が動く／false＝最終状態で出し、段階送りもしない（filters/motion.lua）。"""
+
+    def deck(self, front: str, body: str = "- 経理課が保留の項目を確かめる\n") -> tuple:
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "index.qmd"
+            p.write_text(f"---\ntitle: 架空\n{front}---\n\n<!-- audience: 経理部 -->\n<!-- action: 読んで承認する -->\n"
+                         "<!-- minutes: 5 -->\n<!-- budget: 2 -->\n<!-- status: approved -->\n\n"
+                         f"## 観測と判定を分ける {{kicker=\"設計\"}}\n\n<!-- type: text -->\n\n{body}", encoding="utf-8")
+            deck = lint.parse_deck(p)
+            return deck, [(i.severity, i.rule) for i in lint.check_deck(deck, NG)]
+
+    def test_default_is_motion_on(self):
+        deck, found = self.deck("")
+        self.assertNotIn(("block", "motion"), found)
+        self.assertIn("動き: あり", lint.title_list(deck))
+        deck, found = self.deck("motion: false   # 配布するので\n")
+        self.assertNotIn(("block", "motion"), found)
+        self.assertIn("動き: なし", lint.title_list(deck))
+        _, found = self.deck("motion: False\n")                     # YAML の真偽値は大文字でもよい
+        self.assertNotIn(("block", "motion"), found)
+
+    def test_unknown_value_blocks(self):
+        _, found = self.deck("motion: off\n")                       # YAML 1.2（Quarto）では文字列になり、動きが止まらない
+        self.assertIn(("block", "motion"), found)
+
+    def test_steps_warn_only_when_motion_off(self):
+        cell = "```{python}\n#| output: asis\nprint('<div class=\"fragment\" data-ig-step=\"1\">段</div>')\n```\n"
+        _, found = self.deck("", cell)
+        self.assertNotIn(("warning", "motion-steps"), found)
+        _, found = self.deck("motion: false\n", cell)
+        self.assertIn(("warning", "motion-steps"), found)
+        _, found = self.deck("motion: false\n", "::: {.nonincremental}\n- 経理課が確かめる\n:::\n")
+        self.assertNotIn(("warning", "motion-steps"), found)
+        _, found = self.deck("motion: false\nincremental: true\n")
+        self.assertIn(("warning", "motion-steps"), found)

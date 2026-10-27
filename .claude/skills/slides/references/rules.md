@@ -25,6 +25,7 @@
 | 主張の表（デッキのフォルダに `claims.csv` があるとき） | `<!-- claims: C1 -->` の id が表にある | 無い id、未決の主張を未決と示さない枚。表の `path`・`rev`・`quote` で出典と照らし、quote が今の出典に無い（quote-not-found）・rev より後に出典が変わった（source-changed）・path があって quote が無い |
 | `claims: required`（デッキの YAML か、上の `_quarto.yml`・`_metadata.yml` の `metadata:`。デッキのフォルダに `claims.csv` があれば宣言が無くても同じ） | 本編の各枚に `<!-- claims: … -->` | claims の無い本編の枚（見出しだけの表紙・区切りは除く）、`claims.csv` が無い |
 | `density`（デッキの YAML） | 書かない（発表のデッキ）か `document` | `document` 以外の値 |
+| `motion`（デッキの YAML） | 書かない・`true`（動きあり、既定）か `false`（動きなし。最終状態で出し、段階送りもしない） | `true`・`false` 以外の値（`off`・`no` は Quarto では文字列になり、動きが止まらない） |
 
 ### 文書型の密度（`density: document`）
 
@@ -39,7 +40,7 @@
 
 発表に使うデッキには書かない。緩めた分は文の量が増えるだけで、1枚＝主張1つ・アクションタイトル・budget は変わらない。
 
-warning（止めないが直す）: 型が無い（type-missing）・型の書き方が本文に無い（type-markup）・本文に `style=` を直接書く（inline-style）・テーマに定義の無いクラスを書く（class-undefined。例 `{.e4}` は見た目が変わらず素通りする）・`{python}` のセルに `#| fig-width`/`#| fig-height` を書く（cell-fig-size。Jupyter では効かない）、承認後に本編のタイトルが変わった・枚が増えた（approved-title-changed）、行動が「選ぶ・判断する」のデッキで最後の枚に図も表も無い（action-evidence）、標本を宣言したデッキで数字のある枚に宣言が無い（denominator-missing）、バズワード、ヘッジ・言い訳・メタ前置き（1枚2個以上、または本編で0.3個/枚超）、画像の代替テキストなし、図を描くセルに `#| fig-alt:` なし、画像を並べた図に選び方（すべて・等間隔・上位・無作為など）の記載なし。
+warning（止めないが直す）: 型が無い（type-missing）・型の書き方が本文に無い（type-markup）・本文に `style=` を直接書く（inline-style）・テーマに定義の無いクラスを書く（class-undefined。例 `{.e4}` は見た目が変わらず素通りする）・`{python}` のセルに `#| fig-width`/`#| fig-height` を書く（cell-fig-size。Jupyter では効かない）、承認後に本編のタイトルが変わった・枚が増えた（approved-title-changed）、行動が「選ぶ・判断する」のデッキで最後の枚に図も表も無い（action-evidence）、標本を宣言したデッキで数字のある枚に宣言が無い（denominator-missing）、`motion: false` のデッキに段階送り（fragment・`data-ig-step`・並び替え・incremental）がある（motion-steps。最初から全部出る）、バズワード、ヘッジ・言い訳・メタ前置き（1枚2個以上、または本編で0.3個/枚超）、画像の代替テキストなし、図を描くセルに `#| fig-alt:` なし、画像を並べた図に選び方（すべて・等間隔・上位・無作為など）の記載なし。
 語彙は `references/ng_words.md`、根拠は `references/evidence.md`。閾値は最初の2〜3デッキで較正する。
 
 このスキルの frontmatter の `hooks` は Claude Code だけが読む（プロジェクトの `.claude/skills/slides` → `~/.claude/skills/slides` の順に lint を探し、どちらも無ければ何もしない）。

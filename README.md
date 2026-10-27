@@ -51,7 +51,7 @@ Devin は互換として `~/.claude/skills/` を読むので、上のリンク�
 ### 図解型の部品・動き・デザインの正本（2026-10-25）
 
 - **図解型の部品**（`.claude/skills/slides/scripts/parts.py`）: 横棒＋数え上げ `parts.bars`（ECharts 版 `parts.echart_bars`）、大きな数字 `parts.stat`、構成バー `parts.stack`、人のアイコン `parts.pictos`、章バッジ `parts.badge`、吹き出し `parts.callout`、分岐図 `parts.flow`（D2）。`#| output: asis` のセルで `print(...)`。書き方は `references/slide_types.md`、見本は `decks/2026-10-25-abtest-oss`・`decks/2026-10-25-gsap-demo`
-- **動き**（`theme/motion-gsap.html`）: revealjs で枚を開くたびに再生（GSAP・ECharts）。クリックで1段ずつ（`data-ig-step`）、並び替え（`.ig-flip`）。`render_check.sh` の全枚スクショ・PDF・`?print-pdf`・`?static` では最終状態。台本は `::: notes`、S キーで発表者ビュー
+- **動き**（`theme/motion-gsap.html`）: revealjs で枚を開くたびに再生（GSAP・ECharts）。クリックで1段ずつ（`data-ig-step`）、並び替え（`.ig-flip`）。`render_check.sh` の全枚スクショ・PDF・`?print-pdf`・`?static` では最終状態。台本は `::: notes`、S キーで発表者ビュー。デッキの YAML に `motion: false` と書くと、発表中も動かさず段階送りもしない（`filters/motion.lua`。既定は動きあり。スキルはフェーズ1で動きの有無を尋ねる）
 - **同梱ライブラリ**（`theme/vendor/`、版と sha256 は `VERSIONS.md`）: GSAP 3.15.0（Webflow の無償ライセンス。OSI の OSS ではない）、ECharts 6.1.0（Apache-2.0）。CDN は使わない
 - **D2**（`tools/d2/`、`@terrastruct/d2` 0.1.33 を版固定）: `parts.flow` が初回に `npm ci` を走らせる（node が要る）。Noto Sans JP は `SLIDES_FONT_TTF` → `theme/fonts/` → `~/.cache/tool-slides`（無ければ google/fonts から取得、OFL）
 - **デザインの正本 `_brand.yml`**（Quarto の brand.yml）: 色・書体はここだけで決める。テーマの SCSS は `$brand-*`（rules 層で参照。defaults 層では未定義）、Python は `scripts/brand.py`（`brand.color("blue")`）。他のリポジトリへは `python3 .claude/skills/slides/scripts/brand.py --css`／`--json` で書き出す

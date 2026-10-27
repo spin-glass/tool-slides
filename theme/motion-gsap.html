@@ -2,9 +2,11 @@
 // theme/motion-gsap.html — 図解型の部品（parts.*）の動きを GSAP のタイムラインで、ECharts の図（parts.echart*）を枚の表示時に描く。
 // 枚が表示されたとき（reveal.js の slidechanged / ready）に、開くたびに最初から再生する。
 // 次のときは動かさず最終状態（全枚スクショ・PDF 用）: window.SLIDES_STATIC（render_check.sh の写し）／URL の ?print-pdf・?static
+// デッキの YAML に motion: false（filters/motion.lua が window.SLIDES_MOTION = false を入れる）なら、発表中も動かさず段階送りもしない
 (function () {
   // OS の「Reduce motion」は見ない（発表者の端末の設定で、話しながら見せる動きまで消えてしまうため。2026-10-25 実際に起きた）
-  var STATIC = window.SLIDES_STATIC === true || /[?&](print-pdf|static)\b/.test(location.search);
+  var OFF = window.SLIDES_MOTION === false;
+  var STATIC = OFF || window.SLIDES_STATIC === true || /[?&](print-pdf|static)\b/.test(location.search);
   var DUR = 1.6, EASE = "power3.out";
 
   function fmt(el) {  // data-dec / data-prefix / data-sign → 数値の書式（負は常に「−」＋絶対値）
@@ -152,9 +154,12 @@
   }
   function setup() {
     if (STATIC) {
+      // motion: false は fragment を最初から全部出し、クリックで次の枚へ進む（reveal.js が準備を終える前なら、終えたときに効く）
+      if (OFF) Reveal.configure({ fragments: false });
       document.querySelectorAll(".reveal .slides section").forEach(function (s) { run(s, true); });
-      // ?static で開いたときは、隠れた枚の図は大きさが取れないので表示時に描く
+      // ?static・motion: false で開いたときは、隠れた枚の図は大きさが取れないので表示時に描く（開いた最初の枚は ready で）
       Reveal.on("slidechanged", function (e) { charts(e.currentSlide, false); });
+      if (!(Reveal.isReady && Reveal.isReady())) Reveal.on("ready", function (e) { charts(e.currentSlide, false); });
       return;
     }
     Reveal.on("slidechanged", function (e) { run(e.currentSlide, false); });

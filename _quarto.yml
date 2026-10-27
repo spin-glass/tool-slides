@@ -15,6 +15,7 @@ site-url: https://tool-slides.toshihiro-engineer.workers.dev
 filters:
   - filters/strip-comments.lua
   - filters/kicker.lua        # 章ラベル付きの短い見出し `## 見出し {kicker="章"}`（既定の様式）
+  - filters/motion.lua        # デッキの YAML に `motion: false` なら、図解の部品を動かさず段階送りもしない（既定は動きあり）
 
 # コードセル（数値・図の計算）は .venv の Jupyter で実行する。環境変数 QUARTO_PYTHON=.venv/bin/python
 execute:
