@@ -16,7 +16,7 @@ https://app.notion.com/p/3e6600398c038173abdcef9a34be981f （追記 2026-09-30�
 | 本文を削る／appendix | coherence 効果 d=0.86（23/23実験）に対し、見出し・強調を足す signaling は d=0.41（Mayer & Fiorella 2014）。Cromley & Chen 2025 の g=1.00 は論文本体で未確認 | 教育研究（23件の実験すべてで支持） |
 | 話す文はノートへ | redundancy 効果 d=0.86 | 教育研究 |
 | ヘッジを減らし言い切る | 確信口調の回答の平均47%が誤りで、読者はヘッジで信頼を割り引けない（Zhou et al. ACL 2024） https://arxiv.org/abs/2401.06730 | LLM研究 |
-| lint による機械検査 | 実デッキ140本の90%超が認知原則違反、観察者は欠陥を言語化できない（Kosslyn 2012） https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2012.00230/full | 認知科学 |
+| lint による機械検査 | 実デッキ140本のどれも、2通りの採点基準のどちらでも違反ゼロとはならなかった。観察者は違反を見分けにくく、見分けても何が問題かを説明できないことが多い（Kosslyn et al. 2012） https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2012.00230/full | 認知科学 |
 | Stop hook で強制 | 「LLMが選ぶのを当てにせず、ある行動が常に起きる」 https://code.claude.com/docs/en/hooks-guide | 公式 |
 | 画像で説明する（実例を並べる） | 画像で見せると閾値の判断が良くなるかを直接確かめた研究は未発見。近い結果: 事例単位の表示（Squares）は混同行列より速く正確に性能を読めた（Ren et al. 2017, IEEE TVCG、ML実務者24人。事例は画像ではなく箱で、課題も閾値選びではない） https://www.microsoft.com/en-us/research/publication/squares-supporting-interactive-performance-analysis-multiclass-classifiers/ | HCI研究（隣接・小規模） |
 | 見せる画像は規則で選ぶ | 例を見せる説明は作業の成績を上げず、誤った助言でも利用者を従わせた（van der Waa et al. 2021, Artificial Intelligence 291:103404） https://repository.tudelft.nl/record/uuid:bff6a600-f6d9-4486-910b-36c8a847afa3 | HCI研究 |
